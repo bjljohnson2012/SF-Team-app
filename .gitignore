@@ -7,3 +7,4 @@
 
 # Local prod retrieve — not the source of truth, and not for a public repo
 force-app/
+manifest/
