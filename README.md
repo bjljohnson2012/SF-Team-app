@@ -1,5 +1,7 @@
 # GTM - Team Johnson
 
+**Handoff:** start at [next steps.md](next%20steps.md), then `AGENTS.md`.
+
 Interim Salesforce DX home for **GTM - Team Johnson**, a GTM-style item manager. Formal pipeline still lives in euna-salesforce when that cutover completes.
 
 This repo only owns the Team Johnson app. Do not change other Salesforce apps (GTM CC, Task Management, etc.).
