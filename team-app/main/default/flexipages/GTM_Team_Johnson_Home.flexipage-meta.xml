@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>GTM - Team Johnson home: existing Quick Task Kanban as the item board.</description>
+    <flexiPageRegions>
+        <itemInstances>
+            <componentInstance>
+                <componentName>quickTaskKanban</componentName>
+                <identifier>quickTaskKanban</identifier>
+            </componentInstance>
+        </itemInstances>
+        <name>main</name>
+        <type>Region</type>
+    </flexiPageRegions>
+    <masterLabel>GTM - Team Johnson Home</masterLabel>
+    <template>
+        <name>runtime_service_it_compliance:itGrcHomeTemplateOneRegion</name>
+    </template>
+    <type>HomePage</type>
+</FlexiPage>
