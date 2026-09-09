@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <content>SF_Team_Home</content>
+        <formFactor>Large</formFactor>
+        <skipRecordTypeSelect>false</skipRecordTypeSelect>
+        <type>Flexipage</type>
+        <pageOrSobjectType>standard-home</pageOrSobjectType>
+    </actionOverrides>
+    <description>Team item manager. GTM Command Center-style navigation over existing Quick_Task__c records. Interim app home until euna-salesforce CI/CD is formal.</description>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>true</isNavPersonalizationDisabled>
+    <isNavTabPersistenceDisabled>true</isNavTabPersistenceDisabled>
+    <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
+    <label>SF Team</label>
+    <navType>Standard</navType>
+    <tabs>Quick_Task_Kanban</tabs>
+    <tabs>Quick_Task_Create</tabs>
+    <tabs>Quick_Task__c</tabs>
+    <uiType>Lightning</uiType>
+</CustomApplication>

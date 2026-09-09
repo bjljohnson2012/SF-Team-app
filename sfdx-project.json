@@ -1,0 +1,15 @@
+{
+  "packageDirectories": [
+    {
+      "path": "team-app",
+      "default": true
+    },
+    {
+      "path": "force-app"
+    }
+  ],
+  "name": "sf-team-app",
+  "namespace": "",
+  "sfdcLoginUrl": "https://euna.my.salesforce.com",
+  "sourceApiVersion": "67.0"
+}
