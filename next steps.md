@@ -1,6 +1,6 @@
 # Next steps — GTM - Team Johnson
 
-**Read this file first.** Then read `AGENTS.md`. Then look at `team-app/` only.
+**Read this file first.** Then look at `team-app/` only. Full `AGENTS.md` is not on this public branch yet; the Hard rules below are the working subset.
 
 This repo is the interim home for one Salesforce Lightning app until euna-salesforce CI/CD is formal. A prior local Cursor session retrieved production metadata for context; **that retrieve is not in this repo** (public GitHub). The org is the source of truth.
 
@@ -65,7 +65,7 @@ The app **reuses** (do not modify these apps; tabs/LWCs already live in prod):
 | App in Salesforce (deployed) | **No.** Metadata is in git only. |
 | Check-only validate | **Not run.** |
 | PR into `main` | **No.** Work is on `feature/sf-team-app`. |
-| `AGENTS.md` on this branch | Must be present (see repo root). |
+| `AGENTS.md` on this branch | **Not on GitHub yet** (upload blocked). Use the Hard rules in this file; add `AGENTS.md` from the prior local session if you have it. |
 | sf-review checklists | **Missing.** They live in euna-salesforce at `.claude/sf-review-references/`. A prior review did **not** clear a deploy. |
 | Naming-standard doc | **Missing** from this repo. |
 | Sandbox `euna-full` auth | **Skipped.** |
@@ -100,9 +100,9 @@ The app **reuses** (do not modify these apps; tabs/LWCs already live in prod):
 ## Repo map
 
 ```
-AGENTS.md                 Binding engineering rules — read after this file
+AGENTS.md                 Binding engineering rules — not on this public branch yet
 README.md                 Short project summary
-next steps.md             This handoff
+next steps.md             This handoff (read first)
 sfdx-project.json         DX project (default: team-app)
 team-app/                 Only metadata this project owns
 force-app/                Local retrieve only; gitignored; not on GitHub
