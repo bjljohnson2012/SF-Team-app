@@ -1,0 +1,4 @@
+{
+  "name": "SF-Team-app",
+  "install": "npm config set prefix \"$(dirname \"$(dirname \"$(command -v npm)\")\")\" && npm install --global @salesforce/cli && sf --version"
+}
