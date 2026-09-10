@@ -1,5 +1,11 @@
 import { LightningElement, wire } from 'lwc';
+import { refreshApex } from '@salesforce/apex';
 import load from '@salesforce/apex/CockpitForecastController.load';
+import getCreatedPipeline from '@salesforce/apex/CockpitForecastController.getCreatedPipeline';
+import getConversion from '@salesforce/apex/CockpitForecastController.getConversion';
+import setInCall from '@salesforce/apex/CockpitForecastController.setInCall';
+import setOverride from '@salesforce/apex/CockpitForecastController.setOverride';
+import applyDefaultPicks from '@salesforce/apex/CockpitForecastController.applyDefaultPicks';
 
 const SFBASE = 'https://euna.my.salesforce.com/';
 
@@ -56,10 +62,13 @@ const TABS = [
     { id: 't1', label: 'Summary' },
     { id: 't2', label: 'Current Qtr' },
     { id: 't3', label: 'Next Qtr' },
-    { id: 't4', label: 'Pull-Ins' }
+    { id: 't4', label: 'Pull-Ins' },
+    { id: 't5', label: 'Created Pipeline' },
+    { id: 't6', label: 'Conversion Metrics' }
 ];
 const CLS_META = { HI: ['p-hi', 'Include-High'], MD: ['p-med', 'Include-Med'], EX: ['p-ex', 'Exclude'] };
 const BAND_META = { 'Commit': 'p-com', 'Most Likely': 'p-ml', 'Best Case': 'p-bc', 'Pipeline': 'p-pipe', 'Omitted': 'p-om' };
+const CLASS_CHIPS = [['ALL', 'All'], ['PICK', 'In call'], ['HI', 'High'], ['MD', 'Med'], ['EX', 'Exclude']];
 
 export default class ForecastHub extends LightningElement {
     loading = true;
@@ -68,40 +77,49 @@ export default class ForecastHub extends LightningElement {
     teamSize;
     qLabelA;
     qLabelB;
+    aeNames = [];
     activeTab = 't1';
     wHi = 85; wMed = 30; wPull = 20;
-    overrides = {};
-    pickDev = {};
+    aeFilter = 'ALL';
+    classFilter = 'ALL';
+    createdRows = [];
+    conversionRows = [];
+    wiredLoad;
 
     @wire(load)
-    handle({ data, error }) {
+    handle(result) {
+        this.wiredLoad = result;
         this.loading = false;
-        if (data) {
-            this.deals = data.deals || [];
-            this.teamSize = data.teamSize;
-            this.qLabelA = data.qLabelA;
-            this.qLabelB = data.qLabelB;
-            this.overrides = { ...SEED };
+        if (result.data) {
+            this.deals = result.data.deals || [];
+            this.teamSize = result.data.teamSize;
+            this.qLabelA = result.data.qLabelA;
+            this.qLabelB = result.data.qLabelB;
+            this.aeNames = result.data.aeNames || [];
             this.error = undefined;
-        } else if (error) {
-            this.error = (error.body && error.body.message) || 'Could not load the Forecasting Hub.';
+        } else if (result.error) {
+            this.error = (result.error.body && result.error.body.message) || 'Could not load the Forecasting Hub.';
         }
     }
 
+    @wire(getCreatedPipeline)
+    wiredCP({ data }) { if (data) this.createdRows = data; }
+
+    @wire(getConversion)
+    wiredCV({ data }) { if (data) this.conversionRows = data; }
+
     money(n) { return (n == null || isNaN(n)) ? '$0' : '$' + Math.round(n).toLocaleString('en-US'); }
-    clsOf(d) { const o = this.overrides[d.id]; return o ? o[0] : d.klass; }
-    noteOf(d) { const o = this.overrides[d.id]; return o ? o[1] : null; }
-    isPicked(d) {
-        const cls = this.clsOf(d);
-        const def = cls === 'HI' || cls === 'MD';
-        return this.pickDev[d.id] !== undefined ? this.pickDev[d.id] : def;
-    }
+    pctFmt(n) { return (n == null || isNaN(n)) ? '-' : (n * 100).toFixed(1) + '%'; }
+
+    // effective class: persisted field override > seeded judgment > engine class
+    clsOf(d) { return d.overrideCls || (SEED[d.id] ? SEED[d.id][0] : d.klass); }
+    noteOf(d) { return d.overrideNote || (SEED[d.id] ? SEED[d.id][1] : null); }
 
     decorate(d) {
         const cls = this.clsOf(d);
         const meta = CLS_META[cls] || CLS_META.EX;
         const note = this.noteOf(d);
-        const picked = this.isPicked(d);
+        const picked = d.inCall === true;
         return {
             id: d.id, account: d.account, ae: d.ae, stage: d.stage, score: d.score,
             arr: d.arr, arrFmt: this.money(d.arr), reason: d.reason, note, hasNote: !!note,
@@ -113,14 +131,45 @@ export default class ForecastHub extends LightningElement {
         };
     }
 
+    passesFilter(row) {
+        if (this.aeFilter !== 'ALL' && row.ae !== this.aeFilter) return false;
+        if (this.classFilter === 'ALL') return true;
+        if (this.classFilter === 'PICK') return row.picked;
+        return row.cls === this.classFilter;
+    }
+
     rowsFor(bucket) {
         return this.deals
             .filter((d) => d.bucket === bucket)
             .sort((a, b) => (b.arr || 0) - (a.arr || 0))
-            .map((d) => this.decorate(d));
+            .map((d) => this.decorate(d))
+            .filter((r) => this.passesFilter(r));
     }
     get currentRows() { return this.rowsFor('A'); }
     get nextRows() { return this.rowsFor('B'); }
+
+    get aeOptions() {
+        return [{ v: 'ALL', label: 'All AEs', sel: this.aeFilter === 'ALL' }]
+            .concat(this.aeNames.map((n) => ({ v: n, label: n, sel: this.aeFilter === n })));
+    }
+    get classChips() {
+        return CLASS_CHIPS.map((c) => ({ v: c[0], label: c[1], cls: this.classFilter === c[0] ? 'on' : '' }));
+    }
+    get createdDisplay() {
+        return this.createdRows.map((r) => ({
+            label: r.label, bookedArr: this.money(r.bookedArr), createdArr: this.money(r.createdArr),
+            bookedN: r.bookedN, createdN: r.createdN
+        }));
+    }
+    get conversionDisplay() {
+        return this.conversionRows.map((r) => ({
+            band: r.band, bandPill: 'pill ' + (BAND_META[r.band] || 'p-pipe'),
+            total: r.total, won: r.won, winRate: this.pctFmt(r.winRate),
+            totalArr: this.money(r.totalArr), wonArr: this.money(r.wonArr), winRateArr: this.pctFmt(r.winRateArr)
+        }));
+    }
+    get hasCreated() { return this.createdDisplay.length > 0; }
+    get hasConversion() { return this.conversionDisplay.length > 0; }
 
     totals(rows) {
         let hi = 0, md = 0, pickedArr = 0, pickedN = 0;
@@ -168,34 +217,42 @@ export default class ForecastHub extends LightningElement {
     get isCurrent() { return this.activeTab === 't2'; }
     get isNext() { return this.activeTab === 't3'; }
     get isPull() { return this.activeTab === 't4'; }
+    get isCreated() { return this.activeTab === 't5'; }
+    get isConversion() { return this.activeTab === 't6'; }
+    get showFilters() { return this.isCurrent || this.isNext; }
     get hasData() { return this.deals && this.deals.length > 0; }
     get noData() { return !this.loading && !this.error && !this.hasData; }
     get statusText() { return this.hasData ? this.deals.length + ' open opps \u00b7 ' + this.teamSize + ' AEs' : ''; }
 
     handleTab(e) { this.activeTab = e.currentTarget.dataset.t; }
-    handlePick(e) {
-        const id = e.currentTarget.dataset.id;
-        const d = this.deals.find((x) => x.id === id);
-        const cls = this.clsOf(d);
-        const def = cls === 'HI' || cls === 'MD';
-        const v = e.currentTarget.checked;
-        if (v === def) delete this.pickDev[id]; else this.pickDev[id] = v;
-        this.pickDev = { ...this.pickDev };
-    }
-    handleClass(e) {
-        const id = e.currentTarget.dataset.id;
-        const v = e.detail ? e.detail.value : e.target.value;
-        const d = this.deals.find((x) => x.id === id);
-        if (v === d.klass && !SEED[id]) delete this.overrides[id];
-        else this.overrides[id] = [v, this.overrides[id] ? this.overrides[id][1] : 'Manual override'];
-        this.overrides = { ...this.overrides };
-    }
+    handleAe(e) { this.aeFilter = e.target.value; }
+    handleChip(e) { this.classFilter = e.currentTarget.dataset.v; }
     handleWHi(e) { this.wHi = Number(e.target.value) || 0; }
     handleWMed(e) { this.wMed = Number(e.target.value) || 0; }
     handleWPull(e) { this.wPull = Number(e.target.value) || 0; }
-    reset() {
-        this.overrides = { ...SEED };
-        this.pickDev = {};
-        this.wHi = 85; this.wMed = 30; this.wPull = 20;
+
+    // ---- persistence: writes the director's fill-in fields to Salesforce ----
+    handlePick(e) {
+        const id = e.currentTarget.dataset.id;
+        const included = e.currentTarget.checked;
+        setInCall({ opportunityId: id, included })
+            .then(() => refreshApex(this.wiredLoad))
+            .catch((err) => { this.error = this.msg(err); });
     }
+    handleClass(e) {
+        const id = e.currentTarget.dataset.id;
+        const klass = e.target.value;
+        const d = this.deals.find((x) => x.id === id);
+        const note = (SEED[id] && SEED[id][0] === klass) ? SEED[id][1] : (d && d.overrideNote) || 'Director override';
+        setOverride({ opportunityId: id, klass, note })
+            .then(() => refreshApex(this.wiredLoad))
+            .catch((err) => { this.error = this.msg(err); });
+    }
+    applyDefaults() {
+        const bucket = this.isNext ? 'B' : 'A';
+        applyDefaultPicks({ bucket })
+            .then(() => refreshApex(this.wiredLoad))
+            .catch((err) => { this.error = this.msg(err); });
+    }
+    msg(err) { return (err && err.body && err.body.message) || 'Save failed.'; }
 }

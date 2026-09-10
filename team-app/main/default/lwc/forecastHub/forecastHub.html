@@ -22,7 +22,6 @@
             <div class="fh-f"><label>High %</label><input type="number" min="0" max="100" value={wHi} onchange={handleWHi}></div>
             <div class="fh-f"><label>Med %</label><input type="number" min="0" max="100" value={wMed} onchange={handleWMed}></div>
             <div class="fh-f"><label>Pull-in %</label><input type="number" min="0" max="100" value={wPull} onchange={handleWPull}></div>
-            <button class="fh-btn gh" onclick={reset}>Reset overrides</button>
             <span class="fh-status"><b>Live.</b> {statusText}</span>
         </div>
 
@@ -54,10 +53,18 @@
             <!-- Current Qtr -->
             <template lwc:if={isCurrent}>
                 <h2>Current quarter &mdash; {summary.qA}</h2>
+                <div class="fh-f" style="max-width:220px"><label>Filter by AE</label>
+                    <select onchange={handleAe}>
+                        <template for:each={aeOptions} for:item="o"><option key={o.v} value={o.v} selected={o.sel}>{o.label}</option></template>
+                    </select></div>
+                <div class="chips">
+                    <template for:each={classChips} for:item="c"><button key={c.v} class={c.cls} data-v={c.v} onclick={handleChip}>{c.label}</button></template>
+                </div>
                 <div class="builder">
                     <div class="it"><span class="k">Picked deals</span><span class="v">{currentTotals.n}</span></div>
                     <div class="it"><span class="k">Picked ARR</span><span class="v">{currentTotals.arr}</span></div>
                     <div class="it"><span class="k">Modeled call</span><span class="v g">{currentTotals.call}</span></div>
+                    <button class="fh-btn gh" style="margin-left:auto" onclick={applyDefaults}>Set call = engine defaults</button>
                 </div>
                 <div class="tw">
                     <table>
@@ -92,10 +99,18 @@
             <!-- Next Qtr -->
             <template lwc:if={isNext}>
                 <h2>Next quarter &mdash; {summary.qB}</h2>
+                <div class="fh-f" style="max-width:220px"><label>Filter by AE</label>
+                    <select onchange={handleAe}>
+                        <template for:each={aeOptions} for:item="o"><option key={o.v} value={o.v} selected={o.sel}>{o.label}</option></template>
+                    </select></div>
+                <div class="chips">
+                    <template for:each={classChips} for:item="c"><button key={c.v} class={c.cls} data-v={c.v} onclick={handleChip}>{c.label}</button></template>
+                </div>
                 <div class="builder">
                     <div class="it"><span class="k">Picked deals</span><span class="v">{nextTotals.n}</span></div>
                     <div class="it"><span class="k">Picked ARR</span><span class="v">{nextTotals.arr}</span></div>
                     <div class="it"><span class="k">Modeled call</span><span class="v g">{nextTotals.call}</span></div>
+                    <button class="fh-btn gh" style="margin-left:auto" onclick={applyDefaults}>Set call = engine defaults</button>
                 </div>
                 <div class="tw">
                     <table>
@@ -138,6 +153,40 @@
                         <p><span class="pi-against">Against:</span> {p.caseAgainst}</p>
                     </div>
                 </template>
+            </template>
+
+            <!-- Created Pipeline -->
+            <template lwc:if={isCreated}>
+                <h2>Created pipeline</h2>
+                <p class="lede">New-business bookings (won ARR by close quarter) against pipeline creation (ARR dated by the SQL gate), your team, trailing 8 quarters.</p>
+                <template lwc:if={hasCreated}>
+                    <div class="tw"><table>
+                        <thead><tr><th>Quarter</th><th class="num">Created #</th><th class="num">Created ARR</th><th class="num">Booked #</th><th class="num">Booked ARR</th></tr></thead>
+                        <tbody>
+                            <template for:each={createdDisplay} for:item="r">
+                                <tr key={r.label}><td>{r.label}</td><td class="num">{r.createdN}</td><td class="num">{r.createdArr}</td><td class="num">{r.bookedN}</td><td class="num">{r.bookedArr}</td></tr>
+                            </template>
+                        </tbody>
+                    </table></div>
+                </template>
+                <template lwc:else><div class="box"><p>No closed/created history in range for your team.</p></div></template>
+            </template>
+
+            <!-- Conversion Metrics -->
+            <template lwc:if={isConversion}>
+                <h2>Conversion metrics</h2>
+                <p class="lede">Win rate by the forecast band the deal held before it closed &mdash; by deal count and by ARR &mdash; your team, trailing 8 quarters. This is the band-to-close conversion the call weights should reflect.</p>
+                <template lwc:if={hasConversion}>
+                    <div class="tw"><table>
+                        <thead><tr><th>Band (before close)</th><th class="num">Deals</th><th class="num">Won</th><th class="num">Win rate</th><th class="num">Total ARR</th><th class="num">Won ARR</th><th class="num">Win rate ($)</th></tr></thead>
+                        <tbody>
+                            <template for:each={conversionDisplay} for:item="r">
+                                <tr key={r.band}><td><span class={r.bandPill}>{r.band}</span></td><td class="num">{r.total}</td><td class="num">{r.won}</td><td class="num">{r.winRate}</td><td class="num">{r.totalArr}</td><td class="num">{r.wonArr}</td><td class="num">{r.winRateArr}</td></tr>
+                            </template>
+                        </tbody>
+                    </table></div>
+                </template>
+                <template lwc:else><div class="box"><p>No closed history in range for your team.</p></div></template>
             </template>
         </div>
     </template>
