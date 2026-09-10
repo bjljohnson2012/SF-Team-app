@@ -17,5 +17,6 @@
     <label>GTM - Team Johnson</label>
     <navType>Standard</navType>
     <tabs>Team_Opportunity_Insights</tabs>
+    <tabs>Forecasting_Hub</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>
