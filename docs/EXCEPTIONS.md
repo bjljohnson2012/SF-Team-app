@@ -118,3 +118,16 @@ Toward a 100%-faithful cockpit. Adds persisted fill-in fields, AE/class filters,
 - **Approved by:** org owner (benjamin.johnson), "build it all in prod".
 - **Post-deploy verification:** anon Apex — setInCall/setOverride persisted (`true | HI | note`) then cleared; getCreatedPipeline 9 quarters; getConversion real band win-rates (Commit 96.5%, Best Case 23.3%, Pipeline 7.3%).
 - **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit; the 3 fields can remain (harmless) or be destructive-deleted.
+
+## 2026-09-10 — Forecasting Hub: Win Rate Truth + AE-by-AE (increment 2)
+
+Completes the four analytics tabs. Adds the creation-cohort win-rate model and per-AE conversion with loss-root diagnosis.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (3, changed):** `ApexClass:CockpitForecastController` (+ loss-reason->root map, `getWinRateTruth` cohort model with 4 denominators, `getAeConversion`), `ApexClass:CockpitForecastControllerTest`, `LightningComponentBundle:forecastHub` (Win Rate Truth + AE-by-AE tabs).
+- **Validated job id:** `0AfOL000003RvwX0AS` — 3/3, 5 tests, 0 failures; controller coverage 94%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 3/3, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (read-only aggregate analytics; `with sharing`). Formal `/sf-review` NOT run.
+- **Approved by:** org owner (benjamin.johnson), "build it all in prod".
+- **Post-deploy verification:** anon Apex — getWinRateTruth team row created 646 / won 121 / cohortWR 18.7% / contestedWR 31.0% / qualYield 60.4%; getAeConversion 6 reps with win rates 8.6%-44.4% and dominant loss root ENGAGE.
+- **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit.
