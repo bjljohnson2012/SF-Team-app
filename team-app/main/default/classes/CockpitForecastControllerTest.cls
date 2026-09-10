@@ -37,7 +37,8 @@ private class CockpitForecastControllerTest {
             System.assertEquals(1, pay.deals.size(), 'the rep deal is returned');
             System.assertEquals('Acme', pay.deals[0].account, 'account maps');
             System.assertNotEquals(null, pay.deals[0].klass, 'deal is classified');
-            System.assertNotEquals(null, pay.modeledCall, 'modeled call computed');
+            System.assertNotEquals(null, pay.deals[0].bucket, 'deal has a quarter bucket');
+            System.assertNotEquals(null, pay.qLabelA, 'current quarter label set');
         }
     }
 

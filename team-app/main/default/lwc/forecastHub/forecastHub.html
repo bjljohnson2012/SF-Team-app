@@ -1,67 +1,144 @@
 <template>
-    <lightning-card title="Forecasting Hub" icon-name="standard:forecasts">
-        <div class="slds-p-horizontal_small slds-p-bottom_small">
-            <template lwc:if={loading}>
-                <lightning-spinner size="small" alternative-text="Loading forecast"></lightning-spinner>
-            </template>
+    <div class="fh-header">
+        <h1>Forecast Submission Cockpit</h1>
+        <p class="sub">Director view &middot; team pipeline scored live from Salesforce, recomputed on refresh.</p>
+    </div>
+    <div class="fh-bar"></div>
 
-            <template lwc:if={error}>
-                <div class="slds-text-color_error slds-p-around_small">{error}</div>
-            </template>
+    <template lwc:if={loading}>
+        <div class="fh-body"><lightning-spinner size="small" alternative-text="Loading"></lightning-spinner></div>
+    </template>
 
-            <template lwc:if={hasData}>
-                <div class="slds-grid slds-gutters slds-wrap slds-p-bottom_small">
-                    <div class="slds-col slds-size_6-of-12 slds-medium-size_3-of-12">
-                        <div class="slds-box slds-box_x-small">
-                            <p class="slds-text-title_caps slds-text-color_weak">Team</p>
-                            <p class="slds-text-heading_medium">{teamSize}</p>
-                        </div>
-                    </div>
-                    <div class="slds-col slds-size_6-of-12 slds-medium-size_3-of-12">
-                        <div class="slds-box slds-box_x-small">
-                            <p class="slds-text-title_caps slds-text-color_weak">Open deals</p>
-                            <p class="slds-text-heading_medium">{dealCount}</p>
-                        </div>
-                    </div>
-                    <div class="slds-col slds-size_6-of-12 slds-medium-size_3-of-12">
-                        <div class="slds-box slds-box_x-small">
-                            <p class="slds-text-title_caps slds-text-color_weak">Include-High ARR</p>
-                            <p class="slds-text-heading_medium">
-                                <lightning-formatted-number value={highArr} format-style="currency"
-                                    currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="slds-col slds-size_6-of-12 slds-medium-size_3-of-12">
-                        <div class="slds-box slds-box_x-small">
-                            <p class="slds-text-title_caps slds-text-color_weak">Modeled call</p>
-                            <p class="slds-text-heading_medium">
-                                <lightning-formatted-number value={modeledCall} format-style="currency"
-                                    currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
-                            </p>
-                        </div>
-                    </div>
-                </div>
+    <template lwc:if={error}>
+        <div class="fh-body"><div class="err">{error}</div></div>
+    </template>
 
-                <p class="slds-text-body_small slds-text-color_weak slds-p-bottom_x-small">
-                    Window {quarterLabel} &middot; scored on stage, pricing, next step, activity, SQL gate
-                    &amp; close-date pushes. MEDDPICC depth and materialized scores arrive with the nightly batch.
-                </p>
+    <template lwc:if={noData}>
+        <div class="fh-body"><div class="box"><p>No open new-business opportunities found for your team in the current window.</p></div></div>
+    </template>
 
-                <lightning-datatable
-                    key-field="id"
-                    data={data}
-                    columns={columns}
-                    hide-checkbox-column
-                    column-widths-mode="auto">
-                </lightning-datatable>
-            </template>
+    <template lwc:if={hasData}>
+        <div class="fh-ctl">
+            <div class="fh-f"><label>High %</label><input type="number" min="0" max="100" value={wHi} onchange={handleWHi}></div>
+            <div class="fh-f"><label>Med %</label><input type="number" min="0" max="100" value={wMed} onchange={handleWMed}></div>
+            <div class="fh-f"><label>Pull-in %</label><input type="number" min="0" max="100" value={wPull} onchange={handleWPull}></div>
+            <button class="fh-btn gh" onclick={reset}>Reset overrides</button>
+            <span class="fh-status"><b>Live.</b> {statusText}</span>
+        </div>
 
-            <template lwc:if={noData}>
-                <div class="slds-p-around_small slds-text-color_weak">
-                    No open new-business opportunities found for your team in the current window.
-                </div>
+        <div class="fh-nav">
+            <template for:each={tabs} for:item="t">
+                <button key={t.id} class={t.cls} data-t={t.id} onclick={handleTab}>{t.label}</button>
             </template>
         </div>
-    </lightning-card>
+
+        <div class="fh-body">
+            <!-- Summary -->
+            <template lwc:if={isSummary}>
+                <h2>Forecast summary</h2>
+                <p class="lede">Your team's modeled call, driven by the evidence score and the strike-rate weights above. Seeded judgment overrides from the deep dive are already applied.</p>
+                <div class="cards">
+                    <div class="card hero"><div class="lab">Current Qtr call ({summary.qA})</div><div class="val">{summary.currentCall}</div><div class="note">High &times; {wHi}% + Med &times; {wMed}%</div></div>
+                    <div class="card hero"><div class="lab">Next Qtr call ({summary.qB})</div><div class="val">{summary.nextCall}</div><div class="note">weighted, picked deals</div></div>
+                    <div class="card"><div class="lab">Combined call</div><div class="val">{summary.combined}</div></div>
+                    <div class="card"><div class="lab">Team AEs</div><div class="val">{summary.teamSize}</div><div class="note">{summary.dealCount} open deals in window</div></div>
+                </div>
+                <div class="cards">
+                    <div class="card good"><div class="lab">Include-High ({summary.qA})</div><div class="val">{summary.hi}</div></div>
+                    <div class="card warn"><div class="lab">Include-Med ({summary.qA})</div><div class="val">{summary.md}</div></div>
+                    <div class="card"><div class="lab">Exclude ({summary.qA})</div><div class="val">{summary.ex}</div></div>
+                </div>
+                <div class="box info"><h4>How the call is built</h4><p>Every deal is scored on stage, pricing, next step, real activity, SQL gate and close-date pushes. High and Med deals are "in the call" by default; tick or untick on the Current/Next Qtr tabs. The call applies your strike rates to the picked ARR by class.</p></div>
+            </template>
+
+            <!-- Current Qtr -->
+            <template lwc:if={isCurrent}>
+                <h2>Current quarter &mdash; {summary.qA}</h2>
+                <div class="builder">
+                    <div class="it"><span class="k">Picked deals</span><span class="v">{currentTotals.n}</span></div>
+                    <div class="it"><span class="k">Picked ARR</span><span class="v">{currentTotals.arr}</span></div>
+                    <div class="it"><span class="k">Modeled call</span><span class="v g">{currentTotals.call}</span></div>
+                </div>
+                <div class="tw">
+                    <table>
+                        <thead><tr>
+                            <th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th>
+                            <th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Signals</th>
+                        </tr></thead>
+                        <tbody>
+                            <template for:each={currentRows} for:item="d">
+                                <tr key={d.id} class={d.rowClass}>
+                                    <td class="cb"><input type="checkbox" class="chk" checked={d.picked} data-id={d.id} onchange={handlePick}></td>
+                                    <td><a href={d.url} target="_blank">{d.account}</a>
+                                        <template lwc:if={d.hasNote}><div class="ovnote">{d.note}</div></template></td>
+                                    <td>{d.ae}</td>
+                                    <td>{d.stage}</td>
+                                    <td><span class={d.bandPill}>{d.band}</span></td>
+                                    <td class="num">{d.arrFmt}</td>
+                                    <td><select class={d.selClass} data-id={d.id} onchange={handleClass}>
+                                        <template for:each={d.clsOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></td>
+                                    <td class="num">{d.score}</td>
+                                    <td class="small">{d.reason}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <!-- Next Qtr -->
+            <template lwc:if={isNext}>
+                <h2>Next quarter &mdash; {summary.qB}</h2>
+                <div class="builder">
+                    <div class="it"><span class="k">Picked deals</span><span class="v">{nextTotals.n}</span></div>
+                    <div class="it"><span class="k">Picked ARR</span><span class="v">{nextTotals.arr}</span></div>
+                    <div class="it"><span class="k">Modeled call</span><span class="v g">{nextTotals.call}</span></div>
+                </div>
+                <div class="tw">
+                    <table>
+                        <thead><tr>
+                            <th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th>
+                            <th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Signals</th>
+                        </tr></thead>
+                        <tbody>
+                            <template for:each={nextRows} for:item="d">
+                                <tr key={d.id} class={d.rowClass}>
+                                    <td class="cb"><input type="checkbox" class="chk" checked={d.picked} data-id={d.id} onchange={handlePick}></td>
+                                    <td><a href={d.url} target="_blank">{d.account}</a>
+                                        <template lwc:if={d.hasNote}><div class="ovnote">{d.note}</div></template></td>
+                                    <td>{d.ae}</td>
+                                    <td>{d.stage}</td>
+                                    <td><span class={d.bandPill}>{d.band}</span></td>
+                                    <td class="num">{d.arrFmt}</td>
+                                    <td><select class={d.selClass} data-id={d.id} onchange={handleClass}>
+                                        <template for:each={d.clsOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></td>
+                                    <td class="num">{d.score}</td>
+                                    <td class="small">{d.reason}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <!-- Pull-Ins -->
+            <template lwc:if={isPull}>
+                <h2>Pull-in candidates</h2>
+                <p class="lede">Future deals with a case for counting them earlier &mdash; and the case against. Both sides are kept on the record; a pull-in list without the case against is a wish list.</p>
+                <template for:each={pullRows} for:item="p">
+                    <div key={p.id} class="box">
+                        <h4><a href={p.url} target="_blank">{p.account}</a> <span class={p.targetPill}>{p.target}</span> <span class="small">{p.arrFmt}</span></h4>
+                        <p><span class="pi-for">For:</span> {p.caseFor}</p>
+                        <p><span class="pi-against">Against:</span> {p.caseAgainst}</p>
+                    </div>
+                </template>
+            </template>
+        </div>
+    </template>
 </template>

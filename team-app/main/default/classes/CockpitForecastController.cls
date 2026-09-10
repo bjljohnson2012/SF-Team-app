@@ -9,7 +9,7 @@ public with sharing class CockpitForecastController {
 
     public class Deal {
         @AuraEnabled public Id id;
-        @AuraEnabled public String account, ae, stage, klass, reason, nextStep;
+        @AuraEnabled public String account, ae, stage, band, klass, reason, nextStep, bucket;
         @AuraEnabled public Decimal arr, pushes;
         @AuraEnabled public Integer score;
         @AuraEnabled public Date closeDate;
@@ -18,8 +18,7 @@ public with sharing class CockpitForecastController {
     public class Payload {
         @AuraEnabled public List<Deal> deals;
         @AuraEnabled public Integer teamSize;
-        @AuraEnabled public Decimal highArr, medArr, modeledCall;
-        @AuraEnabled public String quarterLabel;
+        @AuraEnabled public String qLabelA, qLabelB, qLabelC;
     }
 
     @AuraEnabled(cacheable=true)
@@ -33,13 +32,15 @@ public with sharing class CockpitForecastController {
         Date today = Date.today();
         Integer q = CockpitConstants.quarterOf(today);
         Date winStart = CockpitConstants.quarterStart(today.year(), q);
+        Date bStart = winStart.addMonths(3);   // start of next quarter
+        Date cStart = winStart.addMonths(6);    // start of quarter after
         Date winEnd = winStart.addMonths(9).addDays(-1);
 
         List<Opportunity> opps = [
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate,
-                   ARR_Opportunity_Amount_USD_Num__c, Pricing_Approval_Status__c,
-                   SQL_Datestamp_bf__c, Next_Step_Date_bf__c, Next_Step_bf__c,
-                   LastActivityDate
+                   ForecastCategoryName, ARR_Opportunity_Amount_USD_Num__c,
+                   Pricing_Approval_Status__c, SQL_Datestamp_bf__c,
+                   Next_Step_Date_bf__c, Next_Step_bf__c, LastActivityDate
             FROM Opportunity
             WHERE IsClosed = false
               AND OwnerId IN :owners
@@ -48,7 +49,7 @@ public with sharing class CockpitForecastController {
               AND CloseDate >= :winStart AND CloseDate <= :winEnd
             WITH USER_MODE
             ORDER BY ARR_Opportunity_Amount_USD_Num__c DESC NULLS LAST
-            LIMIT 500
+            LIMIT 800
         ];
 
         Map<Id, Decimal> pushMap = pushCounts(new Map<Id, Opportunity>(opps).keySet());
@@ -56,8 +57,6 @@ public with sharing class CockpitForecastController {
         Payload p = new Payload();
         p.deals = new List<Deal>();
         p.teamSize = owners.size();
-        p.highArr = 0;
-        p.medArr = 0;
 
         for (Opportunity o : opps) {
             Decimal pushes = pushMap.containsKey(o.Id) ? pushMap.get(o.Id) : 0;
@@ -68,6 +67,7 @@ public with sharing class CockpitForecastController {
             d.account   = (o.Account != null) ? o.Account.Name : o.Name;
             d.ae        = (o.Owner != null) ? o.Owner.Name : null;
             d.stage     = o.StageName;
+            d.band      = o.ForecastCategoryName;
             d.arr       = o.ARR_Opportunity_Amount_USD_Num__c;
             d.closeDate = o.CloseDate;
             d.nextStep  = o.Next_Step_bf__c;
@@ -75,17 +75,17 @@ public with sharing class CockpitForecastController {
             d.score     = r.score;
             d.klass     = r.klass;
             d.reason    = r.reason;
+            d.bucket    = (o.CloseDate < bStart) ? 'A' : (o.CloseDate < cStart ? 'B' : 'C');
             p.deals.add(d);
-
-            if (d.arr != null) {
-                if (r.klass == 'HI') p.highArr += d.arr;
-                else if (r.klass == 'MD') p.medArr += d.arr;
-            }
         }
 
-        p.modeledCall = (p.highArr * CockpitConstants.WEIGHT_HIGH_PCT / 100)
-                      + (p.medArr * CockpitConstants.WEIGHT_MED_PCT / 100);
-        p.quarterLabel = today.year() + ' Q' + q + ' \u2192 +9mo';
+        p.qLabelA = 'Q' + q + ' ' + today.year();
+        Integer qb = (q == 4) ? 1 : q + 1;
+        Integer yb = (q == 4) ? today.year() + 1 : today.year();
+        p.qLabelB = 'Q' + qb + ' ' + yb;
+        Integer qc = (qb == 4) ? 1 : qb + 1;
+        Integer yc = (qb == 4) ? yb + 1 : yb;
+        p.qLabelC = 'Q' + qc + ' ' + yc;
         return p;
     }
 
