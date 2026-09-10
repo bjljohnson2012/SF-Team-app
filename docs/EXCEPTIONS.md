@@ -92,3 +92,16 @@ Adds a "Forecasting Hub" tab to the GTM - Team Johnson app: the director's team 
 - **Approved by:** org owner (benjamin.johnson), chose option B (safe prod subset).
 - **Post-deploy verification:** anonymous Apex ran `load()` as the director — team 6, 189 scored deals, mix HI:0/MD:47/EX:142, modeled call $518,514.60; app shows both `Team_Opportunity_Insights` and `Forecasting_Hub` tabs; `TabDefinition` returns "Forecasting Hub" as visible.
 - **Rollback:** remove `Forecasting_Hub` from the app tabs and destructive-delete the tab, LWC, and the four Cockpit classes (+ tests).
+
+## 2026-09-10 — Forecasting Hub redesign to match the cockpit UI
+
+Rebuilds the Forecasting Hub LWC to match the Forecast Cockpit's visuals and process: indigo/tricolor branding, tabbed nav (Summary, Current Qtr, Next Qtr, Pull-Ins), class pills (HI/MD/EX), forecast-band pills (Commit/Most Likely/Best Case/Pipeline/Omitted), a strike-rate weights bar, a "call builder" (tick deals into the call), seeded judgment overrides and pull-in cases ported from the cockpit.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (3, changed):** `ApexClass:CockpitForecastController` (added `ForecastCategoryName` band + quarter bucket A/B/C; returns raw scored deals + quarter labels for client-side weighting), `ApexClass:CockpitForecastControllerTest`, `LightningComponentBundle:forecastHub` (full multi-tab cockpit UI: js/html/css).
+- **Validated job id:** `0AfOL000003RtEn0AK` — `RunSpecifiedTests` (`CockpitForecastControllerTest`); 3/3, 2 tests, 0 failures; `CockpitForecastController` coverage 95%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 3/3 changed, 0 errors.
+- **Review verdict:** Manual diligence review — **PASS** (UI-only + controller field additions; still `with sharing` + `WITH USER_MODE`; scoring unchanged; SEED/PULL are display constants in the LWC). In-session weights/picks/class overrides are not persisted (persistence = Phase A records). Formal `/sf-review` NOT run — checklists absent from public repo.
+- **Approved by:** org owner (benjamin.johnson), "it didn't match the visuals and process".
+- **Post-deploy verification:** anonymous Apex `load()` — Q3 2026 | Q4 2026; buckets Current 36 / Next 97 / +1 57; bands Commit 6, Most Likely 16, Best Case 21, Pipeline 131; a rendered visual preview of the LWC markup+CSS confirmed the cockpit look (header, tricolor bar, weights bar, tabs, builder, class/band pills).
+- **Rollback:** revert `forecastHub` and `CockpitForecastController` to the prior commit on `cursor/team-opp-insights-91f8`.
