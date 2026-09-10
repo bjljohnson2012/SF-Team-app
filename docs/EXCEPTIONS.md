@@ -64,3 +64,17 @@ Removes the Quick Task tabs from the app (so it lands on the Team Opportunity In
 - **Approved by:** org owner (benjamin.johnson), "make all new tabs visible... I don't need the Task Kanban / New Task / Quick Tasks tabs".
 - **Post-deploy verification:** retrieve of `CustomApplication:GTM_Team_Johnson` shows 0 `<tabs>` (home override intact); `SetupEntityAccess` shows 2 ApexClass grants under `GTM_Team_Johnson_Access`.
 - **Rollback:** re-add the three `<tabs>` to the app; remove the two `classAccesses` from the permission set.
+
+## 2026-09-10 — GTM - Team Johnson "Main" nav tab
+
+Fixes the "This app doesn't have any navigation items" error: a Lightning app requires at least one nav tab, so the Home-override-only app failed to load. Adds a Lightning component tab (label "Main") hosting the Team Opportunity Insights LWC.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (4):** `CustomTab:Team_Opportunity_Insights` (new; label "Main"; `lwcComponent` teamOpportunityInsights), `LightningComponentBundle:teamOpportunityInsights` (added `lightning__Tab` target), `CustomApplication:GTM_Team_Johnson` (added `<tabs>Team_Opportunity_Insights</tabs>`; home override retained), `PermissionSet:GTM_Team_Johnson_Access` (added tab visibility).
+- **Validated job id:** `0AfOL000003Rqf70AC` — `RunSpecifiedTests` (`AccountGradeOverrideHandlerTest`); 4/4, 0 errors.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 4/4 changed, 0 errors.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick`.
+- **Review verdict:** Manual diligence review — **PASS** (component tab reuses the existing LWC; permission set adds only that tab's visibility). Formal `/sf-review` NOT run (checklists absent from public repo).
+- **Approved by:** org owner (benjamin.johnson), "There needs to be a tab just called Main / or home".
+- **Post-deploy verification:** app retrieve shows `<tabs>Team_Opportunity_Insights</tabs>`; `TabDefinition` returns the tab (label "Main") as visible to the user; UI screenshot not captured (CLI frontdoor blocked by the org's SSO password-change wall).
+- **Rollback:** remove the tab from the app + destructive-delete `CustomTab:Team_Opportunity_Insights` (would reintroduce the no-nav-items error unless another tab is added).
