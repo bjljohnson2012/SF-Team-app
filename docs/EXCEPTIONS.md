@@ -105,3 +105,16 @@ Rebuilds the Forecasting Hub LWC to match the Forecast Cockpit's visuals and pro
 - **Approved by:** org owner (benjamin.johnson), "it didn't match the visuals and process".
 - **Post-deploy verification:** anonymous Apex `load()` — Q3 2026 | Q4 2026; buckets Current 36 / Next 97 / +1 57; bands Commit 6, Most Likely 16, Best Case 21, Pipeline 131; a rendered visual preview of the LWC markup+CSS confirmed the cockpit look (header, tricolor bar, weights bar, tabs, builder, class/band pills).
 - **Rollback:** revert `forecastHub` and `CockpitForecastController` to the prior commit on `cursor/team-opp-insights-91f8`.
+
+## 2026-09-10 — Forecasting Hub: persistence + filters + 2 analytics tabs (increment 1)
+
+Toward a 100%-faithful cockpit. Adds persisted fill-in fields, AE/class filters, and the Created Pipeline + Conversion Metrics tabs. (Win Rate Truth + AE-by-AE = increment 2.)
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (7):** 3 Opportunity fields — `Cockpit_In_Call__c` (Checkbox), `Cockpit_Class_Override__c` (Picklist HI/MD/EX), `Cockpit_Override_Note__c` (Text 255); `ApexClass:CockpitForecastController` (+ `setInCall`, `setOverride`, `applyDefaultPicks`, `getCreatedPipeline`, `getConversion`; reads persisted fields); `ApexClass:CockpitForecastControllerTest`; `LightningComponentBundle:forecastHub` (persisted checkbox/override wiring, AE dropdown + class chips, 2 analytics tabs); `PermissionSet:GTM_Team_Johnson_Access` (FLS on the 3 fields).
+- **Validated job id:** `0AfOL000003RvoT0AS` — `RunSpecifiedTests` (`CockpitForecastControllerTest`); 7/7, 5 tests, 0 failures; controller coverage 94%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 7/7, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (`with sharing`; writes via `AccessLevel.USER_MODE`; new fields non-tracked; analytics are aggregate/read-only). Formal `/sf-review` NOT run (checklists absent from public repo).
+- **Approved by:** org owner (benjamin.johnson), "build it all in prod".
+- **Post-deploy verification:** anon Apex — setInCall/setOverride persisted (`true | HI | note`) then cleared; getCreatedPipeline 9 quarters; getConversion real band win-rates (Commit 96.5%, Best Case 23.3%, Pipeline 7.3%).
+- **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit; the 3 fields can remain (harmless) or be destructive-deleted.
