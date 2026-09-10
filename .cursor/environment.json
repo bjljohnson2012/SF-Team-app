@@ -1,4 +1,5 @@
 {
   "name": "SF-Team-app",
-  "install": "NPM_CONFIG_PREFIX=\"$(dirname \"$(dirname \"$(command -v npm)\")\")\" npm install --global @salesforce/cli && sf --version"
+  "install": "NPM_CONFIG_PREFIX=\"$(dirname \"$(dirname \"$(command -v npm)\")\")\" npm install --global @salesforce/cli && sf --version",
+  "start": "if [ -n \"$SF_AUTH_URL\" ]; then umask 077; f=$(mktemp); printf \"%s\" \"$SF_AUTH_URL\" > \"$f\"; sf org login sfdx-url --sfdx-url-file \"$f\" --alias euna --set-default >/dev/null 2>&1 && echo \"Authenticated euna org\" || echo \"SF_AUTH_URL set but sf login failed (continuing)\"; rm -f \"$f\"; else echo \"SF_AUTH_URL not set; skipping org auth\"; fi"
 }
