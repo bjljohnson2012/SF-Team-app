@@ -78,3 +78,17 @@ Fixes the "This app doesn't have any navigation items" error: a Lightning app re
 - **Approved by:** org owner (benjamin.johnson), "There needs to be a tab just called Main / or home".
 - **Post-deploy verification:** app retrieve shows `<tabs>Team_Opportunity_Insights</tabs>`; `TabDefinition` returns the tab (label "Main") as visible to the user; UI screenshot not captured (CLI frontdoor blocked by the org's SSO password-change wall).
 - **Rollback:** remove the tab from the app + destructive-delete `CustomTab:Team_Opportunity_Insights` (would reintroduce the no-nav-items error unless another tab is added).
+
+## 2026-09-10 — Forecasting Hub tab (Cockpit Phase B, read-only)
+
+Adds a "Forecasting Hub" tab to the GTM - Team Johnson app: the director's team pipeline with deterministic evidence scoring and a modeled-call number (guide Phase B; the stateful MEDDPICC/batch/override/cohort layers are deferred to the sandbox build).
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (11):** ApexClasses `CockpitConstants`, `CockpitScoreService`, `CockpitRosterService`, `CockpitForecastController` (+ 3 test classes); `LightningComponentBundle:forecastHub`; `CustomTab:Forecasting_Hub` (label "Forecasting Hub"); `CustomApplication:GTM_Team_Johnson` (added the tab); `PermissionSet:GTM_Team_Johnson_Access` (tab + Apex access). No schema changes, no custom objects, no batch.
+- **Validated job id:** `0AfOL000003Rr890AC` — `RunSpecifiedTests` (`CockpitScoreServiceTest`, `CockpitRosterServiceTest`, `CockpitForecastControllerTest`); 11/11, 9 tests, 0 failures; coverage `CockpitConstants` 100%, `CockpitForecastController` 94%, `CockpitRosterService` 100%, `CockpitScoreService` 91%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 11/11, 0 errors.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick`.
+- **Review verdict:** Manual diligence review — **PASS** (`with sharing` + `WITH USER_MODE`; canon filters (`Euna_Sale`, new-business types, ARR `_Num__c`) sourced from `CockpitConstants`; 2-level roster with non-AE exclusion; heap-safe (no synchronous MEDDPICC read per guide P3); read-only formula/system fields handled). Dropped `Roll_Up_Forecast_bf__c` from the query (FLS-restricted, unused in UI). Formal `/sf-review` NOT run — EUNA checklists absent from this public repo.
+- **Approved by:** org owner (benjamin.johnson), chose option B (safe prod subset).
+- **Post-deploy verification:** anonymous Apex ran `load()` as the director — team 6, 189 scored deals, mix HI:0/MD:47/EX:142, modeled call $518,514.60; app shows both `Team_Opportunity_Insights` and `Forecasting_Hub` tabs; `TabDefinition` returns "Forecasting Hub" as visible.
+- **Rollback:** remove `Forecasting_Hub` from the app tabs and destructive-delete the tab, LWC, and the four Cockpit classes (+ tests).
