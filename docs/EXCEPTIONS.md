@@ -18,3 +18,19 @@ the quick-deploy job id, the test level, and the review verdict.
 - **Approved by:** org owner (benjamin.johnson), explicit instruction to deploy.
 - **Post-deploy verification:** retrieve of both components from prod succeeded (they were absent immediately before deploy).
 - **Rollback:** net-new components with no dependents created; rollback = destructive delete of `CustomApplication:GTM_Team_Johnson` and `FlexiPage:GTM_Team_Johnson_Home`.
+
+## 2026-09-10 — GTM - Team Johnson app access (permission set)
+
+Follow-up: the initial deploy created the app but included no profile/permission-set assignment, so it was "invalid or inaccessible" even to the System Administrator. This grants access.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Component (net-new, 1):** `PermissionSet:GTM_Team_Johnson_Access` — `applicationVisibilities` for `GTM_Team_Johnson` + `tabSettings` (Visible) for `Quick_Task_Kanban`, `Quick_Task_Create`, `Quick_Task__c`. No object/field permissions. Authored in the gitignored `force-app/` (permission sets are not committed to this public repo).
+- **Pre-deploy check:** no existing `PermissionSet` named `GTM_Team_Johnson_Access` (net-new; no grants revoked).
+- **Validated job id:** `0AfOL000003Rnir0AC` — `RunSpecifiedTests` (`AccountGradeOverrideHandlerTest`, 10 tests, 0 failures); 1/1, 0 errors.
+- **Quick-deploy job id:** `0AfOL000003RnkT0AS` — Succeeded, `checkOnly: false`, 1/1 created, 0 errors.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Review verdict:** Manual diligence review against `AGENTS.md` — **PASS** (net-new permission set; reuses existing app/tabs; no object/field grants; smallest change to grant access). **Formal `/sf-review` NOT run** — EUNA checklists not present in this public repo.
+- **Approved by:** org owner (benjamin.johnson), explicit instruction ("go with option two").
+- **Assignment:** `GTM_Team_Johnson_Access` assigned to `benjamin.johnson@eunasolutions.com` (`PermissionSetAssignment 0PaOL00000npP3S0AU`).
+- **Post-deploy verification:** `AppDefinition` for `GTM_Team_Johnson` now returns to the user (`DurableId 06mOL000001scEDYAY`; was hidden before); `SetupEntityAccess` now grants the app TabSet via this permission set.
+- **Rollback:** remove the assignment and/or destructive-delete `PermissionSet:GTM_Team_Johnson_Access` (no other metadata depends on it).
