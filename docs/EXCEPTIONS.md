@@ -50,3 +50,17 @@ First "inference dashboard" slice on the GTM - Team Johnson home page: director-
 - **Pre-deploy live check:** `claude-3-5-sonnet-latest` returned 404 (not available); listed account models and confirmed `claude-sonnet-5` returns 200 before deploying.
 - **Post-deploy verification:** anonymous Apex ran `getDirectorOpportunities()` (200 opps) and `summarizeOpportunity()` (real Claude summary) against prod; prod `GTM_Team_Johnson_Home` flexipage confirmed hosting `teamOpportunityInsights`.
 - **Rollback:** revert the flexipage to `quickTaskKanban` and destructive-delete the four Apex classes + the LWC (no other metadata depends on them).
+
+## 2026-09-10 — GTM - Team Johnson app cleanup + Apex access
+
+Removes the Quick Task tabs from the app (so it lands on the Team Opportunity Insights home) and grants Apex access so the home LWC runs for assigned users.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (2, changed):** `CustomApplication:GTM_Team_Johnson` (removed tabs `Quick_Task_Kanban`, `Quick_Task_Create`, `Quick_Task__c`; home override to `GTM_Team_Johnson_Home` retained), `PermissionSet:GTM_Team_Johnson_Access` (dropped the three tab settings; added `classAccesses` for `TeamOpportunityController` and `AnthropicService`; app visibility retained).
+- **Validated job id:** `0AfOL000003Rpnt0AC` — `RunSpecifiedTests` (`AccountGradeOverrideHandlerTest`); 2/2, 0 errors.
+- **Quick-deploy job id (from validate above):** Succeeded, `checkOnly: false`, 2/2 changed, 0 errors.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Review verdict:** Manual diligence review against `AGENTS.md` — **PASS** (app now navigation-free, lands on home; permission set adds only Apex execute access for the two feature classes). **Formal `/sf-review` NOT run** — EUNA checklists not present in this public repo.
+- **Approved by:** org owner (benjamin.johnson), "make all new tabs visible... I don't need the Task Kanban / New Task / Quick Tasks tabs".
+- **Post-deploy verification:** retrieve of `CustomApplication:GTM_Team_Johnson` shows 0 `<tabs>` (home override intact); `SetupEntityAccess` shows 2 ApexClass grants under `GTM_Team_Johnson_Access`.
+- **Rollback:** re-add the three `<tabs>` to the app; remove the two `classAccesses` from the permission set.
