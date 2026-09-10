@@ -34,3 +34,19 @@ Follow-up: the initial deploy created the app but included no profile/permission
 - **Assignment:** `GTM_Team_Johnson_Access` assigned to `benjamin.johnson@eunasolutions.com` (`PermissionSetAssignment 0PaOL00000npP3S0AU`).
 - **Post-deploy verification:** `AppDefinition` for `GTM_Team_Johnson` now returns to the user (`DurableId 06mOL000001scEDYAY`; was hidden before); `SetupEntityAccess` now grants the app TabSet via this permission set.
 - **Rollback:** remove the assignment and/or destructive-delete `PermissionSet:GTM_Team_Johnson_Access` (no other metadata depends on it).
+
+## 2026-09-10 — Team Opportunity Insights (Apex + LWC + LLM)
+
+First "inference dashboard" slice on the GTM - Team Johnson home page: director-view opportunity list with a "Tell me about this opportunity" Claude summary.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (7):** `ApexClass:AnthropicService`, `ApexClass:TeamOpportunityController`, `ApexClass:AnthropicServiceTest`, `ApexClass:TeamOpportunityControllerTest`, `LightningComponentBundle:teamOpportunityInsights`, `FlexiPage:GTM_Team_Johnson_Home` (updated to host the new LWC instead of `quickTaskKanban`), `CustomApplication:GTM_Team_Johnson` (unchanged). Source committed on branch `cursor/team-opp-insights-91f8` (PR #3).
+- **Integration:** callout to `callout:anthropic_api/v1/messages` via the existing `anthropic_api` Named Credential (endpoint + `x-api-key` secret + `anthropic-version` supplied by the credential; no secret in code). Model `claude-sonnet-5`.
+- **Validated job id:** `0AfOL000003RpBB0A0` — `RunSpecifiedTests` (`AnthropicServiceTest`, `TeamOpportunityControllerTest`); 7/7, 10 tests, 0 failures; coverage `AnthropicService` 100%, `TeamOpportunityController` 89%.
+- **Quick-deploy job id:** `0AfOL000003RpHd0AK` — Succeeded, `checkOnly: false`, 7/7, 0 errors.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Review verdict:** Manual diligence review against `AGENTS.md` — **PASS** (`with sharing` + `WITH SECURITY_ENFORCED`; role hierarchy computed dynamically, no hardcoded ids; secret via Named Credential; reuses existing opportunity data; tests with `HttpCalloutMock` ≥85% per class). Known follow-up: move the model id / `max_tokens` from an Apex constant into Custom Metadata (no-hardcoded-config guidance). **Formal `/sf-review` NOT run** — EUNA checklists not present in this public repo.
+- **Approved by:** org owner (benjamin.johnson), "start with something basic that can be production ready".
+- **Pre-deploy live check:** `claude-3-5-sonnet-latest` returned 404 (not available); listed account models and confirmed `claude-sonnet-5` returns 200 before deploying.
+- **Post-deploy verification:** anonymous Apex ran `getDirectorOpportunities()` (200 opps) and `summarizeOpportunity()` (real Claude summary) against prod; prod `GTM_Team_Johnson_Home` flexipage confirmed hosting `teamOpportunityInsights`.
+- **Rollback:** revert the flexipage to `quickTaskKanban` and destructive-delete the four Apex classes + the LWC (no other metadata depends on them).
