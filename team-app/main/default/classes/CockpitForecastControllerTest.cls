@@ -84,10 +84,14 @@ private class CockpitForecastControllerTest {
             Test.startTest();
             List<CockpitForecastController.QuarterRow> cp = CockpitForecastController.getCreatedPipeline();
             List<CockpitForecastController.BandRow> cv = CockpitForecastController.getConversion();
+            List<CockpitForecastController.CohortRow> wr = CockpitForecastController.getWinRateTruth();
+            List<CockpitForecastController.AeRow> ae = CockpitForecastController.getAeConversion();
             Test.stopTest();
             System.assertNotEquals(null, cp, 'created pipeline list returned');
             System.assert(!cp.isEmpty(), 'created pipeline has the historical quarter');
             System.assertNotEquals(null, cv, 'conversion list returned');
+            System.assert(!wr.isEmpty(), 'win-rate truth has the team row + cohort');
+            System.assert(!ae.isEmpty(), 'AE-by-AE has the rep');
         }
     }
 

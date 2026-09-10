@@ -284,4 +284,139 @@ public with sharing class CockpitForecastController {
         r.winRate = r.total == 0 ? 0 : ((Decimal) r.won).divide(r.total, 4);
         r.winRateArr = (r.totalArr == null || r.totalArr == 0) ? 0 : r.wonArr.divide(r.totalArr, 4);
     }
+
+    // ---- loss-reason -> root cause (ported from the cockpit DEFAULT_ROOT) ----
+    private static final Map<String, String> LOSS_ROOT = new Map<String, String>{
+        'Opportunity not Qualified' => 'QUAL', 'Insufficient Data' => 'QUAL', 'Not Qualified' => 'QUAL', 'Disqualified' => 'QUAL',
+        'Ghosted' => 'ENGAGE', 'No Decision / deferred' => 'ENGAGE', 'No Decision' => 'ENGAGE', 'No Response' => 'ENGAGE', 'Deferred' => 'ENGAGE',
+        'Perceived lack of ROI' => 'VALUE', 'Price' => 'VALUE', 'Budget' => 'VALUE', 'No Budget' => 'VALUE',
+        'Product Related Reasons' => 'FIT', 'Product Gap' => 'FIT', 'Missing Functionality' => 'FIT',
+        'Upper Management pushback' => 'EB',
+        'Strength of Competitor Relationship' => 'COMP', 'Lost to Competitor' => 'COMP',
+        'Entered process too late' => 'TIMING', 'RFP Related' => 'TIMING', 'Timing' => 'TIMING',
+        'Contracting Issues' => 'PAPER', 'Compliance Issues' => 'PAPER', 'Legal' => 'PAPER', 'Security Review' => 'PAPER',
+        'Duplicate Opportunity' => 'DUPE', 'Duplicate' => 'DUPE', 'Test' => 'DUPE'
+    };
+    private static String rootOf(String reason) {
+        if (String.isBlank(reason)) return 'UNMAPPED';
+        String r = LOSS_ROOT.get(reason);
+        return r == null ? 'UNMAPPED' : r;
+    }
+    // Never-real = never a real deal: unqualified or duplicate. Excluded from contested win rate.
+    private static Boolean isNeverReal(String reason) {
+        if (String.isBlank(reason)) return true;
+        String r = rootOf(reason);
+        return r == 'QUAL' || r == 'DUPE';
+    }
+
+    public class CohortRow {
+        @AuraEnabled public String label;
+        @AuraEnabled public Integer created = 0, won = 0, worked = 0, never = 0, stillOpen = 0;
+        @AuraEnabled public Decimal cohortWR, resolvedWR, contestedWR, qualYield;
+    }
+
+    /** Creation-cohort win rate: follows opps forward from the SQL gate, four denominators. */
+    @AuraEnabled(cacheable=true)
+    public static List<CohortRow> getWinRateTruth() {
+        Set<Id> owners = CockpitRosterService.teamIds(UserInfo.getUserId());
+        if (owners.isEmpty()) return new List<CohortRow>();
+        Date since = Date.today().addMonths(-24).toStartOfMonth();
+        Map<String, CohortRow> byQ = new Map<String, CohortRow>();
+        CohortRow team = new CohortRow();
+        team.label = 'Team (all cohorts)';
+        for (Opportunity o : [
+            SELECT SQL_Datestamp_bf__c, IsClosed, IsWon, Lost_Reason__c
+            FROM Opportunity
+            WHERE OwnerId IN :owners AND SQL_Datestamp_bf__c >= :since
+              AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+        ]) {
+            Date s = o.SQL_Datestamp_bf__c;
+            String key = s.year() + 'Q' + CockpitConstants.quarterOf(s);
+            CohortRow r = byQ.get(key);
+            if (r == null) { r = new CohortRow(); r.label = 'Q' + CockpitConstants.quarterOf(s) + ' ' + s.year(); byQ.put(key, r); }
+            for (CohortRow b : new List<CohortRow>{ r, team }) {
+                b.created++;
+                if (!o.IsClosed) b.stillOpen++;
+                else if (o.IsWon) b.won++;
+                else if (isNeverReal(o.Lost_Reason__c)) b.never++;
+                else b.worked++;
+            }
+        }
+        List<CohortRow> out = byQ.values();
+        for (CohortRow r : out) rates(r);
+        rates(team);
+        out.sort(new CohortSort());
+        out.add(0, team);
+        return out;
+    }
+    private static void rates(CohortRow r) {
+        Integer resolved = r.won + r.worked + r.never;
+        Integer contested = r.won + r.worked;
+        r.cohortWR    = r.created == 0 ? null : ((Decimal) r.won).divide(r.created, 4);
+        r.resolvedWR  = resolved == 0 ? null : ((Decimal) r.won).divide(resolved, 4);
+        r.contestedWR = contested == 0 ? null : ((Decimal) r.won).divide(contested, 4);
+        r.qualYield   = r.created == 0 ? null : ((Decimal) contested).divide(r.created, 4);
+    }
+    public class CohortSort implements Comparator<CohortRow> {
+        public Integer compare(CohortRow a, CohortRow b) { return a.label.compareTo(b.label); }
+    }
+
+    public class AeRow {
+        @AuraEnabled public String ae, topRoot;
+        @AuraEnabled public Integer won = 0, lost = 0;
+        @AuraEnabled public Decimal wonArr = 0, lostArr = 0, winRate;
+    }
+
+    /** Per-AE closed-business conversion and dominant loss root cause, trailing 24 months. */
+    @AuraEnabled(cacheable=true)
+    public static List<AeRow> getAeConversion() {
+        Set<Id> owners = CockpitRosterService.teamIds(UserInfo.getUserId());
+        if (owners.isEmpty()) return new List<AeRow>();
+        Date since = Date.today().addMonths(-24).toStartOfMonth();
+        Map<String, AeRow> byAe = new Map<String, AeRow>();
+        Map<String, Map<String, Integer>> rootByAe = new Map<String, Map<String, Integer>>();
+        for (AggregateResult ar : [
+            SELECT Owner.Name n, IsWon w, Lost_Reason__c lr,
+                   COUNT(Id) c, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+            FROM Opportunity
+            WHERE IsClosed = true AND OwnerId IN :owners AND CloseDate >= :since
+              AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+            GROUP BY Owner.Name, IsWon, Lost_Reason__c
+        ]) {
+            String name = (String) ar.get('n');
+            if (String.isBlank(name)) continue;
+            AeRow r = byAe.get(name);
+            if (r == null) { r = new AeRow(); r.ae = name; byAe.put(name, r); rootByAe.put(name, new Map<String, Integer>()); }
+            Integer c = (Integer) ar.get('c');
+            Decimal arr = (Decimal) ar.get('arr');
+            if ((Boolean) ar.get('w')) {
+                r.won += c; r.wonArr += (arr == null ? 0 : arr);
+            } else {
+                String root = rootOf((String) ar.get('lr'));
+                if (root == 'DUPE') continue;
+                r.lost += c; r.lostArr += (arr == null ? 0 : arr);
+                Map<String, Integer> rc = rootByAe.get(name);
+                rc.put(root, (rc.containsKey(root) ? rc.get(root) : 0) + c);
+            }
+        }
+        for (String name : byAe.keySet()) {
+            AeRow r = byAe.get(name);
+            Integer denom = r.won + r.lost;
+            r.winRate = denom == 0 ? null : ((Decimal) r.won).divide(denom, 4);
+            String top = null; Integer best = -1;
+            for (String root : rootByAe.get(name).keySet()) {
+                if (rootByAe.get(name).get(root) > best) { best = rootByAe.get(name).get(root); top = root; }
+            }
+            r.topRoot = top;
+        }
+        List<AeRow> out = byAe.values();
+        out.sort(new AeSort());
+        return out;
+    }
+    public class AeSort implements Comparator<AeRow> {
+        public Integer compare(AeRow a, AeRow b) {
+            if (a.wonArr == b.wonArr) return 0;
+            return (a.wonArr < b.wonArr) ? 1 : -1;
+        }
+    }
 }

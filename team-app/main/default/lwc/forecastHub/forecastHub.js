@@ -3,6 +3,8 @@ import { refreshApex } from '@salesforce/apex';
 import load from '@salesforce/apex/CockpitForecastController.load';
 import getCreatedPipeline from '@salesforce/apex/CockpitForecastController.getCreatedPipeline';
 import getConversion from '@salesforce/apex/CockpitForecastController.getConversion';
+import getWinRateTruth from '@salesforce/apex/CockpitForecastController.getWinRateTruth';
+import getAeConversion from '@salesforce/apex/CockpitForecastController.getAeConversion';
 import setInCall from '@salesforce/apex/CockpitForecastController.setInCall';
 import setOverride from '@salesforce/apex/CockpitForecastController.setOverride';
 import applyDefaultPicks from '@salesforce/apex/CockpitForecastController.applyDefaultPicks';
@@ -64,8 +66,15 @@ const TABS = [
     { id: 't3', label: 'Next Qtr' },
     { id: 't4', label: 'Pull-Ins' },
     { id: 't5', label: 'Created Pipeline' },
-    { id: 't6', label: 'Conversion Metrics' }
+    { id: 't6', label: 'Conversion Metrics' },
+    { id: 't7', label: 'Win Rate Truth' },
+    { id: 't8', label: 'AE by AE' }
 ];
+const ROOT_LABELS = {
+    QUAL: 'Qualification', ENGAGE: 'Champion / engagement', VALUE: 'Value articulation',
+    FIT: 'Product fit', EB: 'Economic buyer access', COMP: 'Competitive displacement',
+    TIMING: 'Entry timing', PAPER: 'Paper process', DUPE: 'Duplicate', UNMAPPED: 'Unmapped'
+};
 const CLS_META = { HI: ['p-hi', 'Include-High'], MD: ['p-med', 'Include-Med'], EX: ['p-ex', 'Exclude'] };
 const BAND_META = { 'Commit': 'p-com', 'Most Likely': 'p-ml', 'Best Case': 'p-bc', 'Pipeline': 'p-pipe', 'Omitted': 'p-om' };
 const CLASS_CHIPS = [['ALL', 'All'], ['PICK', 'In call'], ['HI', 'High'], ['MD', 'Med'], ['EX', 'Exclude']];
@@ -84,6 +93,8 @@ export default class ForecastHub extends LightningElement {
     classFilter = 'ALL';
     createdRows = [];
     conversionRows = [];
+    winRows = [];
+    aeRows = [];
     wiredLoad;
 
     @wire(load)
@@ -107,6 +118,12 @@ export default class ForecastHub extends LightningElement {
 
     @wire(getConversion)
     wiredCV({ data }) { if (data) this.conversionRows = data; }
+
+    @wire(getWinRateTruth)
+    wiredWR({ data }) { if (data) this.winRows = data; }
+
+    @wire(getAeConversion)
+    wiredAE({ data }) { if (data) this.aeRows = data; }
 
     money(n) { return (n == null || isNaN(n)) ? '$0' : '$' + Math.round(n).toLocaleString('en-US'); }
     pctFmt(n) { return (n == null || isNaN(n)) ? '-' : (n * 100).toFixed(1) + '%'; }
@@ -171,6 +188,24 @@ export default class ForecastHub extends LightningElement {
     get hasCreated() { return this.createdDisplay.length > 0; }
     get hasConversion() { return this.conversionDisplay.length > 0; }
 
+    get winDisplay() {
+        return this.winRows.map((r) => ({
+            label: r.label, created: r.created, won: r.won, worked: r.worked, never: r.never, stillOpen: r.stillOpen,
+            cohortWR: this.pctFmt(r.cohortWR), resolvedWR: this.pctFmt(r.resolvedWR),
+            contestedWR: this.pctFmt(r.contestedWR), qualYield: this.pctFmt(r.qualYield),
+            rowClass: r.label.indexOf('Team') === 0 ? 'teamrow' : ''
+        }));
+    }
+    get aeDisplay() {
+        return this.aeRows.map((r) => ({
+            ae: r.ae, won: r.won, lost: r.lost, winRate: this.pctFmt(r.winRate),
+            wonArr: this.money(r.wonArr), lostArr: this.money(r.lostArr),
+            topRoot: ROOT_LABELS[r.topRoot] || (r.topRoot || '-')
+        }));
+    }
+    get hasWin() { return this.winDisplay.length > 0; }
+    get hasAe() { return this.aeDisplay.length > 0; }
+
     totals(rows) {
         let hi = 0, md = 0, pickedArr = 0, pickedN = 0;
         rows.forEach((r) => {
@@ -219,6 +254,8 @@ export default class ForecastHub extends LightningElement {
     get isPull() { return this.activeTab === 't4'; }
     get isCreated() { return this.activeTab === 't5'; }
     get isConversion() { return this.activeTab === 't6'; }
+    get isWinRate() { return this.activeTab === 't7'; }
+    get isAe() { return this.activeTab === 't8'; }
     get showFilters() { return this.isCurrent || this.isNext; }
     get hasData() { return this.deals && this.deals.length > 0; }
     get noData() { return !this.loading && !this.error && !this.hasData; }

@@ -188,6 +188,41 @@
                 </template>
                 <template lwc:else><div class="box"><p>No closed history in range for your team.</p></div></template>
             </template>
+
+            <!-- Win Rate Truth -->
+            <template lwc:if={isWinRate}>
+                <h2>Win rate truth</h2>
+                <p class="lede">Creation-cohort win rates that follow opportunities forward from the SQL gate, not backward from close. Four denominators, because each answers a different question &mdash; and they disagree on purpose.</p>
+                <div class="box info"><h4>Reading the four rates</h4><p><strong>Cohort</strong> = won / everything created. <strong>Resolved</strong> = won / everything settled. <strong>Contested</strong> = won / real deals only (unqualified &amp; duplicates removed). <strong>Qual yield</strong> = share of created pipeline that was ever real.</p></div>
+                <template lwc:if={hasWin}>
+                    <div class="tw"><table>
+                        <thead><tr><th>Cohort (SQL qtr)</th><th class="num">Created</th><th class="num">Won</th><th class="num">Worked</th><th class="num">Never-real</th><th class="num">Open</th><th class="num">Cohort WR</th><th class="num">Resolved WR</th><th class="num">Contested WR</th><th class="num">Qual yield</th></tr></thead>
+                        <tbody>
+                            <template for:each={winDisplay} for:item="r">
+                                <tr key={r.label} class={r.rowClass}><td>{r.label}</td><td class="num">{r.created}</td><td class="num">{r.won}</td><td class="num">{r.worked}</td><td class="num">{r.never}</td><td class="num">{r.stillOpen}</td><td class="num">{r.cohortWR}</td><td class="num">{r.resolvedWR}</td><td class="num">{r.contestedWR}</td><td class="num">{r.qualYield}</td></tr>
+                            </template>
+                        </tbody>
+                    </table></div>
+                </template>
+                <template lwc:else><div class="box"><p>No creation-cohort data in range for your team.</p></div></template>
+            </template>
+
+            <!-- AE by AE -->
+            <template lwc:if={isAe}>
+                <h2>AE by AE</h2>
+                <p class="lede">Closed-business conversion per rep (trailing 24 months, duplicates excluded), with the dominant loss root cause &mdash; where each rep's deals are actually dying.</p>
+                <template lwc:if={hasAe}>
+                    <div class="tw"><table>
+                        <thead><tr><th>AE</th><th class="num">Won</th><th class="num">Won ARR</th><th class="num">Lost</th><th class="num">Lost ARR</th><th class="num">Win rate</th><th>Top loss cause</th></tr></thead>
+                        <tbody>
+                            <template for:each={aeDisplay} for:item="r">
+                                <tr key={r.ae}><td>{r.ae}</td><td class="num">{r.won}</td><td class="num">{r.wonArr}</td><td class="num">{r.lost}</td><td class="num">{r.lostArr}</td><td class="num">{r.winRate}</td><td>{r.topRoot}</td></tr>
+                            </template>
+                        </tbody>
+                    </table></div>
+                </template>
+                <template lwc:else><div class="box"><p>No closed history in range for your team.</p></div></template>
+            </template>
         </div>
     </template>
 </template>

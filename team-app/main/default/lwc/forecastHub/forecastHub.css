@@ -77,6 +77,7 @@ td { padding: 7px 10px; border-top: 1px solid var(--gray); vertical-align: top; 
 tbody tr:nth-child(even) { background: var(--graymid); }
 tbody tr:hover { background: #FFF4EC; }
 tr.picked { background: #EEF6FF !important; box-shadow: inset 3px 0 0 var(--indigo); }
+tr.teamrow { background: var(--graylt) !important; font-weight: 700; box-shadow: inset 3px 0 0 var(--orange); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 td.cb, th.cb { width: 34px; text-align: center; }
 .chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--indigo); }
