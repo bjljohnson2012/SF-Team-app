@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>GTM - Team Johnson home: existing Quick Task Kanban as the item board.</description>
+    <description>GTM - Team Johnson home: Team Opportunity Insights (director-view opportunities with LLM summaries).</description>
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>quickTaskKanban</componentName>
-                <identifier>quickTaskKanban</identifier>
+                <componentName>teamOpportunityInsights</componentName>
+                <identifier>teamOpportunityInsights</identifier>
             </componentInstance>
         </itemInstances>
         <name>main</name>

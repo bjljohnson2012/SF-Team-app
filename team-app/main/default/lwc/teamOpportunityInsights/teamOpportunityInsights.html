@@ -1,0 +1,43 @@
+<template>
+    <lightning-card title="Team Opportunity Insights" icon-name="standard:opportunity">
+        <div class="slds-p-horizontal_small slds-p-bottom_small">
+            <template lwc:if={loadingList}>
+                <lightning-spinner alternative-text="Loading opportunities" size="small"></lightning-spinner>
+            </template>
+
+            <template lwc:if={error}>
+                <div class="slds-text-color_error slds-p-around_small">{error}</div>
+            </template>
+
+            <template lwc:if={hasOpportunities}>
+                <lightning-datatable
+                    key-field="id"
+                    data={opportunities}
+                    columns={columns}
+                    hide-checkbox-column
+                    onrowaction={handleRowAction}>
+                </lightning-datatable>
+            </template>
+
+            <template lwc:if={noOpportunities}>
+                <div class="slds-p-around_small slds-text-color_weak">
+                    No open opportunities found for your team.
+                </div>
+            </template>
+
+            <template lwc:if={summarizing}>
+                <div class="slds-p-around_small slds-grid slds-grid_vertical-align-center">
+                    <lightning-spinner alternative-text="Summarizing" size="small"></lightning-spinner>
+                    <span class="slds-p-left_large">Asking Claude about {selectedName}&hellip;</span>
+                </div>
+            </template>
+
+            <template lwc:if={summaryText}>
+                <div class="slds-box slds-m-around_small slds-text-longform">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Summary: {selectedName}</h3>
+                    <lightning-formatted-text value={summaryText}></lightning-formatted-text>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
