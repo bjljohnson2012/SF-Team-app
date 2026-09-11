@@ -145,6 +145,36 @@ private class CockpitForecastControllerTest {
     }
 
     @isTest
+    static void manageAssignments_assignsAndRevokes() {
+        User dir = setupDirectorWithRep();
+        User target = usr(null, 'Account Executive');
+        insert target;
+        System.runAs(dir) {
+            Test.startTest();
+            CockpitForecastController.AccessInfo info = CockpitForecastController.getAccessMatrix();
+            CockpitForecastController.assignAccess(target.Id);
+            Boolean assigned = ![
+                SELECT Id FROM PermissionSetAssignment
+                WHERE AssigneeId = :target.Id AND PermissionSet.Name = 'GTM_Team_Johnson_Access' LIMIT 1
+            ].isEmpty();
+            CockpitForecastController.assignAccess(target.Id); // idempotent (already assigned)
+            CockpitForecastController.revokeAccess(target.Id);
+            Boolean removed = [
+                SELECT Id FROM PermissionSetAssignment
+                WHERE AssigneeId = :target.Id AND PermissionSet.Name = 'GTM_Team_Johnson_Access' LIMIT 1
+            ].isEmpty();
+            Test.stopTest();
+            System.assert(info.canManage, 'a System Administrator can manage assignments');
+            System.assert(assigned, 'target user was assigned access');
+            System.assert(removed, 'target user access was revoked');
+        }
+        try {
+            CockpitForecastController.assignAccess(null);
+            System.assert(false, 'expected AuraHandledException for null user');
+        } catch (AuraHandledException e) { System.assert(true); }
+    }
+
+    @isTest
     static void load_noReports_throws() {
         User lone = usr(null, 'Director');
         insert lone;

@@ -7,6 +7,7 @@
 
     <div class="adm-body">
         <template lwc:if={error}><div class="err">{error}</div></template>
+        <template lwc:if={notice}><div class="ok">{notice}</div></template>
 
         <template lwc:if={info}>
             <div class="cards">
@@ -17,15 +18,28 @@
             </div>
 
             <h3>Users with access</h3>
+            <template lwc:if={canManage}>
+                <div class="assign">
+                    <label>Assign a user</label>
+                    <select onchange={handleSelect} disabled={busy}>
+                        <option value="">Select a user&hellip;</option>
+                        <template for:each={assignableOptions} for:item="o"><option key={o.id} value={o.id}>{o.label}</option></template>
+                    </select>
+                    <button class="adm-btn" onclick={assign} disabled={assignDisabled}>Assign access</button>
+                    <template lwc:if={busy}><span class="adm-spin"></span></template>
+                </div>
+            </template>
             <template lwc:if={hasUsers}>
                 <div class="tw"><table>
-                    <thead><tr><th>Name</th><th>Username</th><th>Profile</th><th>Active</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Username</th><th>Profile</th><th>Active</th><template lwc:if={canManage}><th></th></template></tr></thead>
                     <tbody><template for:each={info.users} for:item="u">
-                        <tr key={u.username}><td>{u.name}</td><td class="small">{u.username}</td><td>{u.profile}</td><td>{u.active}</td></tr>
+                        <tr key={u.id}><td>{u.name}</td><td class="small">{u.username}</td><td>{u.profile}</td><td>{u.active}</td>
+                            <template lwc:if={canManage}><td><button class="adm-btn gh" data-id={u.id} onclick={remove} disabled={busy}>Remove</button></td></template>
+                        </tr>
                     </template></tbody>
                 </table></div>
             </template>
-            <template lwc:else><div class="box"><p>No users are assigned {info.permSet} yet. Assign it to grant access.</p></div></template>
+            <template lwc:else><div class="box"><p>No users are assigned {info.permSet} yet. Assign one above to grant access.</p></div></template>
 
             <div class="grid2">
                 <div>

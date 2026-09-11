@@ -605,52 +605,113 @@ public with sharing class CockpitForecastController {
     private static Decimal nz(Decimal d) { return d == null ? 0 : d; }
 
     // ---- admin: who can access the app and do what ----
+    public static final String ACCESS_PERMSET = 'GTM_Team_Johnson_Access';
+
     public class AccessUser {
+        @AuraEnabled public Id id;
         @AuraEnabled public String name, username, profile;
         @AuraEnabled public Boolean active;
     }
     public class AccessInfo {
         @AuraEnabled public List<AccessUser> users = new List<AccessUser>();
+        @AuraEnabled public List<AccessUser> assignable = new List<AccessUser>();
         @AuraEnabled public List<String> tabs = new List<String>();
         @AuraEnabled public List<String> activities = new List<String>();
         @AuraEnabled public Boolean editInCall = false, overrideClass = false, apexAccess = false;
-        @AuraEnabled public String permSet = 'GTM_Team_Johnson_Access';
+        @AuraEnabled public Boolean canManage = false;
+        @AuraEnabled public String permSet = ACCESS_PERMSET;
     }
 
     @AuraEnabled(cacheable=true)
     public static AccessInfo getAccessMatrix() {
         AccessInfo info = new AccessInfo();
+        Set<Id> assigned = new Set<Id>();
         for (PermissionSetAssignment psa : [
-            SELECT Assignee.Name, Assignee.Username, Assignee.IsActive, Assignee.Profile.Name
+            SELECT AssigneeId, Assignee.Name, Assignee.Username, Assignee.IsActive, Assignee.Profile.Name
             FROM PermissionSetAssignment
-            WHERE PermissionSet.Name = 'GTM_Team_Johnson_Access' AND Assignee.IsActive = true
+            WHERE PermissionSet.Name = :ACCESS_PERMSET AND Assignee.IsActive = true
             ORDER BY Assignee.Name
         ]) {
             AccessUser u = new AccessUser();
+            u.id = psa.AssigneeId;
             u.name = psa.Assignee.Name;
             u.username = psa.Assignee.Username;
             u.profile = psa.Assignee.Profile.Name;
             u.active = psa.Assignee.IsActive;
             info.users.add(u);
+            assigned.add(psa.AssigneeId);
         }
         for (FieldPermissions fp : [
             SELECT Field, PermissionsEdit FROM FieldPermissions
-            WHERE Parent.Name = 'GTM_Team_Johnson_Access'
+            WHERE Parent.Name = :ACCESS_PERMSET
         ]) {
             if (fp.Field == 'Opportunity.Cockpit_In_Call__c' && fp.PermissionsEdit) info.editInCall = true;
             if (fp.Field == 'Opportunity.Cockpit_Class_Override__c' && fp.PermissionsEdit) info.overrideClass = true;
         }
         for (SetupEntityAccess sea : [
             SELECT SetupEntityType FROM SetupEntityAccess
-            WHERE Parent.Name = 'GTM_Team_Johnson_Access' AND SetupEntityType = 'ApexClass' LIMIT 1
+            WHERE Parent.Name = :ACCESS_PERMSET AND SetupEntityType = 'ApexClass' LIMIT 1
         ]) { info.apexAccess = true; }
 
-        info.tabs = new List<String>{ 'Main (Team Opportunity Insights)', 'Sales Performance', 'Admin' };
+        info.canManage = canManageAssignments();
+        if (info.canManage) {
+            for (User u : [
+                SELECT Id, Name, Username, Profile.Name FROM User
+                WHERE IsActive = true AND UserType = 'Standard' AND Id NOT IN :assigned
+                ORDER BY Name LIMIT 200
+            ]) {
+                AccessUser a = new AccessUser();
+                a.id = u.Id; a.name = u.Name; a.username = u.Username;
+                a.profile = (u.Profile != null) ? u.Profile.Name : null; a.active = true;
+                info.assignable.add(a);
+            }
+        }
+
+        info.tabs = new List<String>{ 'Main (Team Opportunity Insights)', 'Sales Performance', 'Pricing Review View Checklist Tool', 'Admin' };
         info.activities.add('View Forecast, Pipeline & Conversion sub-tabs');
         if (info.editInCall) info.activities.add('Tick deals into the call (Cockpit_In_Call__c)');
         if (info.overrideClass) info.activities.add('Override deal classification (Cockpit_Class_Override__c)');
+        info.activities.add('Run the Pricing Review checklist (AI pre-fill + Word doc)');
         info.activities.add('Run Claude AI insight on each section');
         info.activities.add('Adjust weights & submitted call (session)');
         return info;
+    }
+
+    /** True when the running user may assign/remove permission sets. */
+    private static Boolean canManageAssignments() {
+        return ![
+            SELECT Id FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId()
+              AND (PermissionSet.PermissionsManageUsers = true OR PermissionSet.PermissionsAssignPermissionSets = true)
+            LIMIT 1
+        ].isEmpty();
+    }
+
+    /** Assigns the app's access permission set to a user. */
+    @AuraEnabled
+    public static void assignAccess(Id userId) {
+        if (userId == null) throw new AuraHandledException('A user is required.');
+        if (!canManageAssignments()) throw new AuraHandledException('You do not have permission to assign users. Ask a Salesforce admin.');
+        Id psId = [SELECT Id FROM PermissionSet WHERE Name = :ACCESS_PERMSET LIMIT 1].Id;
+        if (![SELECT Id FROM PermissionSetAssignment WHERE PermissionSetId = :psId AND AssigneeId = :userId LIMIT 1].isEmpty()) {
+            return; // already assigned
+        }
+        try {
+            insert new PermissionSetAssignment(PermissionSetId = psId, AssigneeId = userId);
+        } catch (DmlException e) {
+            throw new AuraHandledException('Could not assign access: ' + e.getDmlMessage(0));
+        }
+    }
+
+    /** Removes the app's access permission set from a user. */
+    @AuraEnabled
+    public static void revokeAccess(Id userId) {
+        if (userId == null) throw new AuraHandledException('A user is required.');
+        if (!canManageAssignments()) throw new AuraHandledException('You do not have permission to remove users. Ask a Salesforce admin.');
+        List<PermissionSetAssignment> psa = [
+            SELECT Id FROM PermissionSetAssignment
+            WHERE PermissionSet.Name = :ACCESS_PERMSET AND AssigneeId = :userId
+        ];
+        if (!psa.isEmpty()) delete psa;
     }
 }
