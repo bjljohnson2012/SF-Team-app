@@ -204,3 +204,16 @@ Follow-ups to the Pricing Review View Checklist Tool, authorized by the org owne
 - **Post-deploy verification:** anon Apex — `getReviewData('team')` isDirector=true, scope=team, 104 deals; `getReviewData('mine')` scope=mine, 0 deals (Ben owns no ≥$30K new-business deals); `Pricing_Review_Override__c` describe=true; GTM - Team Johnson app nav now Main → Sales Performance → Pricing Review → Admin.
 - **Carve-out note:** past the 2026-09-11 expiry of the AGENTS.md direct-CLI carve-out; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `pricingReviewTool`/`PricingReviewController` and remove the `Pricing_Review_Checklist` tab from `GTM_Team_Johnson`; the `Pricing_Review_Override__c` field can remain (harmless) or be destructive-deleted.
+
+## 2026-09-11 — Pricing Review tool: clickable opportunity link
+
+Adds a clickable link to the opportunity record on the Pricing Review View Checklist Tool (deals-table account name plus the review/view panel headers), via a relative `/lightning/r/Opportunity/<id>/view` URL (no hardcoded org domain).
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (1):** `LightningComponentBundle:pricingReviewTool`.
+- **Validated job id:** `0AfOL000003SBmn0AG` — `RunSpecifiedTests` (`CockpitRosterServiceTest`, LWC-only change); 2/2, 0 failures.
+- **Quick-deploy:** `0AfOL000003SBoP0AW` — Succeeded, `checkOnly: false`, 0 errors.
+- **Approved by:** org owner (benjamin.johnson), "Ship it".
+- **Note:** republishing the bundle also resolved a stale-cached-component error some users saw ("No apex action available for PricingReviewController.getReviewDeals") after the earlier getReviewDeals->getReviewData rename; the deployed code was already correct, the error was a client cache.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `pricingReviewTool` to the prior commit.
