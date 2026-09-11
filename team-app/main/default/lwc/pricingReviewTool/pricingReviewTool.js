@@ -1,7 +1,9 @@
 import { LightningElement, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
 import getReviewDeals from '@salesforce/apex/PricingReviewController.getReviewDeals';
+import draftAnswers from '@salesforce/apex/PricingReviewController.draftAnswers';
 import createReview from '@salesforce/apex/PricingReviewController.createReview';
+import getReview from '@salesforce/apex/PricingReviewController.getReview';
 
 const QUESTIONS = [
     'Total Budget and Operating Budget, Population/Student Count + Employees',
@@ -42,7 +44,9 @@ export default class PricingReviewTool extends LightningElement {
     rows = [];
     error;
     selected;
+    viewing;
     saving = false;
+    drafting = false;
     done;
     answers = {};
 
@@ -66,6 +70,7 @@ export default class PricingReviewTool extends LightningElement {
     get openCount() { return this.rows.length; }
     get doneCount() { return this.rows.filter((r) => r.done).length; }
 
+    // editable groups for the review builder
     get questionGroups() {
         return BATCHES.map((b) => {
             const items = [];
@@ -76,22 +81,49 @@ export default class PricingReviewTool extends LightningElement {
             return { label: b.label, items };
         });
     }
+    // read-only groups for the saved-responses viewer
+    get viewGroups() {
+        return BATCHES.map((b) => {
+            const items = [];
+            for (let n = b.from; n <= b.to; n++) {
+                const key = 'Q' + n;
+                items.push({ key, num: n, label: QUESTIONS[n - 1], value: this.answers[key] || '\u2014' });
+            }
+            return { label: b.label, items };
+        });
+    }
 
+    // start a review: select the deal and ask Claude to pre-fill from SF context
     pick(e) {
         const id = e.currentTarget.dataset.id;
         this.selected = this.rows.find((x) => x.id === id);
-        this.done = undefined; this.error = undefined;
-        // pre-fill Q2 (lead source) from Salesforce, per the skill
+        this.viewing = undefined; this.done = undefined; this.error = undefined;
         this.answers = this.selected && this.selected.leadSource ? { Q2: this.selected.leadSource } : {};
+        this.drafting = true;
+        draftAnswers({ opportunityId: id })
+            .then((res) => { this.answers = res || this.answers; })
+            .catch((err) => { this.error = 'Pre-fill: ' + this.msg(err) + ' You can still answer manually.'; })
+            .finally(() => { this.drafting = false; });
     }
-    cancel() { this.selected = undefined; }
+    cancel() { this.selected = undefined; this.drafting = false; }
     setAnswer(e) { this.answers = { ...this.answers, [e.target.dataset.q]: e.target.value }; }
 
-    create() {
+    complete() {
         this.saving = true; this.done = undefined; this.error = undefined;
         createReview({ opportunityId: this.selected.id, answers: this.answers })
-            .then(() => { this.done = 'Euna Pricing Review Checklist generated and attached to the opportunity Files.'; this.selected = undefined; return refreshApex(this.wired); })
+            .then(() => { this.done = 'Pricing review completed \u2014 responses saved and the Euna Word document attached to the opportunity Files.'; this.selected = undefined; return refreshApex(this.wired); })
             .catch((err) => { this.error = this.msg(err); })
             .finally(() => { this.saving = false; });
     }
+
+    // review saved responses on the tool page
+    viewResponses(e) {
+        const id = e.currentTarget.dataset.id;
+        this.viewing = this.rows.find((x) => x.id === id);
+        this.selected = undefined; this.done = undefined; this.error = undefined; this.answers = {};
+        getReview({ opportunityId: id })
+            .then((res) => { this.answers = res || {}; })
+            .catch((err) => { this.error = this.msg(err); });
+    }
+    closeView() { this.viewing = undefined; this.answers = {}; }
 }

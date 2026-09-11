@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Pricing_Review_Answers__c</fullName>
+    <label>Pricing Review Answers</label>
+    <description>Sales Tools &gt; Pricing Review View Checklist Tool: JSON of the 24 checklist answers plus completion metadata (director, completed date). Written by PricingReviewController.createReview and read back on the tool page; presence marks the review complete.</description>
+    <inlineHelpText>Managed by the Pricing Review View Checklist Tool. Stores the completed 24-question pricing review responses as JSON; do not edit by hand.</inlineHelpText>
+    <type>LongTextArea</type>
+    <length>131072</length>
+    <visibleLines>3</visibleLines>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+</CustomField>

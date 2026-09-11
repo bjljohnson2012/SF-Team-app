@@ -17,6 +17,9 @@ h3 { font-size: 14px; color: var(--indigo); margin: 0 0 10px; font-weight: 700; 
 .fld label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: #667085; font-weight: 700; }
 .fld input, .fld textarea { border: 1px solid var(--gray); border-radius: 6px; padding: 7px 9px; font-size: 13px; font-family: inherit; }
 .fld textarea { min-height: 48px; }
+.fld textarea[disabled] { background: #F5F8FA; color: #667085; }
+.ans { border: 1px solid var(--gray); border-radius: 6px; padding: 7px 9px; font-size: 13px; background: #F8F9FC; white-space: pre-wrap; min-height: 18px; }
+.rowact { display: flex; gap: 6px; white-space: nowrap; }
 .batch { margin: 10px 0; }
 .batch-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #fff; background: #4A32C4; padding: 5px 10px; border-radius: 6px; margin: 12px 0 8px; }
 .small { font-size: 11.5px; color: #667085; margin: 4px 0 8px; }
