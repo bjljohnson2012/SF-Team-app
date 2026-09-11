@@ -145,3 +145,15 @@ Reorganizes the Forecasting Hub into a "Sales Performance" area with Forecast / 
 - **Post-deploy verification:** anon Apex — `analyzePerformance('conversion')` returned a real Claude insight ("Best Case ARR win rate 6.9% identical to raw Pipeline..."); getProblems 14 loss reasons (Ghosted 267); getClosedWon 83 deals; rendered LWC preview confirmed the section/sub-tab nav + a live Created-vs-Booked bar chart.
 - **Note:** MEDDPICC batch intentionally skipped per owner. Carve-out expired 2026-09-11; further changes go via the euna-salesforce pipeline.
 - **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit; static resource + tab label can remain.
+
+## 2026-09-11 — Forecast Summary: manual call input + evidence build
+
+Adds the manual Q3/Q4 Call inputs and the Summary that scores the typed call against live data (booked-to-date, still-to-find, gap-to-call, hand-built, and the how-the-number-builds table).
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (3, changed):** `ApexClass:CockpitForecastController` (+ `getForecastSummary`: booked-to-date by quarter, quarter clock, trailing in-quarter new-pipeline estimate, median cycle), `ApexClass:CockpitForecastControllerTest`, `LightningComponentBundle:forecastHub` (Q3/Q4 Call inputs; Summary cards + build table).
+- **Validated job id:** `0AfOL000003S9Mn0AK` — 3/3, 6 tests, 0 failures; coverage 91%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 3/3, 0 errors.
+- **Post-deploy verification:** getForecastSummary live — Q3 2026, booked 17/$286,805 (matches reference exactly), days-left 19, 79% elapsed, new-pipeline $126K, median cycle 116d; LWC preview confirmed the call inputs + build table.
+- **Carve-out note:** This is on/at the 2026-09-11 expiry of the AGENTS.md direct-CLI carve-out. Further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit.
