@@ -186,3 +186,21 @@ Two changes in one deploy, both authorized by the org owner ("let's deploy both"
 - **Post-deploy verification:** anon Apex — `getReviewDeals()` returned 104 open deals ≥ $30K (top Rochester City School District, $161,788, director Ben Johnson, reviewDone=false); `Opportunity.Pricing_Review_Answers__c` describe = true. Real AI prefill (pre-deploy, live `AnthropicService`) on State of Minnesota returned grounded answers (Q2 partner referral, Q3 no existing relationship, Q16 grant-regulation driver, Q19 close date) with all unsupported questions flagged "[No data in Salesforce — AE to complete]". Admin tab fix confirmed via rendered preview with live access-matrix data.
 - **Carve-out note:** at/after the 2026-09-11 expiry of the AGENTS.md direct-CLI carve-out; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `pricingReviewTool`/`PricingReviewController`/`forecastHub`/`salesPerfAdmin`/`CockpitForecastController` to prior commit; destructive-delete `Sales_Tools` app, `Pricing_Review_Checklist` tab, and the `Pricing_Review_Answers__c` field (or leave the field — harmless).
+
+## 2026-09-11 — Pricing Review tool: role scope, search, status override + GTM app tab
+
+Follow-ups to the Pricing Review View Checklist Tool, authorized by the org owner ("I authorize"):
+1. Role-based default scope — directors see their team's ≥$30K open deals (toggle to "Just me"); AEs see their own (`getReviewData(scope)`).
+2. Search bar (account / AE / stage) on the tool.
+3. Manual status override — new `Pricing_Review_Override__c` picklist (Done/Not Done; blank = auto-derive); `setReviewStatus()`; `reviewedOppIds()` (dashboard) is override-aware.
+4. Surfaced the "Pricing Review View Checklist Tool" tab inside the GTM - Team Johnson app nav (it remains its own Sales Tools app too).
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (6):** `CustomField:Opportunity.Pricing_Review_Override__c` (Picklist Done/Not Done, restricted); `ApexClass:PricingReviewController` (+ `getReviewData(scope)` [role-aware], `setReviewStatus`, override-aware `isDone`/`reviewedOppIds`; replaces `getReviewDeals`); `ApexClass:PricingReviewControllerTest` (+ override + setStatus validation); `LightningComponentBundle:pricingReviewTool` (search bar, My team / Just me toggle, per-row Override select); `CustomApplication:GTM_Team_Johnson` (+ `Pricing_Review_Checklist` tab); `PermissionSet:GTM_Team_Johnson_Access` (FLS on `Pricing_Review_Override__c`).
+- **Validated job id:** `0AfOL000003SBDJ0A4` — `RunSpecifiedTests` (`PricingReviewControllerTest`); 5/5, 0 failures.
+- **Quick-deploy:** `0AfOL000003SBEv0AO` — Succeeded, `checkOnly: false`, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (`with sharing`; `override` reserved-word fix; restricted picklist; override write via id-only DML; test covers override forcing status both ways + null validation). Formal `/sf-review` NOT run (checklists absent from public repo).
+- **Approved by:** org owner (benjamin.johnson), "I authorize".
+- **Post-deploy verification:** anon Apex — `getReviewData('team')` isDirector=true, scope=team, 104 deals; `getReviewData('mine')` scope=mine, 0 deals (Ben owns no ≥$30K new-business deals); `Pricing_Review_Override__c` describe=true; GTM - Team Johnson app nav now Main → Sales Performance → Pricing Review → Admin.
+- **Carve-out note:** past the 2026-09-11 expiry of the AGENTS.md direct-CLI carve-out; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `pricingReviewTool`/`PricingReviewController` and remove the `Pricing_Review_Checklist` tab from `GTM_Team_Johnson`; the `Pricing_Review_Override__c` field can remain (harmless) or be destructive-deleted.
