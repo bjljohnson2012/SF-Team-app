@@ -419,4 +419,124 @@ public with sharing class CockpitForecastController {
             return (a.wonArr < b.wonArr) ? 1 : -1;
         }
     }
+
+    public class ProblemRow {
+        @AuraEnabled public String reason, root;
+        @AuraEnabled public Integer count;
+        @AuraEnabled public Boolean mapped;
+    }
+
+    /** Loss-reason inventory for the Problems tab; UNMAPPED reasons are surfaced loudly. */
+    @AuraEnabled(cacheable=true)
+    public static List<ProblemRow> getProblems() {
+        Set<Id> owners = CockpitRosterService.teamIds(UserInfo.getUserId());
+        if (owners.isEmpty()) return new List<ProblemRow>();
+        Date since = Date.today().addMonths(-24).toStartOfMonth();
+        List<ProblemRow> out = new List<ProblemRow>();
+        for (AggregateResult ar : [
+            SELECT Lost_Reason__c lr, COUNT(Id) c
+            FROM Opportunity
+            WHERE IsClosed = true AND IsWon = false AND OwnerId IN :owners
+              AND CloseDate >= :since AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+            GROUP BY Lost_Reason__c
+            ORDER BY COUNT(Id) DESC
+        ]) {
+            ProblemRow r = new ProblemRow();
+            r.reason = String.isBlank((String) ar.get('lr')) ? '(blank)' : (String) ar.get('lr');
+            r.count = (Integer) ar.get('c');
+            r.root = rootOf((String) ar.get('lr'));
+            r.mapped = r.root != 'UNMAPPED';
+            out.add(r);
+        }
+        return out;
+    }
+
+    /** Recent closed-won deals for the Closed-Won pipeline view. */
+    @AuraEnabled(cacheable=true)
+    public static List<Deal> getClosedWon() {
+        Set<Id> owners = CockpitRosterService.teamIds(UserInfo.getUserId());
+        if (owners.isEmpty()) return new List<Deal>();
+        Date since = Date.today().addMonths(-12).toStartOfMonth();
+        List<Deal> out = new List<Deal>();
+        for (Opportunity o : [
+            SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate,
+                   ARR_Opportunity_Amount_USD_Num__c
+            FROM Opportunity
+            WHERE IsClosed = true AND IsWon = true AND OwnerId IN :owners
+              AND CloseDate >= :since AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+            ORDER BY CloseDate DESC
+            LIMIT 200
+        ]) {
+            Deal d = new Deal();
+            d.id = o.Id;
+            d.account = (o.Account != null) ? o.Account.Name : o.Name;
+            d.ae = (o.Owner != null) ? o.Owner.Name : null;
+            d.stage = o.StageName;
+            d.arr = o.ARR_Opportunity_Amount_USD_Num__c;
+            d.closeDate = o.CloseDate;
+            out.add(d);
+        }
+        return out;
+    }
+
+    // ---- AI: Claude-powered coaching over the team's own numbers ----
+
+    @AuraEnabled
+    public static String analyzePerformance(String area) {
+        String ctx;
+        if (area == 'conversion') {
+            ctx = 'BAND WIN RATES (band held before close):\n';
+            for (BandRow b : getConversion()) {
+                ctx += '  ' + b.band + ': ' + pct(b.winRate) + ' by count (' + b.won + '/' + b.total
+                     + '), ' + pct(b.winRateArr) + ' by ARR\n';
+            }
+            List<CohortRow> wr = getWinRateTruth();
+            if (!wr.isEmpty()) {
+                CohortRow t = wr[0];
+                ctx += 'CREATION COHORT (team): cohort WR ' + pct(t.cohortWR) + ', contested WR '
+                     + pct(t.contestedWR) + ', qualification yield ' + pct(t.qualYield)
+                     + ' (created ' + t.created + ', won ' + t.won + ', worked ' + t.worked
+                     + ', never-real ' + t.never + ')\n';
+            }
+            ctx += 'PER AE (trailing 24mo):\n';
+            for (AeRow a : getAeConversion()) {
+                ctx += '  ' + a.ae + ': win ' + pct(a.winRate) + ', won ' + a.won + ', lost '
+                     + a.lost + ', dominant loss cause ' + a.topRoot + '\n';
+            }
+        } else if (area == 'pipeline') {
+            ctx = 'CREATED vs BOOKED by quarter (new-business ARR):\n';
+            for (QuarterRow r : getCreatedPipeline()) {
+                ctx += '  ' + r.label + ': created ' + r.createdN + '/$' + fmt(r.createdArr)
+                     + ', booked ' + r.bookedN + '/$' + fmt(r.bookedArr) + '\n';
+            }
+        } else {
+            Payload p = load();
+            Date today = Date.today();
+            Integer hi = 0, md = 0, ex = 0;
+            Decimal hiArr = 0, mdArr = 0;
+            for (Deal d : p.deals) {
+                if (d.bucket != 'A') continue;
+                String cls = String.isNotBlank(d.overrideCls) ? d.overrideCls : d.klass;
+                if (cls == 'HI') { hi++; hiArr += (d.arr == null ? 0 : d.arr); }
+                else if (cls == 'MD') { md++; mdArr += (d.arr == null ? 0 : d.arr); }
+                else ex++;
+            }
+            ctx = 'CURRENT QUARTER (' + p.qLabelA + ') team pipeline: '
+                + hi + ' Include-High ($' + fmt(hiArr) + '), '
+                + md + ' Include-Med ($' + fmt(mdArr) + '), ' + ex + ' Exclude. Team of '
+                + p.teamSize + ' AEs, ' + p.deals.size() + ' open deals in window.\n';
+        }
+        String prompt = 'You are a blunt, experienced sales forecasting coach for a sales director at a '
+            + 'govtech company. Using ONLY the team data below, give 3 to 5 specific, actionable insights '
+            + 'as short bullet points (each one sentence). Call out the single biggest risk. Do not restate '
+            + 'the numbers back; interpret them.\n\n' + ctx;
+        try {
+            return AnthropicService.complete(prompt);
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    private static String pct(Decimal d) { return d == null ? '-' : (d * 100).setScale(1) + '%'; }
+    private static String fmt(Decimal d) { return d == null ? '0' : String.valueOf(d.setScale(0)); }
 }

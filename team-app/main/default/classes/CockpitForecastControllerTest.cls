@@ -86,12 +86,45 @@ private class CockpitForecastControllerTest {
             List<CockpitForecastController.BandRow> cv = CockpitForecastController.getConversion();
             List<CockpitForecastController.CohortRow> wr = CockpitForecastController.getWinRateTruth();
             List<CockpitForecastController.AeRow> ae = CockpitForecastController.getAeConversion();
+            List<CockpitForecastController.ProblemRow> pb = CockpitForecastController.getProblems();
+            List<CockpitForecastController.Deal> cw = CockpitForecastController.getClosedWon();
             Test.stopTest();
             System.assertNotEquals(null, cp, 'created pipeline list returned');
             System.assert(!cp.isEmpty(), 'created pipeline has the historical quarter');
             System.assertNotEquals(null, cv, 'conversion list returned');
             System.assert(!wr.isEmpty(), 'win-rate truth has the team row + cohort');
             System.assert(!ae.isEmpty(), 'AE-by-AE has the rep');
+            System.assert(!pb.isEmpty(), 'problems inventory has the loss reason');
+            System.assertNotEquals(null, cw, 'closed-won list returned');
+        }
+    }
+
+    private class MockAI implements HttpCalloutMock {
+        public HttpResponse respond(HttpRequest req) {
+            HttpResponse r = new HttpResponse();
+            r.setStatusCode(200);
+            r.setBody('{"content":[{"type":"text","text":"Insight."}]}');
+            return r;
+        }
+    }
+
+    @isTest
+    static void analyze_allAreas() {
+        User dir = setupDirectorWithRep();
+        User rep = [SELECT Id FROM User WHERE ManagerId = :dir.Id LIMIT 1];
+        Id rtId = eunaSaleRtId();
+        System.runAs(dir) {
+            Opportunity o = newDeal(rep.Id, rtId);
+            insert o;
+            Test.setMock(HttpCalloutMock.class, new MockAI());
+            Test.startTest();
+            String a = CockpitForecastController.analyzePerformance('conversion');
+            String b = CockpitForecastController.analyzePerformance('pipeline');
+            String c = CockpitForecastController.analyzePerformance('forecast');
+            Test.stopTest();
+            System.assertEquals('Insight.', a, 'conversion analysis via Claude');
+            System.assertEquals('Insight.', b, 'pipeline analysis via Claude');
+            System.assertEquals('Insight.', c, 'forecast analysis via Claude');
         }
     }
 

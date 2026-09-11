@@ -40,6 +40,17 @@
 .fh-nav button:hover { color: var(--indigo); background: var(--graylt); }
 .fh-nav button.on { color: var(--indigo); border-bottom-color: var(--orange); }
 
+.fh-subnav { background: var(--graylt); border-bottom: 1px solid var(--gray); display: flex; overflow-x: auto; padding: 0 12px; }
+.fh-subnav button { background: none; border: none; padding: 8px 12px; font-size: 12px; font-weight: 600; color: #667085; cursor: pointer; white-space: nowrap; border-radius: 6px 6px 0 0; }
+.fh-subnav button:hover { color: var(--indigo); }
+.fh-subnav button.on { color: #fff; background: var(--brand2, #4A32C4); }
+
+.chartbox { background: #fff; border: 1px solid var(--gray); border-radius: 9px; padding: 12px; height: 300px; margin: 10px 0; }
+.chartbox canvas { max-height: 274px; }
+.box.ok { border-left-color: var(--good); }
+.fh-spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--gray); border-top-color: var(--orange); border-radius: 50%; animation: fhsp .7s linear infinite; vertical-align: -1px; margin-right: 6px; }
+@keyframes fhsp { to { transform: rotate(360deg); } }
+
 .fh-body { padding: 18px 20px 40px; }
 h2 { font-size: 16.5px; color: var(--indigo); margin: 4px 0 10px; font-weight: 700; }
 .lede { color: #475467; margin: 0 0 12px; max-width: 1050px; }
