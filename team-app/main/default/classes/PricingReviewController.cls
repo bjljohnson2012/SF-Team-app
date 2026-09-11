@@ -84,10 +84,10 @@ public with sharing class PricingReviewController {
     public static Set<Id> reviewedOppIds(Set<Id> oppIds) {
         Set<Id> done = new Set<Id>();
         if (oppIds == null || oppIds.isEmpty()) return done;
+        // Long text areas can't be filtered in SOQL; select and test in Apex.
         for (Opportunity o : [
-            SELECT Id FROM Opportunity
-            WHERE Id IN :oppIds AND Pricing_Review_Answers__c != null
-        ]) { done.add(o.Id); }
+            SELECT Id, Pricing_Review_Answers__c FROM Opportunity WHERE Id IN :oppIds
+        ]) { if (String.isNotBlank(o.Pricing_Review_Answers__c)) done.add(o.Id); }
         return done;
     }
 
