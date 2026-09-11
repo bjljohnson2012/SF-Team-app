@@ -11,6 +11,7 @@ export default class SalesPerfAdmin extends LightningElement {
         else if (error) { this.error = (error.body && error.body.message) || 'Could not load access.'; }
     }
 
+    get permSetName() { return (this.info && this.info.permSet) || ''; }
     get hasUsers() { return this.info && this.info.users && this.info.users.length > 0; }
     get userCount() { return this.hasUsers ? this.info.users.length : 0; }
     get editBadge() { return this.info && this.info.editInCall ? 'granted' : 'denied'; }
