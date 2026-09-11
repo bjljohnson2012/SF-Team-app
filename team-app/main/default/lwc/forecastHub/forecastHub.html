@@ -69,13 +69,13 @@
                     <button class="fh-btn gh" style="margin-left:auto" onclick={applyDefaults}>Set call = engine defaults</button>
                 </div>
                 <div class="tw"><table>
-                    <thead><tr><th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th><th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Signals</th></tr></thead>
+                    <thead><tr><th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th><th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Pricing review</th><th>Signals</th></tr></thead>
                     <tbody><template for:each={currentRows} for:item="d"><tr key={d.id} class={d.rowClass}>
                         <td class="cb"><input type="checkbox" class="chk" checked={d.picked} data-id={d.id} onchange={handlePick}></td>
                         <td><a href={d.url} target="_blank">{d.account}</a><template lwc:if={d.hasNote}><div class="ovnote">{d.note}</div></template></td>
                         <td>{d.ae}</td><td>{d.stage}</td><td><span class={d.bandPill}>{d.band}</span></td><td class="num">{d.arrFmt}</td>
                         <td><select class={d.selClass} data-id={d.id} onchange={handleClass}><template for:each={d.clsOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
-                        <td class="num">{d.score}</td><td class="small">{d.reason}</td>
+                        <td class="num">{d.score}</td><td><span class={d.reviewPill}>{d.reviewLabel}</span></td><td class="small">{d.reason}</td>
                     </tr></template></tbody>
                 </table></div>
             </template>
@@ -90,13 +90,13 @@
                     <button class="fh-btn gh" style="margin-left:auto" onclick={applyDefaults}>Set call = engine defaults</button>
                 </div>
                 <div class="tw"><table>
-                    <thead><tr><th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th><th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Signals</th></tr></thead>
+                    <thead><tr><th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th><th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Pricing review</th><th>Signals</th></tr></thead>
                     <tbody><template for:each={nextRows} for:item="d"><tr key={d.id} class={d.rowClass}>
                         <td class="cb"><input type="checkbox" class="chk" checked={d.picked} data-id={d.id} onchange={handlePick}></td>
                         <td><a href={d.url} target="_blank">{d.account}</a><template lwc:if={d.hasNote}><div class="ovnote">{d.note}</div></template></td>
                         <td>{d.ae}</td><td>{d.stage}</td><td><span class={d.bandPill}>{d.band}</span></td><td class="num">{d.arrFmt}</td>
                         <td><select class={d.selClass} data-id={d.id} onchange={handleClass}><template for:each={d.clsOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
-                        <td class="num">{d.score}</td><td class="small">{d.reason}</td>
+                        <td class="num">{d.score}</td><td><span class={d.reviewPill}>{d.reviewLabel}</span></td><td class="small">{d.reason}</td>
                     </tr></template></tbody>
                 </table></div>
             </template>

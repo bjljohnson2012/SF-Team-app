@@ -126,7 +126,10 @@ export default class ForecastHub extends LightningElement {
             clsOptions: ['HI', 'MD', 'EX'].map((v) => ({ value: v, label: CLS_META[v][1], selected: v === cls })),
             band: d.band || '-', bandPill: 'pill ' + (BAND_META[d.band] || 'p-pipe'),
             picked, rowClass: picked ? 'picked' : '',
-            pushes: d.pushes, closeDate: d.closeDate
+            pushes: d.pushes, closeDate: d.closeDate,
+            reviewDone: d.reviewDone === true,
+            reviewPill: 'pill ' + (d.reviewDone === true ? 'p-hi' : 'p-ex'),
+            reviewLabel: d.reviewDone === true ? 'Done' : 'Not done'
         };
     }
     passesFilter(row) {

@@ -11,7 +11,7 @@ public with sharing class CockpitForecastController {
         @AuraEnabled public Id id;
         @AuraEnabled public String account, ae, stage, band, klass, reason, nextStep, bucket;
         @AuraEnabled public String overrideCls, overrideNote;
-        @AuraEnabled public Boolean inCall;
+        @AuraEnabled public Boolean inCall, reviewDone;
         @AuraEnabled public Decimal arr, pushes;
         @AuraEnabled public Integer score;
         @AuraEnabled public Date closeDate;
@@ -97,6 +97,9 @@ public with sharing class CockpitForecastController {
             d.overrideNote = o.Cockpit_Override_Note__c;
             p.deals.add(d);
         }
+
+        Set<Id> reviewed = PricingReviewController.reviewedOppIds(new Map<Id, Opportunity>(opps).keySet());
+        for (Deal d : p.deals) d.reviewDone = reviewed.contains(d.id);
 
         List<String> names = new List<String>();
         for (CockpitRosterService.Member m : CockpitRosterService.teamFor(UserInfo.getUserId())) {
