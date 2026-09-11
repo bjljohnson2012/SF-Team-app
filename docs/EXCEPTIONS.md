@@ -131,3 +131,17 @@ Completes the four analytics tabs. Adds the creation-cohort win-rate model and p
 - **Approved by:** org owner (benjamin.johnson), "build it all in prod".
 - **Post-deploy verification:** anon Apex — getWinRateTruth team row created 646 / won 121 / cohortWR 18.7% / contestedWR 31.0% / qualYield 60.4%; getAeConversion 6 reps with win rates 8.6%-44.4% and dominant loss root ENGAGE.
 - **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit.
+
+## 2026-09-11 — Sales Performance restructure: sub-tabs, charts, Problems/Hygiene, AI
+
+Reorganizes the Forecasting Hub into a "Sales Performance" area with Forecast / Pipeline / Conversion sections and sub-tabs, adds Chart.js dashboards, Problems + Hygiene, and Claude-powered insight buttons.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (5):** `StaticResource:chartjs` (Chart.js 4.5.0 UMD); `ApexClass:CockpitForecastController` (+ `getProblems`, `getClosedWon`, `analyzePerformance` calling `AnthropicService`); `ApexClass:CockpitForecastControllerTest` (+ HttpCalloutMock AI test); `LightningComponentBundle:forecastHub` (2-level nav: Forecast[Summary/Current/Next/Pull-Ins/Hygiene], Pipeline[Created/Open/Closed-Won + charts], Conversion[Win Rate Truth/AE-by-AE/Problems + charts], AI insight button per section); `CustomTab:Forecasting_Hub` (label -> "Sales Performance").
+- **Validated job id:** `0AfOL000003S60j0AC` — 5/5, 6 tests, 0 failures; controller coverage 91%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 5/5, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (Chart.js as static resource per guide CSP note; AI via existing `anthropic_api` Named Credential; analytics read-only). Formal `/sf-review` NOT run.
+- **Approved by:** org owner (benjamin.johnson), "problems + hygiene and chart.js are more important... more AI... sub-tabs".
+- **Post-deploy verification:** anon Apex — `analyzePerformance('conversion')` returned a real Claude insight ("Best Case ARR win rate 6.9% identical to raw Pipeline..."); getProblems 14 loss reasons (Ghosted 267); getClosedWon 83 deals; rendered LWC preview confirmed the section/sub-tab nav + a live Created-vs-Booked bar chart.
+- **Note:** MEDDPICC batch intentionally skipped per owner. Carve-out expired 2026-09-11; further changes go via the euna-salesforce pipeline.
+- **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit; static resource + tab label can remain.
