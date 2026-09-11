@@ -217,3 +217,17 @@ Adds a clickable link to the opportunity record on the Pricing Review View Check
 - **Note:** republishing the bundle also resolved a stale-cached-component error some users saw ("No apex action available for PricingReviewController.getReviewDeals") after the earlier getReviewDeals->getReviewData rename; the deployed code was already correct, the error was a client cache.
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `pricingReviewTool` to the prior commit.
+
+## 2026-09-11 — Admin tab: assign / remove users
+
+Adds user management to the Sales Performance Admin tab: assign or remove the `GTM_Team_Johnson_Access` permission set directly from the tab, gated on the viewer's Manage Users / Assign Permission Sets permission.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (3, changed):** `ApexClass:CockpitForecastController` (+ `getAccessMatrix` returns `canManage` + assignable active Standard users; `assignAccess`/`revokeAccess` gated on `PermissionsManageUsers`/`PermissionsAssignPermissionSets`, duplicate-safe, DML-error handled); `ApexClass:CockpitForecastControllerTest` (+ assign→verify→idempotent→revoke→verify + null guard); `LightningComponentBundle:salesPerfAdmin` (assign-user picker + per-user Remove, shown only to managers; success/error notices).
+- **Validated job id:** `0AfOL000003SBy50AG` — `RunSpecifiedTests` (`CockpitForecastControllerTest`); 8/8, 0 failures.
+- **Quick-deploy:** `0AfOL000003SC7l0AG` — Succeeded, `checkOnly: false`, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (privileged action gated by platform permission both in UI and server-side; assignment is a setup-object DML so no mixed-DML with the tool's data; picker limited to 200 active Standard users). Formal `/sf-review` NOT run (checklists absent from public repo).
+- **Approved by:** org owner (benjamin.johnson), "go ahead".
+- **Post-deploy verification:** anon Apex — `getAccessMatrix()` canManage=true, assigned=1, assignable=200 (sample: Aaron Digruccio, Customer Success); tabs list now includes Pricing Review View Checklist Tool.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `CockpitForecastController`/`salesPerfAdmin` to the prior commit (removes the assign/revoke methods and UI); no schema to unwind.
