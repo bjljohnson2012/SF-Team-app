@@ -65,7 +65,7 @@ export default class PricingReviewTool extends LightningElement {
                 arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
                 statusPill: 'pill ' + (d.reviewDone ? 'p-hi' : 'p-ex'),
                 statusLabel: d.reviewDone ? 'Done' : 'Not done',
-                overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.override || '') === o[0] }))
+                overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.statusOverride || '') === o[0] }))
             }));
             this.error = undefined;
         } else if (result.error) { this.error = this.msg(result.error); }
@@ -96,7 +96,7 @@ export default class PricingReviewTool extends LightningElement {
     // override the done/not-done status
     setStatus(e) {
         const id = e.currentTarget.dataset.id;
-        setReviewStatus({ opportunityId: id, override: e.target.value })
+        setReviewStatus({ opportunityId: id, newStatus: e.target.value })
             .then(() => refreshApex(this.wired))
             .catch((err) => { this.error = this.msg(err); });
     }

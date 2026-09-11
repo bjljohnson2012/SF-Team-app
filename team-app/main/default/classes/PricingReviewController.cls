@@ -42,7 +42,7 @@ public with sharing class PricingReviewController {
 
     public class ReviewDeal {
         @AuraEnabled public Id id;
-        @AuraEnabled public String account, ae, stage, leadSource, director, override;
+        @AuraEnabled public String account, ae, stage, leadSource, director, statusOverride;
         @AuraEnabled public Decimal arr;
         @AuraEnabled public Date closeDate;
         @AuraEnabled public Boolean reviewDone;
@@ -90,7 +90,7 @@ public with sharing class PricingReviewController {
             r.closeDate = o.CloseDate;
             r.leadSource = o.LeadSource;
             r.director = String.isNotBlank(o.Sales_Director__c) ? o.Sales_Director__c : DEFAULT_DIRECTOR;
-            r.override = o.Pricing_Review_Override__c;
+            r.statusOverride = o.Pricing_Review_Override__c;
             r.reviewDone = isDone(o.Pricing_Review_Answers__c, o.Pricing_Review_Override__c);
             out.deals.add(r);
         }
@@ -99,9 +99,9 @@ public with sharing class PricingReviewController {
 
     /** Manual override of the completion status: 'Done', 'Not Done', or blank to auto-derive. */
     @AuraEnabled
-    public static void setReviewStatus(Id opportunityId, String override) {
+    public static void setReviewStatus(Id opportunityId, String newStatus) {
         if (opportunityId == null) throw new AuraHandledException('An opportunity is required.');
-        String v = String.isBlank(override) ? null : override.trim();
+        String v = String.isBlank(newStatus) ? null : newStatus.trim();
         if (v != null && v != 'Done' && v != 'Not Done') {
             throw new AuraHandledException('Status must be Done, Not Done, or blank.');
         }
@@ -109,9 +109,9 @@ public with sharing class PricingReviewController {
     }
 
     /** Effective status: the override wins; otherwise derived from persisted answers. */
-    private static Boolean isDone(String answers, String override) {
-        if (override == 'Done') return true;
-        if (override == 'Not Done') return false;
+    private static Boolean isDone(String answers, String ovr) {
+        if (ovr == 'Done') return true;
+        if (ovr == 'Not Done') return false;
         return String.isNotBlank(answers);
     }
 
