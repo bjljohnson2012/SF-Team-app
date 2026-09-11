@@ -539,4 +539,65 @@ public with sharing class CockpitForecastController {
 
     private static String pct(Decimal d) { return d == null ? '-' : (d * 100).setScale(1) + '%'; }
     private static String fmt(Decimal d) { return d == null ? '0' : String.valueOf(d.setScale(0)); }
+
+    public class ForecastSummary {
+        @AuraEnabled public String qLabelA, qLabelB;
+        @AuraEnabled public Integer daysLeftA = 0, bookedNA = 0, bookedNB = 0, medianCycle = 0;
+        @AuraEnabled public Decimal pctElapsedA = 0, bookedArrA = 0, bookedArrB = 0, newPipelineEstA = 0;
+    }
+
+    /** Header + build inputs for the forecast Summary: booked-to-date, quarter clock,
+     *  and a trailing estimate of new pipeline created AND closed inside a quarter. */
+    @AuraEnabled(cacheable=true)
+    public static ForecastSummary getForecastSummary() {
+        ForecastSummary s = new ForecastSummary();
+        Set<Id> owners = CockpitRosterService.teamIds(UserInfo.getUserId());
+        Date today = Date.today();
+        Integer q = CockpitConstants.quarterOf(today);
+        Date qStartA = CockpitConstants.quarterStart(today.year(), q);
+        Date qEndA = qStartA.addMonths(3).addDays(-1);
+        Date qStartB = qStartA.addMonths(3);
+        Date qEndB = qStartA.addMonths(6).addDays(-1);
+        s.qLabelA = 'Q' + q + ' ' + today.year();
+        Integer qb = (q == 4) ? 1 : q + 1;
+        Integer yb = (q == 4) ? today.year() + 1 : today.year();
+        s.qLabelB = 'Q' + qb + ' ' + yb;
+        s.daysLeftA = today.daysBetween(qEndA);
+        Integer tot = qStartA.daysBetween(qEndA);
+        s.pctElapsedA = tot == 0 ? 0 : ((Decimal) qStartA.daysBetween(today)).divide(tot, 4);
+        if (owners.isEmpty()) return s;
+
+        for (AggregateResult ar : [
+            SELECT COUNT(Id) c, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+            FROM Opportunity WHERE IsClosed = true AND IsWon = true AND OwnerId IN :owners
+              AND CloseDate >= :qStartA AND CloseDate <= :qEndA AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+        ]) { s.bookedNA = (Integer) ar.get('c'); s.bookedArrA = nz((Decimal) ar.get('arr')); }
+        for (AggregateResult ar : [
+            SELECT COUNT(Id) c, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+            FROM Opportunity WHERE IsClosed = true AND IsWon = true AND OwnerId IN :owners
+              AND CloseDate >= :qStartB AND CloseDate <= :qEndB AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+        ]) { s.bookedNB = (Integer) ar.get('c'); s.bookedArrB = nz((Decimal) ar.get('arr')); }
+
+        // Trailing 4 quarters: deals both created (SQL gate) and won inside one quarter.
+        Date since = qStartA.addMonths(-12);
+        Decimal inQ = 0;
+        List<Integer> cycles = new List<Integer>();
+        for (Opportunity o : [
+            SELECT SQL_Datestamp_bf__c, CloseDate, ARR_Opportunity_Amount_USD_Num__c
+            FROM Opportunity WHERE IsClosed = true AND IsWon = true AND OwnerId IN :owners
+              AND CloseDate >= :since AND CloseDate < :qStartA AND SQL_Datestamp_bf__c != null
+              AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
+        ]) {
+            Integer d = o.SQL_Datestamp_bf__c.daysBetween(o.CloseDate);
+            if (d >= 0) cycles.add(d);
+            Date sd = o.SQL_Datestamp_bf__c;
+            if (sd.year() == o.CloseDate.year() && CockpitConstants.quarterOf(sd) == CockpitConstants.quarterOf(o.CloseDate)) {
+                inQ += nz(o.ARR_Opportunity_Amount_USD_Num__c);
+            }
+        }
+        s.newPipelineEstA = inQ.divide(4, 0);
+        if (!cycles.isEmpty()) { cycles.sort(); s.medianCycle = cycles[cycles.size() / 2]; }
+        return s;
+    }
+    private static Decimal nz(Decimal d) { return d == null ? 0 : d; }
 }

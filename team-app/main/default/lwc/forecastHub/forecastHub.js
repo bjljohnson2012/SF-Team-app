@@ -9,6 +9,7 @@ import getWinRateTruth from '@salesforce/apex/CockpitForecastController.getWinRa
 import getAeConversion from '@salesforce/apex/CockpitForecastController.getAeConversion';
 import getProblems from '@salesforce/apex/CockpitForecastController.getProblems';
 import getClosedWon from '@salesforce/apex/CockpitForecastController.getClosedWon';
+import getForecastSummary from '@salesforce/apex/CockpitForecastController.getForecastSummary';
 import setInCall from '@salesforce/apex/CockpitForecastController.setInCall';
 import setOverride from '@salesforce/apex/CockpitForecastController.setOverride';
 import applyDefaultPicks from '@salesforce/apex/CockpitForecastController.applyDefaultPicks';
@@ -70,6 +71,9 @@ export default class ForecastHub extends LightningElement {
     aeRows = [];
     problemRows = [];
     closedWonRows = [];
+    fs = {};
+    callA = null;
+    callB = null;
     wiredLoad;
     aiText;
     aiLoading = false;
@@ -91,6 +95,7 @@ export default class ForecastHub extends LightningElement {
     @wire(getAeConversion) wAE({ data }) { if (data) this.aeRows = data; }
     @wire(getProblems) wPB({ data }) { if (data) this.problemRows = data; }
     @wire(getClosedWon) wCW({ data }) { if (data) this.closedWonRows = data; }
+    @wire(getForecastSummary) wFS({ data }) { if (data) this.fs = data; }
 
     renderedCallback() {
         if (!this.chartLoaded) {
@@ -151,6 +156,68 @@ export default class ForecastHub extends LightningElement {
         return { teamSize: this.teamSize, dealCount: this.deals.length, currentCall: this.money(a.call),
             nextCall: this.money(b.call), combined: this.money(a.call + b.call), hi, md, ex, qA: this.qLabelA, qB: this.qLabelB };
     }
+    // ---- forecast call: manual number vs the modeled build ----
+    openByClass(bucket) {
+        let hiArr = 0, mdArr = 0, hiN = 0, mdN = 0, open = 0;
+        this.deals.filter((d) => d.bucket === bucket).forEach((d) => {
+            const a = d.arr || 0; open += a; const c = this.clsOf(d);
+            if (c === 'HI') { hiArr += a; hiN++; } else if (c === 'MD') { mdArr += a; mdN++; }
+        });
+        return { hiArr, mdArr, hiN, mdN, open };
+    }
+    modeledBuild(bucket, bookedArr, newPipe) {
+        const o = this.openByClass(bucket);
+        return (bookedArr || 0) + (o.hiArr * this.wHi) / 100 + (o.mdArr * this.wMed) / 100 + (newPipe || 0);
+    }
+    handBuilt(bucket) {
+        let arr = 0, n = 0;
+        this.deals.filter((d) => d.bucket === bucket && d.inCall === true).forEach((d) => { arr += d.arr || 0; n++; });
+        return { arr, n };
+    }
+    get modeledA() { return this.modeledBuild('A', this.fs.bookedArrA, this.fs.newPipelineEstA); }
+    get modeledB() { return this.modeledBuild('B', this.fs.bookedArrB, 0); }
+    get effCallA() { return this.callA != null ? this.callA : Math.round(this.modeledA); }
+    get effCallB() { return this.callB != null ? this.callB : Math.round(this.modeledB); }
+    get commitBandB() {
+        let arr = 0, n = 0;
+        this.deals.filter((d) => d.bucket === 'B' && d.band === 'Commit').forEach((d) => { arr += d.arr || 0; n++; });
+        return { arr, n };
+    }
+    get call() {
+        const o = this.openByClass('A');
+        const booked = this.fs.bookedArrA || 0;
+        const modeled = this.modeledA;
+        const hb = this.handBuilt('A');
+        const callA = this.effCallA, callB = this.effCallB;
+        const gapA = Math.max(0, callA - modeled);
+        const modeledBv = this.modeledB;
+        const gapB = Math.max(0, callB - modeledBv);
+        const cb = this.commitBandB;
+        return {
+            qA: this.fs.qLabelA, qB: this.fs.qLabelB,
+            callA, callB, callAFmt: this.money(callA), callBFmt: this.money(callB),
+            modeledA: this.money(modeled), modeledB: this.money(modeledBv),
+            booked: this.money(booked), bookedN: this.fs.bookedNA || 0,
+            bookedPct: callA > 0 ? ((booked / callA) * 100).toFixed(1) + '%' : '-',
+            stillToFind: this.money(callA - booked), openArr: this.money(o.open),
+            gapA: this.money(gapA), gapAShort: (callA - modeled) > 0,
+            gapB: this.money(gapB), gapBUnsourced: callB > 0 ? ((gapB / callB) * 100).toFixed(1) + '%' : '-',
+            handBuilt: this.money(hb.arr), handBuiltN: hb.n,
+            commitBand: this.money(cb.arr), commitBandN: cb.n,
+            daysLeft: this.fs.daysLeftA, medianCycle: this.fs.medianCycle,
+            pctElapsed: this.fs.pctElapsedA != null ? Math.round(this.fs.pctElapsedA * 100) + '%' : '-',
+            buildRows: [
+                { k: 'Booked to date', basis: 'Closed won, new-business types', weight: '\u2014', contrib: this.money(booked) },
+                { k: 'Include-High @ ' + this.wHi + '%', basis: o.hiN + ' deals, ' + this.money(o.hiArr), weight: this.wHi + '.0%', contrib: this.money((o.hiArr * this.wHi) / 100) },
+                { k: 'Include-Med @ ' + this.wMed + '%', basis: o.mdN + ' deals, ' + this.money(o.mdArr), weight: this.wMed + '.0%', contrib: this.money((o.mdArr * this.wMed) / 100) },
+                { k: 'New pipeline created & closed in-quarter', basis: 'Trailing average', weight: '\u2014', contrib: this.money(this.fs.newPipelineEstA), rowClass: '' },
+                { k: 'Total modeled build', basis: '', weight: '', contrib: this.money(modeled), rowClass: 'teamrow' }
+            ].map((r) => ({ ...r, rowClass: r.rowClass || '' }))
+        };
+    }
+    handleCallA(e) { const v = Number(String(e.target.value).replace(/[^0-9.]/g, '')); this.callA = isNaN(v) ? 0 : v; }
+    handleCallB(e) { const v = Number(String(e.target.value).replace(/[^0-9.]/g, '')); this.callB = isNaN(v) ? 0 : v; }
+
     get pullRows() {
         const byId = {}; this.deals.forEach((d) => { byId[d.id] = d; });
         return Object.keys(PULL).map((id) => {

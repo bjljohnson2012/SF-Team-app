@@ -88,7 +88,10 @@ private class CockpitForecastControllerTest {
             List<CockpitForecastController.AeRow> ae = CockpitForecastController.getAeConversion();
             List<CockpitForecastController.ProblemRow> pb = CockpitForecastController.getProblems();
             List<CockpitForecastController.Deal> cw = CockpitForecastController.getClosedWon();
+            CockpitForecastController.ForecastSummary fsum = CockpitForecastController.getForecastSummary();
             Test.stopTest();
+            System.assertNotEquals(null, fsum, 'forecast summary returned');
+            System.assertNotEquals(null, fsum.qLabelA, 'summary has quarter label');
             System.assertNotEquals(null, cp, 'created pipeline list returned');
             System.assert(!cp.isEmpty(), 'created pipeline has the historical quarter');
             System.assertNotEquals(null, cv, 'conversion list returned');

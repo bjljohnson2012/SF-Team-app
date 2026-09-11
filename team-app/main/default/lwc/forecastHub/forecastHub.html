@@ -11,6 +11,8 @@
 
     <template lwc:if={hasData}>
         <div class="fh-ctl">
+            <div class="fh-f"><label>{call.qA} Call</label><input type="text" value={call.callA} onchange={handleCallA}></div>
+            <div class="fh-f"><label>{call.qB} Call</label><input type="text" value={call.callB} onchange={handleCallB}></div>
             <div class="fh-f"><label>High %</label><input type="number" min="0" max="100" value={wHi} onchange={handleWHi}></div>
             <div class="fh-f"><label>Med %</label><input type="number" min="0" max="100" value={wMed} onchange={handleWMed}></div>
             <div class="fh-f"><label>Pull-in %</label><input type="number" min="0" max="100" value={wPull} onchange={handleWPull}></div>
@@ -33,18 +35,26 @@
 
             <!-- FORECAST > Summary -->
             <template lwc:if={vSummary}>
-                <h2>Forecast call &mdash; {summary.qA}</h2>
+                <h2>{call.qA} and {call.qB} &mdash; the call against the evidence</h2>
+                <p class="lede">Type your submitted call above; everything below scores it against live Salesforce. Adjust the calls or the weights and the whole model moves.</p>
                 <div class="cards">
-                    <div class="card hero"><div class="lab">Current Qtr call</div><div class="val">{summary.currentCall}</div><div class="note">High &times; {wHi}% + Med &times; {wMed}%</div></div>
-                    <div class="card hero"><div class="lab">Next Qtr call ({summary.qB})</div><div class="val">{summary.nextCall}</div></div>
-                    <div class="card"><div class="lab">Combined</div><div class="val">{summary.combined}</div></div>
-                    <div class="card"><div class="lab">Team AEs</div><div class="val">{summary.teamSize}</div><div class="note">{summary.dealCount} open deals</div></div>
+                    <div class="card hero"><div class="lab">{call.qA} call</div><div class="val">{call.callAFmt}</div><div class="note">Modeled build {call.modeledA}</div></div>
+                    <div class="card good"><div class="lab">Booked to date</div><div class="val">{call.booked}</div><div class="note">{call.bookedN} deals won, {call.bookedPct} of call</div></div>
+                    <div class="card warn"><div class="lab">Still to find</div><div class="val">{call.stillToFind}</div><div class="note">From {call.openArr} open</div></div>
+                    <div class="card"><div class="lab">Gap to call</div><div class="val">{call.gapA}</div><div class="note">Model vs your call</div></div>
+                    <div class="card"><div class="lab">Your hand-built {call.qA}</div><div class="val">{call.handBuilt}</div><div class="note">{call.handBuiltN} ticked deals, unweighted</div></div>
                 </div>
                 <div class="cards">
-                    <div class="card good"><div class="lab">Include-High (curr)</div><div class="val">{summary.hi}</div></div>
-                    <div class="card warn"><div class="lab">Include-Med (curr)</div><div class="val">{summary.md}</div></div>
-                    <div class="card"><div class="lab">Exclude (curr)</div><div class="val">{summary.ex}</div></div>
+                    <div class="card hero"><div class="lab">{call.qB} call</div><div class="val">{call.callBFmt}</div><div class="note">Modeled build {call.modeledB}</div></div>
+                    <div class="card"><div class="lab">{call.qB} gap</div><div class="val">{call.gapB}</div><div class="note">{call.gapBUnsourced} of the number unsourced</div></div>
+                    <div class="card"><div class="lab">{call.qB} commit band</div><div class="val">{call.commitBand}</div><div class="note">{call.commitBandN} deals</div></div>
+                    <div class="card"><div class="lab">Days left in {call.qA}</div><div class="val">{call.daysLeft}</div><div class="note">Median deal cycle {call.medianCycle} days</div></div>
                 </div>
+                <h3>{call.qA} &mdash; how the number builds</h3>
+                <div class="tw"><table>
+                    <thead><tr><th>Component</th><th>Basis</th><th class="num">Weight</th><th class="num">Contribution</th></tr></thead>
+                    <tbody><template for:each={call.buildRows} for:item="r"><tr key={r.k} class={r.rowClass}><td>{r.k}</td><td class="small">{r.basis}</td><td class="num">{r.weight}</td><td class="num">{r.contrib}</td></tr></template></tbody>
+                </table></div>
             </template>
 
             <!-- FORECAST > Current / Next -->
