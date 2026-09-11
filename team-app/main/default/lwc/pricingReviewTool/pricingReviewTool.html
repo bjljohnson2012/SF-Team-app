@@ -69,8 +69,8 @@
         <template lwc:if={hasRows}>
             <template lwc:if={hasFiltered}>
                 <div class="tw"><table>
-                    <thead><tr><th>Account</th><th>AE</th><th>Stage</th><th class="num">ARR</th><th>Close</th><th>Pricing review</th><th>Override</th><th></th></tr></thead>
-                    <tbody><template for:each={filteredRows} for:item="d"><tr key={d.id}>
+                    <thead><tr><th>Account</th><th>AE</th><th class="so" data-sort="stage" onclick={sortBy}>Stage{sStage}</th><th class="num so" data-sort="arr" onclick={sortBy}>ARR{sArr}</th><th class="so" data-sort="closeDate" onclick={sortBy}>Close{sClose}</th><th class="so" data-sort="done" onclick={sortBy}>Pricing review{sDone}</th><th>Override</th><th></th></tr></thead>
+                    <tbody><template for:each={sortedRows} for:item="d"><tr key={d.id}>
                         <td><a href={d.recordUrl} target="_blank" title="Open the opportunity">{d.account}</a></td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
                         <td><span class={d.statusPill}>{d.statusLabel}</span></td>
                         <td><select class="ovsel" data-id={d.id} onchange={setStatus}><template for:each={d.overrideOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>

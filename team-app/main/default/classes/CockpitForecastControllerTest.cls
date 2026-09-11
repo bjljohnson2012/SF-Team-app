@@ -152,24 +152,36 @@ private class CockpitForecastControllerTest {
         System.runAs(dir) {
             Test.startTest();
             CockpitForecastController.AccessInfo info = CockpitForecastController.getAccessMatrix();
-            CockpitForecastController.assignAccess(target.Id);
-            Boolean assigned = ![
+            CockpitForecastController.assignAccess(target.Id, 'full');
+            Boolean fullAssigned = ![
                 SELECT Id FROM PermissionSetAssignment
                 WHERE AssigneeId = :target.Id AND PermissionSet.Name = 'GTM_Team_Johnson_Access' LIMIT 1
             ].isEmpty();
-            CockpitForecastController.assignAccess(target.Id); // idempotent (already assigned)
+            CockpitForecastController.assignAccess(target.Id, 'full'); // idempotent
+            // switching role drops the previous permset and adds the new one
+            CockpitForecastController.assignAccess(target.Id, 'viewer');
+            Boolean viewerAssigned = ![
+                SELECT Id FROM PermissionSetAssignment
+                WHERE AssigneeId = :target.Id AND PermissionSet.Name = 'GTM_Team_Johnson_Viewer' LIMIT 1
+            ].isEmpty();
+            Boolean fullDropped = [
+                SELECT Id FROM PermissionSetAssignment
+                WHERE AssigneeId = :target.Id AND PermissionSet.Name = 'GTM_Team_Johnson_Access' LIMIT 1
+            ].isEmpty();
             CockpitForecastController.revokeAccess(target.Id);
             Boolean removed = [
                 SELECT Id FROM PermissionSetAssignment
-                WHERE AssigneeId = :target.Id AND PermissionSet.Name = 'GTM_Team_Johnson_Access' LIMIT 1
+                WHERE AssigneeId = :target.Id AND PermissionSet.Name IN ('GTM_Team_Johnson_Access', 'GTM_Team_Johnson_Viewer') LIMIT 1
             ].isEmpty();
             Test.stopTest();
             System.assert(info.canManage, 'a System Administrator can manage assignments');
-            System.assert(assigned, 'target user was assigned access');
+            System.assert(fullAssigned, 'target user was assigned full access');
+            System.assert(viewerAssigned, 'role switched to view-only');
+            System.assert(fullDropped, 'previous full access removed on role switch');
             System.assert(removed, 'target user access was revoked');
         }
         try {
-            CockpitForecastController.assignAccess(null);
+            CockpitForecastController.assignAccess(null, 'full');
             System.assert(false, 'expected AuraHandledException for null user');
         } catch (AuraHandledException e) { System.assert(true); }
     }

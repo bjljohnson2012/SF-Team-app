@@ -25,15 +25,19 @@
                         <option value="">Select a user&hellip;</option>
                         <template for:each={assignableOptions} for:item="o"><option key={o.id} value={o.id}>{o.label}</option></template>
                     </select>
+                    <label>Role</label>
+                    <select onchange={handleRole} disabled={busy}>
+                        <template for:each={roleOptions} for:item="r"><option key={r.value} value={r.value} selected={r.selected}>{r.label}</option></template>
+                    </select>
                     <button class="adm-btn" onclick={assign} disabled={assignDisabled}>Assign access</button>
                     <template lwc:if={busy}><span class="adm-spin"></span></template>
                 </div>
             </template>
             <template lwc:if={hasUsers}>
                 <div class="tw"><table>
-                    <thead><tr><th>Name</th><th>Username</th><th>Profile</th><th>Active</th><template lwc:if={canManage}><th></th></template></tr></thead>
+                    <thead><tr><th>Name</th><th>Username</th><th>Profile</th><th>Role</th><th>Active</th><template lwc:if={canManage}><th></th></template></tr></thead>
                     <tbody><template for:each={info.users} for:item="u">
-                        <tr key={u.id}><td>{u.name}</td><td class="small">{u.username}</td><td>{u.profile}</td><td>{u.active}</td>
+                        <tr key={u.id}><td>{u.name}</td><td class="small">{u.username}</td><td>{u.profile}</td><td>{u.role}</td><td>{u.active}</td>
                             <template lwc:if={canManage}><td><button class="adm-btn gh" data-id={u.id} onclick={remove} disabled={busy}>Remove</button></td></template>
                         </tr>
                     </template></tbody>

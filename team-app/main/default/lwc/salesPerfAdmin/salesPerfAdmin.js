@@ -10,6 +10,7 @@ export default class SalesPerfAdmin extends LightningElement {
     error;
     notice;
     selectedUserId = '';
+    role = 'full';
     busy = false;
 
     @wire(getAccessMatrix)
@@ -38,12 +39,20 @@ export default class SalesPerfAdmin extends LightningElement {
     get hasAssignable() { return this.assignableOptions.length > 0; }
     get assignDisabled() { return this.busy || !this.selectedUserId; }
 
+    get roleOptions() {
+        return [
+            { value: 'full', label: 'Full access (can edit the forecast)', selected: this.role === 'full' },
+            { value: 'viewer', label: 'View only (checklists on own deals; no editing)', selected: this.role === 'viewer' }
+        ];
+    }
+
     handleSelect(e) { this.selectedUserId = e.target.value; }
+    handleRole(e) { this.role = e.target.value; }
 
     assign() {
         if (!this.selectedUserId) return;
         this.busy = true; this.error = undefined; this.notice = undefined;
-        assignAccess({ userId: this.selectedUserId })
+        assignAccess({ userId: this.selectedUserId, role: this.role })
             .then(() => { this.notice = 'Access granted.'; this.selectedUserId = ''; return refreshApex(this.wired); })
             .catch((err) => { this.error = this.msg(err); })
             .finally(() => { this.busy = false; });

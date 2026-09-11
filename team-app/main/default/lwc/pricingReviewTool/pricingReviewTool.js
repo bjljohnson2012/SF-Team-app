@@ -47,6 +47,8 @@ export default class PricingReviewTool extends LightningElement {
     isDirector = false;
     scope = 'team';
     searchTerm = '';
+    sortKey = 'arr';
+    sortDir = 'desc';
     error;
     selected;
     viewing;
@@ -63,7 +65,7 @@ export default class PricingReviewTool extends LightningElement {
             this.rows = (result.data.deals || []).map((d) => ({
                 id: d.id, account: d.account, ae: d.ae, stage: d.stage, leadSource: d.leadSource,
                 recordUrl: '/lightning/r/Opportunity/' + d.id + '/view',
-                arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
+                arr: d.arr, arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
                 statusPill: 'pill ' + (d.reviewDone ? 'p-hi' : 'p-ex'),
                 statusLabel: d.reviewDone ? 'Done' : 'Not done',
                 overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.statusOverride || '') === o[0] }))
@@ -85,6 +87,30 @@ export default class PricingReviewTool extends LightningElement {
         return this.rows.filter((r) =>
             [r.account, r.ae, r.stage].some((v) => (v || '').toLowerCase().includes(t)));
     }
+    // sorting by size (ARR), close date, review status, or stage
+    get sortedRows() {
+        const rows = [...this.filteredRows];
+        const k = this.sortKey;
+        const dir = this.sortDir === 'desc' ? -1 : 1;
+        return rows.sort((a, b) => {
+            let av, bv;
+            if (k === 'arr') { av = a.arr || 0; bv = b.arr || 0; }
+            else if (k === 'done') { av = a.done ? 1 : 0; bv = b.done ? 1 : 0; }
+            else { av = (a[k] || '').toString().toLowerCase(); bv = (b[k] || '').toString().toLowerCase(); }
+            return av < bv ? -dir : av > bv ? dir : 0;
+        });
+    }
+    sortBy(e) {
+        const k = e.currentTarget.dataset.sort;
+        if (this.sortKey === k) { this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'; }
+        else { this.sortKey = k; this.sortDir = (k === 'arr' || k === 'done') ? 'desc' : 'asc'; }
+    }
+    arrow(k) { return this.sortKey === k ? (this.sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''; }
+    get sArr() { return this.arrow('arr'); }
+    get sClose() { return this.arrow('closeDate'); }
+    get sDone() { return this.arrow('done'); }
+    get sStage() { return this.arrow('stage'); }
+
     get hasFiltered() { return this.filteredRows.length > 0; }
     get scopeLabel() { return this.scope === 'team' ? 'Showing your team\u2019s deals' : 'Showing your deals'; }
     get teamActive() { return 'seg ' + (this.scope === 'team' ? 'on' : ''); }
