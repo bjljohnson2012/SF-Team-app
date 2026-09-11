@@ -18,5 +18,6 @@
     <navType>Standard</navType>
     <tabs>Team_Opportunity_Insights</tabs>
     <tabs>Forecasting_Hub</tabs>
+    <tabs>Sales_Perf_Admin</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>

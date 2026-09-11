@@ -132,6 +132,19 @@ private class CockpitForecastControllerTest {
     }
 
     @isTest
+    static void accessMatrix_listsAssignedUsers() {
+        User dir = setupDirectorWithRep();
+        System.runAs(dir) {
+            Test.startTest();
+            CockpitForecastController.AccessInfo info = CockpitForecastController.getAccessMatrix();
+            Test.stopTest();
+            System.assert(!info.users.isEmpty(), 'the assigned director is listed');
+            System.assert(!info.activities.isEmpty(), 'activities enumerated');
+            System.assert(info.editInCall, 'permset grants in-call edit');
+        }
+    }
+
+    @isTest
     static void load_noReports_throws() {
         User lone = usr(null, 'Director');
         insert lone;

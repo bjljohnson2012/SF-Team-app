@@ -1,0 +1,44 @@
+<template>
+    <div class="adm-header">
+        <h1>Sales Performance &mdash; Access Admin</h1>
+        <p class="sub">Who can open the app and what they can do, governed by the <b>{info.permSet}</b> permission set.</p>
+    </div>
+    <div class="adm-bar"></div>
+
+    <div class="adm-body">
+        <template lwc:if={error}><div class="err">{error}</div></template>
+
+        <template lwc:if={info}>
+            <div class="cards">
+                <div class="card"><div class="lab">Users with access</div><div class="val">{userCount}</div><div class="note">assigned {info.permSet}</div></div>
+                <div class="card"><div class="lab">Tick into call</div><div class="val"><span class={editClass}>{editBadge}</span></div><div class="note">Cockpit_In_Call__c edit</div></div>
+                <div class="card"><div class="lab">Override class</div><div class="val"><span class={overrideClass}>{overrideBadge}</span></div><div class="note">Cockpit_Class_Override__c edit</div></div>
+                <div class="card"><div class="lab">Apex / data access</div><div class="val"><span class={apexClass}>{apexBadge}</span></div><div class="note">CockpitForecastController</div></div>
+            </div>
+
+            <h3>Users with access</h3>
+            <template lwc:if={hasUsers}>
+                <div class="tw"><table>
+                    <thead><tr><th>Name</th><th>Username</th><th>Profile</th><th>Active</th></tr></thead>
+                    <tbody><template for:each={info.users} for:item="u">
+                        <tr key={u.username}><td>{u.name}</td><td class="small">{u.username}</td><td>{u.profile}</td><td>{u.active}</td></tr>
+                    </template></tbody>
+                </table></div>
+            </template>
+            <template lwc:else><div class="box"><p>No users are assigned {info.permSet} yet. Assign it to grant access.</p></div></template>
+
+            <div class="grid2">
+                <div>
+                    <h3>Tabs these users see</h3>
+                    <ul class="adm-list"><template for:each={info.tabs} for:item="t"><li key={t}>{t}</li></template></ul>
+                </div>
+                <div>
+                    <h3>Activities they can perform</h3>
+                    <ul class="adm-list"><template for:each={info.activities} for:item="a"><li key={a}>{a}</li></template></ul>
+                </div>
+            </div>
+
+            <div class="box info"><h4>How access works here</h4><p>Access is granted by assigning the <b>{info.permSet}</b> permission set (app + tab visibility, Apex, and the Cockpit field permissions). The Sales Performance sub-tabs (Forecast / Pipeline / Conversion) are visible to anyone who can open the component; edit activities (ticking the call, overriding class) require the field-level edit shown above. To create a read-only viewer, clone the permission set without the field edits.</p></div>
+        </template>
+    </div>
+</template>

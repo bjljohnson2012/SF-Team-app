@@ -600,4 +600,54 @@ public with sharing class CockpitForecastController {
         return s;
     }
     private static Decimal nz(Decimal d) { return d == null ? 0 : d; }
+
+    // ---- admin: who can access the app and do what ----
+    public class AccessUser {
+        @AuraEnabled public String name, username, profile;
+        @AuraEnabled public Boolean active;
+    }
+    public class AccessInfo {
+        @AuraEnabled public List<AccessUser> users = new List<AccessUser>();
+        @AuraEnabled public List<String> tabs = new List<String>();
+        @AuraEnabled public List<String> activities = new List<String>();
+        @AuraEnabled public Boolean editInCall = false, overrideClass = false, apexAccess = false;
+        @AuraEnabled public String permSet = 'GTM_Team_Johnson_Access';
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static AccessInfo getAccessMatrix() {
+        AccessInfo info = new AccessInfo();
+        for (PermissionSetAssignment psa : [
+            SELECT Assignee.Name, Assignee.Username, Assignee.IsActive, Assignee.Profile.Name
+            FROM PermissionSetAssignment
+            WHERE PermissionSet.Name = 'GTM_Team_Johnson_Access' AND Assignee.IsActive = true
+            ORDER BY Assignee.Name
+        ]) {
+            AccessUser u = new AccessUser();
+            u.name = psa.Assignee.Name;
+            u.username = psa.Assignee.Username;
+            u.profile = psa.Assignee.Profile.Name;
+            u.active = psa.Assignee.IsActive;
+            info.users.add(u);
+        }
+        for (FieldPermissions fp : [
+            SELECT Field, PermissionsEdit FROM FieldPermissions
+            WHERE Parent.Name = 'GTM_Team_Johnson_Access'
+        ]) {
+            if (fp.Field == 'Opportunity.Cockpit_In_Call__c' && fp.PermissionsEdit) info.editInCall = true;
+            if (fp.Field == 'Opportunity.Cockpit_Class_Override__c' && fp.PermissionsEdit) info.overrideClass = true;
+        }
+        for (SetupEntityAccess sea : [
+            SELECT SetupEntityType FROM SetupEntityAccess
+            WHERE Parent.Name = 'GTM_Team_Johnson_Access' AND SetupEntityType = 'ApexClass' LIMIT 1
+        ]) { info.apexAccess = true; }
+
+        info.tabs = new List<String>{ 'Main (Team Opportunity Insights)', 'Sales Performance', 'Admin' };
+        info.activities.add('View Forecast, Pipeline & Conversion sub-tabs');
+        if (info.editInCall) info.activities.add('Tick deals into the call (Cockpit_In_Call__c)');
+        if (info.overrideClass) info.activities.add('Override deal classification (Cockpit_Class_Override__c)');
+        info.activities.add('Run Claude AI insight on each section');
+        info.activities.add('Adjust weights & submitted call (session)');
+        return info;
+    }
 }
