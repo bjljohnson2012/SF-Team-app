@@ -42,19 +42,37 @@ public with sharing class PricingReviewController {
 
     public class ReviewDeal {
         @AuraEnabled public Id id;
-        @AuraEnabled public String account, ae, stage, leadSource, director;
+        @AuraEnabled public String account, ae, stage, leadSource, director, override;
         @AuraEnabled public Decimal arr;
         @AuraEnabled public Date closeDate;
         @AuraEnabled public Boolean reviewDone;
     }
 
+    public class ReviewData {
+        @AuraEnabled public Boolean isDirector = false;
+        @AuraEnabled public String scope;
+        @AuraEnabled public List<ReviewDeal> deals = new List<ReviewDeal>();
+    }
+
+    /**
+     * Deals for the tool, scoped by role: a director defaults to the team's open
+     * deals (scope 'mine' narrows to their own); an AE always sees only their own.
+     */
     @AuraEnabled(cacheable=true)
-    public static List<ReviewDeal> getReviewDeals() {
-        Set<Id> owners = CockpitRosterService.teamIds(UserInfo.getUserId());
-        owners.add(UserInfo.getUserId());
-        List<Opportunity> opps = [
+    public static ReviewData getReviewData(String scope) {
+        ReviewData out = new ReviewData();
+        Set<Id> team = CockpitRosterService.teamIds(UserInfo.getUserId());
+        out.isDirector = !team.isEmpty();
+        Boolean teamScope = out.isDirector && scope != 'mine';
+        out.scope = teamScope ? 'team' : 'mine';
+
+        Set<Id> owners = new Set<Id>{ UserInfo.getUserId() };
+        if (teamScope) owners.addAll(team);
+
+        for (Opportunity o : [
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, LeadSource,
-                   Sales_Director__c, ARR_Opportunity_Amount_USD_Num__c, Pricing_Review_Answers__c
+                   Sales_Director__c, ARR_Opportunity_Amount_USD_Num__c,
+                   Pricing_Review_Answers__c, Pricing_Review_Override__c
             FROM Opportunity
             WHERE IsClosed = false AND OwnerId IN :owners
               AND RecordType.DeveloperName = :CockpitConstants.SALE_RECORDTYPE
@@ -62,9 +80,7 @@ public with sharing class PricingReviewController {
               AND ARR_Opportunity_Amount_USD_Num__c >= :REVIEW_FLOOR
             ORDER BY ARR_Opportunity_Amount_USD_Num__c DESC
             LIMIT 500
-        ];
-        List<ReviewDeal> out = new List<ReviewDeal>();
-        for (Opportunity o : opps) {
+        ]) {
             ReviewDeal r = new ReviewDeal();
             r.id = o.Id;
             r.account = (o.Account != null) ? o.Account.Name : o.Name;
@@ -74,20 +90,40 @@ public with sharing class PricingReviewController {
             r.closeDate = o.CloseDate;
             r.leadSource = o.LeadSource;
             r.director = String.isNotBlank(o.Sales_Director__c) ? o.Sales_Director__c : DEFAULT_DIRECTOR;
-            r.reviewDone = String.isNotBlank(o.Pricing_Review_Answers__c);
-            out.add(r);
+            r.override = o.Pricing_Review_Override__c;
+            r.reviewDone = isDone(o.Pricing_Review_Answers__c, o.Pricing_Review_Override__c);
+            out.deals.add(r);
         }
         return out;
     }
 
-    /** Opportunity ids whose pricing review is complete (answers persisted). */
+    /** Manual override of the completion status: 'Done', 'Not Done', or blank to auto-derive. */
+    @AuraEnabled
+    public static void setReviewStatus(Id opportunityId, String override) {
+        if (opportunityId == null) throw new AuraHandledException('An opportunity is required.');
+        String v = String.isBlank(override) ? null : override.trim();
+        if (v != null && v != 'Done' && v != 'Not Done') {
+            throw new AuraHandledException('Status must be Done, Not Done, or blank.');
+        }
+        update new Opportunity(Id = opportunityId, Pricing_Review_Override__c = v);
+    }
+
+    /** Effective status: the override wins; otherwise derived from persisted answers. */
+    private static Boolean isDone(String answers, String override) {
+        if (override == 'Done') return true;
+        if (override == 'Not Done') return false;
+        return String.isNotBlank(answers);
+    }
+
+    /** Opportunity ids whose pricing review counts as complete (override-aware). */
     public static Set<Id> reviewedOppIds(Set<Id> oppIds) {
         Set<Id> done = new Set<Id>();
         if (oppIds == null || oppIds.isEmpty()) return done;
         // Long text areas can't be filtered in SOQL; select and test in Apex.
         for (Opportunity o : [
-            SELECT Id, Pricing_Review_Answers__c FROM Opportunity WHERE Id IN :oppIds
-        ]) { if (String.isNotBlank(o.Pricing_Review_Answers__c)) done.add(o.Id); }
+            SELECT Id, Pricing_Review_Answers__c, Pricing_Review_Override__c
+            FROM Opportunity WHERE Id IN :oppIds
+        ]) { if (isDone(o.Pricing_Review_Answers__c, o.Pricing_Review_Override__c)) done.add(o.Id); }
         return done;
     }
 

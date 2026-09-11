@@ -55,21 +55,36 @@
             <div class="card"><div class="lab">Reviews done</div><div class="val">{doneCount}</div></div>
         </div>
 
+        <div class="toolbar">
+            <input type="search" class="search" placeholder="Search opportunities by account, AE or stage&hellip;" value={searchTerm} oninput={handleSearch}>
+            <template lwc:if={isDirector}>
+                <div class="seg-wrap" title="Directors default to the team's deals">
+                    <button class={teamActive} onclick={showTeam}>My team</button>
+                    <button class={mineActive} onclick={showMine}>Just me</button>
+                </div>
+            </template>
+            <span class="scope-note">{scopeLabel}</span>
+        </div>
+
         <template lwc:if={hasRows}>
-            <div class="tw"><table>
-                <thead><tr><th>Account</th><th>AE</th><th>Stage</th><th class="num">ARR</th><th>Close</th><th>Pricing review</th><th></th></tr></thead>
-                <tbody><template for:each={rows} for:item="d"><tr key={d.id}>
-                    <td>{d.account}</td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
-                    <td><span class={d.statusPill}>{d.statusLabel}</span></td>
-                    <td class="rowact">
-                        <button class="pr-btn sm" data-id={d.id} onclick={pick}>
-                            <template lwc:if={d.done}>Redo review</template>
-                            <template lwc:else>Create pricing review checklist</template>
-                        </button>
-                        <template lwc:if={d.done}><button class="pr-btn sm gh" data-id={d.id} onclick={viewResponses}>View responses</button></template>
-                    </td>
-                </tr></template></tbody>
-            </table></div>
+            <template lwc:if={hasFiltered}>
+                <div class="tw"><table>
+                    <thead><tr><th>Account</th><th>AE</th><th>Stage</th><th class="num">ARR</th><th>Close</th><th>Pricing review</th><th>Override</th><th></th></tr></thead>
+                    <tbody><template for:each={filteredRows} for:item="d"><tr key={d.id}>
+                        <td>{d.account}</td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
+                        <td><span class={d.statusPill}>{d.statusLabel}</span></td>
+                        <td><select class="ovsel" data-id={d.id} onchange={setStatus}><template for:each={d.overrideOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
+                        <td class="rowact">
+                            <button class="pr-btn sm" data-id={d.id} onclick={pick}>
+                                <template lwc:if={d.done}>Redo review</template>
+                                <template lwc:else>Create pricing review checklist</template>
+                            </button>
+                            <template lwc:if={d.done}><button class="pr-btn sm gh" data-id={d.id} onclick={viewResponses}>View responses</button></template>
+                        </td>
+                    </tr></template></tbody>
+                </table></div>
+            </template>
+            <template lwc:else><div class="box"><p>No opportunities match &ldquo;{searchTerm}&rdquo;.</p></div></template>
         </template>
         <template lwc:else><div class="box"><p>No open new-business opportunities found for you or your team.</p></div></template>
     </div>

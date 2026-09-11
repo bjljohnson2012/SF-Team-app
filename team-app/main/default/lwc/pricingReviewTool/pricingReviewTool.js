@@ -1,9 +1,10 @@
 import { LightningElement, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
-import getReviewDeals from '@salesforce/apex/PricingReviewController.getReviewDeals';
+import getReviewData from '@salesforce/apex/PricingReviewController.getReviewData';
 import draftAnswers from '@salesforce/apex/PricingReviewController.draftAnswers';
 import createReview from '@salesforce/apex/PricingReviewController.createReview';
 import getReview from '@salesforce/apex/PricingReviewController.getReview';
+import setReviewStatus from '@salesforce/apex/PricingReviewController.setReviewStatus';
 
 const QUESTIONS = [
     'Total Budget and Operating Budget, Population/Student Count + Employees',
@@ -38,10 +39,14 @@ const BATCHES = [
     { label: 'Batch 4 \u2014 Deal Shape', from: 16, to: 20 },
     { label: 'Batch 5 \u2014 Scope & Recommendation', from: 21, to: 24 }
 ];
+const OVERRIDES = [['', 'Auto'], ['Done', 'Done'], ['Not Done', 'Not done']];
 
 export default class PricingReviewTool extends LightningElement {
     wired;
     rows = [];
+    isDirector = false;
+    scope = 'team';
+    searchTerm = '';
     error;
     selected;
     viewing;
@@ -50,15 +55,17 @@ export default class PricingReviewTool extends LightningElement {
     done;
     answers = {};
 
-    @wire(getReviewDeals)
+    @wire(getReviewData, { scope: '$scope' })
     w(result) {
         this.wired = result;
         if (result.data) {
-            this.rows = result.data.map((d) => ({
+            this.isDirector = result.data.isDirector;
+            this.rows = (result.data.deals || []).map((d) => ({
                 id: d.id, account: d.account, ae: d.ae, stage: d.stage, leadSource: d.leadSource,
                 arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
                 statusPill: 'pill ' + (d.reviewDone ? 'p-hi' : 'p-ex'),
-                statusLabel: d.reviewDone ? 'Done' : 'Not done'
+                statusLabel: d.reviewDone ? 'Done' : 'Not done',
+                overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.override || '') === o[0] }))
             }));
             this.error = undefined;
         } else if (result.error) { this.error = this.msg(result.error); }
@@ -70,24 +77,39 @@ export default class PricingReviewTool extends LightningElement {
     get openCount() { return this.rows.length; }
     get doneCount() { return this.rows.filter((r) => r.done).length; }
 
-    // editable groups for the review builder
-    get questionGroups() {
-        return BATCHES.map((b) => {
-            const items = [];
-            for (let n = b.from; n <= b.to; n++) {
-                const key = 'Q' + n;
-                items.push({ key, num: n, label: QUESTIONS[n - 1], value: this.answers[key] || '' });
-            }
-            return { label: b.label, items };
-        });
+    // client-side search over the scoped set
+    get filteredRows() {
+        const t = (this.searchTerm || '').trim().toLowerCase();
+        if (!t) return this.rows;
+        return this.rows.filter((r) =>
+            [r.account, r.ae, r.stage].some((v) => (v || '').toLowerCase().includes(t)));
     }
-    // read-only groups for the saved-responses viewer
-    get viewGroups() {
+    get hasFiltered() { return this.filteredRows.length > 0; }
+    get scopeLabel() { return this.scope === 'team' ? 'Showing your team\u2019s deals' : 'Showing your deals'; }
+    get teamActive() { return 'seg ' + (this.scope === 'team' ? 'on' : ''); }
+    get mineActive() { return 'seg ' + (this.scope === 'mine' ? 'on' : ''); }
+
+    handleSearch(e) { this.searchTerm = e.target.value; }
+    showTeam() { this.scope = 'team'; }
+    showMine() { this.scope = 'mine'; }
+
+    // override the done/not-done status
+    setStatus(e) {
+        const id = e.currentTarget.dataset.id;
+        setReviewStatus({ opportunityId: id, override: e.target.value })
+            .then(() => refreshApex(this.wired))
+            .catch((err) => { this.error = this.msg(err); });
+    }
+
+    // editable + read-only question groups
+    get questionGroups() { return this.groups(false); }
+    get viewGroups() { return this.groups(true); }
+    groups(readOnly) {
         return BATCHES.map((b) => {
             const items = [];
             for (let n = b.from; n <= b.to; n++) {
                 const key = 'Q' + n;
-                items.push({ key, num: n, label: QUESTIONS[n - 1], value: this.answers[key] || '\u2014' });
+                items.push({ key, num: n, label: QUESTIONS[n - 1], value: this.answers[key] || (readOnly ? '\u2014' : '') });
             }
             return { label: b.label, items };
         });
@@ -116,7 +138,6 @@ export default class PricingReviewTool extends LightningElement {
             .finally(() => { this.saving = false; });
     }
 
-    // review saved responses on the tool page
     viewResponses(e) {
         const id = e.currentTarget.dataset.id;
         this.viewing = this.rows.find((x) => x.id === id);

@@ -68,13 +68,13 @@ private class PricingReviewControllerTest {
                 'Q2' => 'Inbound web', 'Q24' => '$85K ARR, 3-year term, 12% discount'
             };
             Test.startTest();
-            List<PricingReviewController.ReviewDeal> before = PricingReviewController.getReviewDeals();
+            PricingReviewController.ReviewData before = PricingReviewController.getReviewData('team');
             Id docId = PricingReviewController.createReview(o.Id, answers);
             Boolean detected = PricingReviewController.reviewedOppIds(new Set<Id>{ o.Id }).contains(o.Id);
             Map<String, String> saved = PricingReviewController.getReview(o.Id);
             Test.stopTest();
 
-            System.assertNotEquals(null, before, 'review-deal list returned');
+            System.assertNotEquals(null, before, 'review data returned');
             System.assertNotEquals(null, docId, 'a document was created');
             System.assert(detected, 'review is detected as done after completion');
             System.assertEquals('$85K ARR, 3-year term, 12% discount', saved.get('Q24'), 'saved responses read back on the tool page');
@@ -83,7 +83,23 @@ private class PricingReviewControllerTest {
             System.assert(String.isNotBlank(chk.Pricing_Review_Answers__c), 'answers persisted on the opportunity');
             ContentDocumentLink cdl = [SELECT Id FROM ContentDocumentLink WHERE LinkedEntityId = :o.Id LIMIT 1];
             System.assertNotEquals(null, cdl.Id, 'file linked to the opportunity');
+
+            // manual override wins over the derived status
+            PricingReviewController.setReviewStatus(o.Id, 'Not Done');
+            System.assert(!PricingReviewController.reviewedOppIds(new Set<Id>{ o.Id }).contains(o.Id), 'Not Done override forces incomplete');
+            PricingReviewController.setReviewStatus(o.Id, 'Done');
+            System.assert(PricingReviewController.reviewedOppIds(new Set<Id>{ o.Id }).contains(o.Id), 'Done override forces complete');
+            PricingReviewController.setReviewStatus(o.Id, '');
+            System.assert(PricingReviewController.reviewedOppIds(new Set<Id>{ o.Id }).contains(o.Id), 'blank override derives from persisted answers');
         }
+    }
+
+    @isTest
+    static void setStatus_validates() {
+        try {
+            PricingReviewController.setReviewStatus(null, 'Done');
+            System.assert(false, 'expected AuraHandledException for null id');
+        } catch (AuraHandledException e) { System.assert(true); }
     }
 
     @isTest
