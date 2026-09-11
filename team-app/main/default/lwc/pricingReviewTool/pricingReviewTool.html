@@ -11,7 +11,7 @@
 
         <template lwc:if={selected}>
             <div class="box builder-box">
-                <h3>Pricing Review Checklist &mdash; {selected.account}</h3>
+                <h3>Pricing Review Checklist &mdash; <a href={selected.recordUrl} target="_blank" title="Open the opportunity">{selected.account}</a></h3>
                 <template lwc:if={drafting}>
                     <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip;</p>
                 </template>
@@ -36,7 +36,7 @@
 
         <template lwc:if={viewing}>
             <div class="box builder-box">
-                <h3>Saved Pricing Review &mdash; {viewing.account}</h3>
+                <h3>Saved Pricing Review &mdash; <a href={viewing.recordUrl} target="_blank" title="Open the opportunity">{viewing.account}</a></h3>
                 <p class="small">The responses saved for this opportunity (read-only). Reopen the review from the table to make changes.</p>
                 <template for:each={viewGroups} for:item="g">
                     <div key={g.label} class="batch">
@@ -71,7 +71,7 @@
                 <div class="tw"><table>
                     <thead><tr><th>Account</th><th>AE</th><th>Stage</th><th class="num">ARR</th><th>Close</th><th>Pricing review</th><th>Override</th><th></th></tr></thead>
                     <tbody><template for:each={filteredRows} for:item="d"><tr key={d.id}>
-                        <td>{d.account}</td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
+                        <td><a href={d.recordUrl} target="_blank" title="Open the opportunity">{d.account}</a></td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
                         <td><span class={d.statusPill}>{d.statusLabel}</span></td>
                         <td><select class="ovsel" data-id={d.id} onchange={setStatus}><template for:each={d.overrideOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
                         <td class="rowact">
