@@ -157,3 +157,15 @@ Adds the manual Q3/Q4 Call inputs and the Summary that scores the typed call aga
 - **Post-deploy verification:** getForecastSummary live — Q3 2026, booked 17/$286,805 (matches reference exactly), days-left 19, 79% elapsed, new-pipeline $126K, median cycle 116d; LWC preview confirmed the call inputs + build table.
 - **Carve-out note:** This is on/at the 2026-09-11 expiry of the AGENTS.md direct-CLI carve-out. Further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `forecastHub`/`CockpitForecastController` to prior commit.
+
+## 2026-09-11 — Admin (access) tab
+
+Adds a small Admin tab to the GTM - Team Johnson app: who can access the app and what activities they can perform, derived live from the permission set.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (6):** `ApexClass:CockpitForecastController` (+ `getAccessMatrix`: PermissionSetAssignment + FieldPermissions + SetupEntityAccess), `ApexClass:CockpitForecastControllerTest`, `LightningComponentBundle:salesPerfAdmin` (new), `CustomTab:Sales_Perf_Admin` (label "Admin"), `CustomApplication:GTM_Team_Johnson` (3rd tab), `PermissionSet:GTM_Team_Johnson_Access` (tab visibility).
+- **Validated job id:** `0AfOL000003S9Y50AK` — 6/6, 7 tests, 0 failures; coverage 91%.
+- **Quick-deploy:** Succeeded, `checkOnly: false`, 6/6, 0 errors.
+- **Post-deploy verification:** getAccessMatrix live — 1 user (Ben Johnson, System Administrator, active), editInCall/override/apex all true, activities enumerated; app now shows Main, Sales Performance, Admin tabs.
+- **Carve-out note:** at/after the 2026-09-11 expiry; further changes should route through the euna-salesforce pipeline.
+- **Rollback:** remove Sales_Perf_Admin from the app + destructive-delete the tab and salesPerfAdmin LWC.
