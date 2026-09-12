@@ -231,3 +231,19 @@ Adds user management to the Sales Performance Admin tab: assign or remove the `G
 - **Post-deploy verification:** anon Apex — `getAccessMatrix()` canManage=true, assigned=1, assignable=200 (sample: Aaron Digruccio, Customer Success); tabs list now includes Pricing Review View Checklist Tool.
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `CockpitForecastController`/`salesPerfAdmin` to the prior commit (removes the assign/revoke methods and UI); no schema to unwind.
+
+## 2026-09-12 — Pricing Review sorting + Admin view-only role
+
+Two changes, authorized by the org owner ("do it!"):
+1. Sortable columns on the Pricing Review View Checklist Tool — size (ARR), close date, review status, and stage, click-to-sort with direction toggle.
+2. A view-only access role. New `GTM_Team_Johnson_Viewer` permission set: app/tab/apex visibility + read-only Cockpit fields (no forecast edit) + pricing-tool field edit (create checklists on own deals). The Admin tab assign action now offers Full access vs View only; view-only users can open the app and run pricing reviews for their deals but cannot edit the forecast or assign users (no Manage Users).
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (5):** `PermissionSet:GTM_Team_Johnson_Viewer` (new, view-only); `ApexClass:CockpitForecastController` (`getAccessMatrix` reports per-user role; `assignAccess(userId, role)` enforces one role per user by dropping the other permset; `revokeAccess` removes both); `ApexClass:CockpitForecastControllerTest` (full -> switch to viewer -> revoke); `LightningComponentBundle:pricingReviewTool` (sortable headers); `LightningComponentBundle:salesPerfAdmin` (role selector on assign + Role column).
+- **Validated job id:** `0AfOL000003SCMH0A4` — `RunSpecifiedTests` (`CockpitForecastControllerTest`); 8/8, 0 failures.
+- **Quick-deploy:** `0AfOL000003SEEP0A4` — Succeeded, `checkOnly: false`, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (view-only permset omits Cockpit field edit; assign gated on Manage Users both in UI and Apex; role switch is setup-object DML only; sorting is client-side). Formal `/sf-review` NOT run (checklists absent from public repo).
+- **Approved by:** org owner (benjamin.johnson), "do it!".
+- **Post-deploy verification:** anon Apex — both permission sets present (`GTM_Team_Johnson_Access`, `GTM_Team_Johnson_Viewer`); `getAccessMatrix()` users=1 (Ben, role "Full access"), canManage=true, assignable=200.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `CockpitForecastController`/`salesPerfAdmin`/`pricingReviewTool` to the prior commit; the `GTM_Team_Johnson_Viewer` permission set can be left in place (harmless if unassigned) or destructive-deleted.
