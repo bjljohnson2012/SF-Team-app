@@ -277,3 +277,19 @@ Hotfix to the prior deploy: after AI pre-fill, the 24 answer boxes rendered empt
 - **Note:** server-side `draftAnswers` was already confirmed returning 24 answers; this was purely a client-side rendering bug. Not visually verified in-org (SSO password wall); pending user confirmation.
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `pricingReviewTool` to the prior commit.
+
+## 2026-09-12 — Pricing Review prefill: reliable binding + per-question Try again/Expand
+
+Fixes the empty-answer-boxes issue and adds per-question regeneration.
+- Switched the answer fields to the base `lightning-textarea` (a native `<textarea value={x}>` does not render a bound value in LWC). Added a "{n} of 24 answered" indicator and surfaced any pre-fill error inside the form (the auto-scroll-to-builder had been hiding the top-of-page error banner).
+- New `PricingReviewController.draftOne(opportunityId, questionNum, mode, current)` — regenerate ('try') or 'expand' a single question via Claude (~2s), giving a fast, robust per-question path independent of the bulk pre-fill.
+- Per-question "Try again" and "Expand" buttons.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (3):** `ApexClass:PricingReviewController` (+ `draftOne`, extracted `loadContextOpp`), `ApexClass:PricingReviewControllerTest` (+ draftOne try/expand/guard), `LightningComponentBundle:pricingReviewTool` (lightning-textarea, in-form error, filled count, Try again/Expand).
+- **Validated job id:** `0AfOL000003SEfp0AG` — `RunSpecifiedTests` (`PricingReviewControllerTest`); 6/6, 0 failures.
+- **Quick-deploy:** `0AfOL000003SEhR0AW` — Succeeded, `checkOnly: false`, 0 errors.
+- **Approved by:** org owner (benjamin.johnson) — continuation of the reported-broken prefill.
+- **Post-deploy verification:** anon Apex — `draftOne(Rochester, Q2, 'try')` returned a grounded answer in ~1.8s. Bulk `draftAnswers` already confirmed 24 answers server-side. In-form diagnostics added so the empty-box cause is visible if it persists.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `pricingReviewTool`/`PricingReviewController` to the prior commit.
