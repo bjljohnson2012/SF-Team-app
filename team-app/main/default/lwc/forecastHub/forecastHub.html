@@ -1,0 +1,192 @@
+<template>
+    <div class="fh-header">
+        <h1>Sales Performance</h1>
+        <p class="sub">Director view &middot; forecast, pipeline &amp; conversion, scored live from Salesforce with Claude-assisted insight.</p>
+    </div>
+    <div class="fh-bar"></div>
+
+    <template lwc:if={loading}><div class="fh-body"><lightning-spinner size="small" alternative-text="Loading"></lightning-spinner></div></template>
+    <template lwc:if={error}><div class="fh-body"><div class="err">{error}</div></div></template>
+    <template lwc:if={noData}><div class="fh-body"><div class="box"><p>No open new-business opportunities found for your team.</p></div></div></template>
+
+    <template lwc:if={hasData}>
+        <div class="fh-ctl">
+            <div class="fh-f"><label>{call.qA} Call</label><input type="text" value={call.callA} onchange={handleCallA}></div>
+            <div class="fh-f"><label>{call.qB} Call</label><input type="text" value={call.callB} onchange={handleCallB}></div>
+            <div class="fh-f"><label>High %</label><input type="number" min="0" max="100" value={wHi} onchange={handleWHi}></div>
+            <div class="fh-f"><label>Med %</label><input type="number" min="0" max="100" value={wMed} onchange={handleWMed}></div>
+            <div class="fh-f"><label>Pull-in %</label><input type="number" min="0" max="100" value={wPull} onchange={handleWPull}></div>
+            <button class="fh-btn" onclick={askAi}>{aiLabel}</button>
+            <span class="fh-status"><b>Live.</b> {statusText}</span>
+        </div>
+
+        <!-- primary sections -->
+        <div class="fh-nav">
+            <template for:each={sections} for:item="s"><button key={s.id} class={s.cls} data-s={s.id} onclick={handleSection}>{s.label}</button></template>
+        </div>
+        <!-- sub-tabs -->
+        <div class="fh-subnav">
+            <template for:each={subTabs} for:item="t"><button key={t.id} class={t.cls} data-t={t.id} onclick={handleSub}>{t.label}</button></template>
+        </div>
+
+        <div class="fh-body">
+            <template lwc:if={aiLoading}><div class="box info"><span class="fh-spin"></span> Asking Claude&hellip;</div></template>
+            <template lwc:if={aiText}><div class="box info"><h4>Claude &mdash; insight</h4><lightning-formatted-text value={aiText}></lightning-formatted-text></div></template>
+
+            <!-- FORECAST > Summary -->
+            <template lwc:if={vSummary}>
+                <h2>{call.qA} and {call.qB} &mdash; the call against the evidence</h2>
+                <p class="lede">Type your submitted call above; everything below scores it against live Salesforce. Adjust the calls or the weights and the whole model moves.</p>
+                <div class="cards">
+                    <div class="card hero"><div class="lab">{call.qA} call</div><div class="val">{call.callAFmt}</div><div class="note">Modeled build {call.modeledA}</div></div>
+                    <div class="card good"><div class="lab">Booked to date</div><div class="val">{call.booked}</div><div class="note">{call.bookedN} deals won, {call.bookedPct} of call</div></div>
+                    <div class="card warn"><div class="lab">Still to find</div><div class="val">{call.stillToFind}</div><div class="note">From {call.openArr} open</div></div>
+                    <div class="card"><div class="lab">Gap to call</div><div class="val">{call.gapA}</div><div class="note">Model vs your call</div></div>
+                    <div class="card"><div class="lab">Your hand-built {call.qA}</div><div class="val">{call.handBuilt}</div><div class="note">{call.handBuiltN} ticked deals, unweighted</div></div>
+                </div>
+                <div class="cards">
+                    <div class="card hero"><div class="lab">{call.qB} call</div><div class="val">{call.callBFmt}</div><div class="note">Modeled build {call.modeledB}</div></div>
+                    <div class="card"><div class="lab">{call.qB} gap</div><div class="val">{call.gapB}</div><div class="note">{call.gapBUnsourced} of the number unsourced</div></div>
+                    <div class="card"><div class="lab">{call.qB} commit band</div><div class="val">{call.commitBand}</div><div class="note">{call.commitBandN} deals</div></div>
+                    <div class="card"><div class="lab">Days left in {call.qA}</div><div class="val">{call.daysLeft}</div><div class="note">Median deal cycle {call.medianCycle} days</div></div>
+                </div>
+                <h3>{call.qA} &mdash; how the number builds</h3>
+                <div class="tw"><table>
+                    <thead><tr><th>Component</th><th>Basis</th><th class="num">Weight</th><th class="num">Contribution</th></tr></thead>
+                    <tbody><template for:each={call.buildRows} for:item="r"><tr key={r.k} class={r.rowClass}><td>{r.k}</td><td class="small">{r.basis}</td><td class="num">{r.weight}</td><td class="num">{r.contrib}</td></tr></template></tbody>
+                </table></div>
+            </template>
+
+            <!-- FORECAST > Current / Next -->
+            <template lwc:if={vCurrent}>
+                <h2>Current quarter &mdash; {summary.qA}</h2>
+                <div class="fh-f" style="max-width:220px"><label>Filter by AE</label><select onchange={handleAe}><template for:each={aeOptions} for:item="o"><option key={o.v} value={o.v} selected={o.sel}>{o.label}</option></template></select></div>
+                <div class="chips"><template for:each={classChips} for:item="c"><button key={c.v} class={c.cls} data-v={c.v} onclick={handleChip}>{c.label}</button></template></div>
+                <div class="builder">
+                    <div class="it"><span class="k">Picked</span><span class="v">{currentTotals.n}</span></div>
+                    <div class="it"><span class="k">Picked ARR</span><span class="v">{currentTotals.arr}</span></div>
+                    <div class="it"><span class="k">Modeled call</span><span class="v g">{currentTotals.call}</span></div>
+                    <button class="fh-btn gh" style="margin-left:auto" onclick={applyDefaults}>Set call = engine defaults</button>
+                </div>
+                <div class="tw"><table>
+                    <thead><tr><th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th><th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Pricing review</th><th>Signals</th></tr></thead>
+                    <tbody><template for:each={currentRows} for:item="d"><tr key={d.id} class={d.rowClass}>
+                        <td class="cb"><input type="checkbox" class="chk" checked={d.picked} data-id={d.id} onchange={handlePick}></td>
+                        <td><a href={d.url} target="_blank">{d.account}</a><template lwc:if={d.hasNote}><div class="ovnote">{d.note}</div></template></td>
+                        <td>{d.ae}</td><td>{d.stage}</td><td><span class={d.bandPill}>{d.band}</span></td><td class="num">{d.arrFmt}</td>
+                        <td><select class={d.selClass} data-id={d.id} onchange={handleClass}><template for:each={d.clsOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
+                        <td class="num">{d.score}</td><td><span class={d.reviewPill}>{d.reviewLabel}</span></td><td class="small">{d.reason}</td>
+                    </tr></template></tbody>
+                </table></div>
+            </template>
+            <template lwc:if={vNext}>
+                <h2>Next quarter &mdash; {summary.qB}</h2>
+                <div class="fh-f" style="max-width:220px"><label>Filter by AE</label><select onchange={handleAe}><template for:each={aeOptions} for:item="o"><option key={o.v} value={o.v} selected={o.sel}>{o.label}</option></template></select></div>
+                <div class="chips"><template for:each={classChips} for:item="c"><button key={c.v} class={c.cls} data-v={c.v} onclick={handleChip}>{c.label}</button></template></div>
+                <div class="builder">
+                    <div class="it"><span class="k">Picked</span><span class="v">{nextTotals.n}</span></div>
+                    <div class="it"><span class="k">Picked ARR</span><span class="v">{nextTotals.arr}</span></div>
+                    <div class="it"><span class="k">Modeled call</span><span class="v g">{nextTotals.call}</span></div>
+                    <button class="fh-btn gh" style="margin-left:auto" onclick={applyDefaults}>Set call = engine defaults</button>
+                </div>
+                <div class="tw"><table>
+                    <thead><tr><th class="cb"></th><th>Account</th><th>AE</th><th>Stage</th><th>Band</th><th class="num">ARR</th><th>Class</th><th class="num">Score</th><th>Pricing review</th><th>Signals</th></tr></thead>
+                    <tbody><template for:each={nextRows} for:item="d"><tr key={d.id} class={d.rowClass}>
+                        <td class="cb"><input type="checkbox" class="chk" checked={d.picked} data-id={d.id} onchange={handlePick}></td>
+                        <td><a href={d.url} target="_blank">{d.account}</a><template lwc:if={d.hasNote}><div class="ovnote">{d.note}</div></template></td>
+                        <td>{d.ae}</td><td>{d.stage}</td><td><span class={d.bandPill}>{d.band}</span></td><td class="num">{d.arrFmt}</td>
+                        <td><select class={d.selClass} data-id={d.id} onchange={handleClass}><template for:each={d.clsOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
+                        <td class="num">{d.score}</td><td><span class={d.reviewPill}>{d.reviewLabel}</span></td><td class="small">{d.reason}</td>
+                    </tr></template></tbody>
+                </table></div>
+            </template>
+
+            <!-- FORECAST > Pull-Ins -->
+            <template lwc:if={vPull}>
+                <h2>Pull-in candidates</h2>
+                <template for:each={pullRows} for:item="p"><div key={p.id} class="box">
+                    <h4><a href={p.url} target="_blank">{p.account}</a> <span class={p.targetPill}>{p.target}</span> <span class="small">{p.arrFmt}</span></h4>
+                    <p><span class="pi-for">For:</span> {p.caseFor}</p><p><span class="pi-against">Against:</span> {p.caseAgainst}</p>
+                </div></template>
+            </template>
+
+            <!-- FORECAST > Hygiene -->
+            <template lwc:if={vHygiene}>
+                <h2>Hygiene &amp; risks</h2>
+                <p class="lede">Open deals carrying a data or health risk &mdash; zero ARR, repeated close-date pushes, silence, missing next step, or an unqualified SQL gate.</p>
+                <template lwc:if={hasHygiene}>
+                    <div class="tw"><table>
+                        <thead><tr><th>Account</th><th>AE</th><th>Stage</th><th class="num">ARR</th><th>Class</th><th>Risk flags</th></tr></thead>
+                        <tbody><template for:each={hygieneRows} for:item="d"><tr key={d.id}>
+                            <td><a href={d.url} target="_blank">{d.account}</a></td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td>
+                            <td><span class={d.clsPill}>{d.cls}</span></td><td class="small">{d.flags}</td>
+                        </tr></template></tbody>
+                    </table></div>
+                </template>
+                <template lwc:else><div class="box ok"><p>No hygiene risks flagged on the open book. Clean.</p></div></template>
+            </template>
+
+            <!-- PIPELINE > Created -->
+            <template lwc:if={vCreated}>
+                <h2>Created pipeline</h2>
+                <p class="lede">New-business creation (ARR dated by the SQL gate) against bookings (won ARR by close quarter), trailing 8 quarters.</p>
+                <div class="chartbox"><canvas data-id="cvCreated"></canvas></div>
+                <template lwc:if={hasCreated}><div class="tw"><table>
+                    <thead><tr><th>Quarter</th><th class="num">Created #</th><th class="num">Created ARR</th><th class="num">Booked #</th><th class="num">Booked ARR</th></tr></thead>
+                    <tbody><template for:each={createdDisplay} for:item="r"><tr key={r.label}><td>{r.label}</td><td class="num">{r.createdN}</td><td class="num">{r.createdArr}</td><td class="num">{r.bookedN}</td><td class="num">{r.bookedArr}</td></tr></template></tbody>
+                </table></div></template>
+            </template>
+
+            <!-- PIPELINE > Open -->
+            <template lwc:if={vOpen}>
+                <h2>Open pipeline</h2>
+                <p class="lede">The full open book by classification (effective class after judgment overrides), across the current and next two quarters.</p>
+                <div class="chartbox"><canvas data-id="cvOpen"></canvas></div>
+            </template>
+
+            <!-- PIPELINE > Closed-Won -->
+            <template lwc:if={vWon}>
+                <h2>Closed-won pipeline</h2>
+                <p class="lede">Won new-business deals, trailing 12 months.</p>
+                <template lwc:if={hasWon}><div class="tw"><table>
+                    <thead><tr><th>Account</th><th>AE</th><th class="num">ARR</th><th>Close date</th></tr></thead>
+                    <tbody><template for:each={closedWonDisplay} for:item="d"><tr key={d.id}><td><a href={d.url} target="_blank">{d.account}</a></td><td>{d.ae}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td></tr></template></tbody>
+                </table></div></template>
+                <template lwc:else><div class="box"><p>No closed-won deals in the last 12 months.</p></div></template>
+            </template>
+
+            <!-- CONVERSION > Win Rate Truth -->
+            <template lwc:if={vWin}>
+                <h2>Win rate truth</h2>
+                <p class="lede">Creation-cohort win rates following opportunities forward from the SQL gate. Four denominators, because each answers a different question.</p>
+                <div class="chartbox"><canvas data-id="cvWin"></canvas></div>
+                <template lwc:if={hasWin}><div class="tw"><table>
+                    <thead><tr><th>Cohort</th><th class="num">Created</th><th class="num">Won</th><th class="num">Worked</th><th class="num">Never-real</th><th class="num">Open</th><th class="num">Cohort WR</th><th class="num">Resolved WR</th><th class="num">Contested WR</th><th class="num">Qual yield</th></tr></thead>
+                    <tbody><template for:each={winDisplay} for:item="r"><tr key={r.label} class={r.rowClass}><td>{r.label}</td><td class="num">{r.created}</td><td class="num">{r.won}</td><td class="num">{r.worked}</td><td class="num">{r.never}</td><td class="num">{r.stillOpen}</td><td class="num">{r.cohortWR}</td><td class="num">{r.resolvedWR}</td><td class="num">{r.contestedWR}</td><td class="num">{r.qualYield}</td></tr></template></tbody>
+                </table></div></template>
+            </template>
+
+            <!-- CONVERSION > AE by AE -->
+            <template lwc:if={vAe}>
+                <h2>AE by AE</h2>
+                <p class="lede">Closed-business conversion per rep (trailing 24 months, duplicates excluded) with the dominant loss root cause.</p>
+                <div class="chartbox"><canvas data-id="cvAe"></canvas></div>
+                <template lwc:if={hasAe}><div class="tw"><table>
+                    <thead><tr><th>AE</th><th class="num">Won</th><th class="num">Won ARR</th><th class="num">Lost</th><th class="num">Lost ARR</th><th class="num">Win rate</th><th>Top loss cause</th></tr></thead>
+                    <tbody><template for:each={aeDisplay} for:item="r"><tr key={r.ae}><td>{r.ae}</td><td class="num">{r.won}</td><td class="num">{r.wonArr}</td><td class="num">{r.lost}</td><td class="num">{r.lostArr}</td><td class="num">{r.winRate}</td><td>{r.topRoot}</td></tr></template></tbody>
+                </table></div></template>
+            </template>
+
+            <!-- CONVERSION > Problems -->
+            <template lwc:if={vProblems}>
+                <h2>Problems</h2>
+                <p class="lede">Loss-reason inventory. Unmapped reasons (highlighted) count as worked losses today, so they keep win rates conservative but hide the pattern &mdash; map them.</p>
+                <template lwc:if={hasProblems}><div class="tw"><table>
+                    <thead><tr><th>Loss reason</th><th class="num">Count</th><th>Root cause</th></tr></thead>
+                    <tbody><template for:each={problemDisplay} for:item="r"><tr key={r.reason} class={r.rowClass}><td>{r.reason}</td><td class="num">{r.count}</td><td>{r.root}</td></tr></template></tbody>
+                </table></div></template>
+                <template lwc:else><div class="box"><p>No closed-lost history in range.</p></div></template>
+            </template>
+        </div>
+    </template>
+</template>

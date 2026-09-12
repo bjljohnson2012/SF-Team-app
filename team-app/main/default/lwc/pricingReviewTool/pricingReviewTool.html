@@ -1,0 +1,105 @@
+<template>
+    <div class="pr-header">
+        <h1>Pricing Review Checklist</h1>
+        <p class="sub">Pick an open opportunity and the tool reads its fields, activity and Gong calls to pre-fill the 24 pricing questions. Review, then Complete to save the responses and attach the Euna Word document to the opportunity's Files.</p>
+    </div>
+    <div class="pr-bar"></div>
+
+    <div class="pr-body">
+        <template lwc:if={error}><div class="err">{error}</div></template>
+        <template lwc:if={done}><div class="box ok">{done}</div></template>
+
+        <template lwc:if={selected}>
+            <div class="box builder-box">
+                <h3>Pricing Review Checklist &mdash; <a href={selected.recordUrl} target="_blank" title="Open the opportunity">{selected.account}</a></h3>
+                <template lwc:if={drafting}>
+                    <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip; this can take up to ~30 seconds.</p>
+                </template>
+                <template lwc:else>
+                    <p class="small">Pre-filled from Salesforce by Claude ({filledCount} of 24 answered from data). Review and edit each one; use <b>Try again</b> to regenerate a question or <b>Expand</b> to add detail. Blanks are flagged &#9888; NOT ANSWERED in the generated doc.</p>
+                    <template lwc:if={error}><div class="err">{error}</div></template>
+                    <template for:each={questionGroups} for:item="g">
+                        <div key={g.label} class="batch">
+                            <div class="batch-h">{g.label}</div>
+                            <template for:each={g.items} for:item="q">
+                                <div key={q.key} class="fld">
+                                    <div class="fld-top">
+                                        <label>{q.fullLabel}</label>
+                                        <span class="qbtns">
+                                            <template lwc:if={q.busy}><span class="pr-spin"></span></template>
+                                            <button class="q-btn" data-q={q.key} onclick={retryOne} disabled={busyAny}>Try again</button>
+                                            <button class="q-btn gh" data-q={q.key} onclick={expandOne} disabled={busyAny}>Expand</button>
+                                        </span>
+                                    </div>
+                                    <lightning-textarea data-q={q.key} variant="label-hidden" label={q.fullLabel} value={q.value} onchange={setAnswer} disabled={q.busy}></lightning-textarea>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <div class="actions">
+                        <button class="pr-btn" onclick={complete} disabled={saving}>Complete</button>
+                        <button class="pr-btn gh" onclick={cancel}>Cancel</button>
+                        <template lwc:if={saving}><span class="pr-spin"></span> Saving responses &amp; attaching Word doc&hellip;</template>
+                    </div>
+                </template>
+                <template lwc:if={drafting}>
+                    <div class="actions"><button class="pr-btn gh" onclick={cancel}>Cancel</button></div>
+                </template>
+            </div>
+        </template>
+
+        <template lwc:if={viewing}>
+            <div class="box builder-box">
+                <h3>Saved Pricing Review &mdash; <a href={viewing.recordUrl} target="_blank" title="Open the opportunity">{viewing.account}</a></h3>
+                <p class="small">The responses saved for this opportunity (read-only). Reopen the review from the table to make changes.</p>
+                <template for:each={viewGroups} for:item="g">
+                    <div key={g.label} class="batch">
+                        <div class="batch-h">{g.label}</div>
+                        <template for:each={g.items} for:item="q">
+                            <div key={q.key} class="fld"><label>{q.key}. {q.label}</label><div class="ans">{q.value}</div></div>
+                        </template>
+                    </div>
+                </template>
+                <div class="actions"><button class="pr-btn gh" onclick={closeView}>Close</button></div>
+            </div>
+        </template>
+
+        <div class="cards">
+            <div class="card"><div class="lab">Open deals</div><div class="val">{openCount}</div></div>
+            <div class="card"><div class="lab">Reviews done</div><div class="val">{doneCount}</div></div>
+        </div>
+
+        <div class="toolbar">
+            <input type="search" class="search" placeholder="Search opportunities by account, AE or stage&hellip;" value={searchTerm} oninput={handleSearch}>
+            <template lwc:if={isDirector}>
+                <div class="seg-wrap" title="Directors default to the team's deals">
+                    <button class={teamActive} onclick={showTeam}>My team</button>
+                    <button class={mineActive} onclick={showMine}>Just me</button>
+                </div>
+            </template>
+            <span class="scope-note">{scopeLabel}</span>
+        </div>
+
+        <template lwc:if={hasRows}>
+            <template lwc:if={hasFiltered}>
+                <div class="tw"><table>
+                    <thead><tr><th>Account</th><th>AE</th><th class="so" data-sort="stage" onclick={sortBy}>Stage{sStage}</th><th class="num so" data-sort="arr" onclick={sortBy}>ARR{sArr}</th><th class="so" data-sort="closeDate" onclick={sortBy}>Close{sClose}</th><th class="so" data-sort="done" onclick={sortBy}>Pricing review{sDone}</th><th>Override</th><th></th></tr></thead>
+                    <tbody><template for:each={sortedRows} for:item="d"><tr key={d.id}>
+                        <td><a href={d.recordUrl} target="_blank" title="Open the opportunity">{d.account}</a></td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
+                        <td><span class={d.statusPill}>{d.statusLabel}</span></td>
+                        <td><select class="ovsel" data-id={d.id} onchange={setStatus}><template for:each={d.overrideOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
+                        <td class="rowact">
+                            <button class="pr-btn sm" data-id={d.id} onclick={pick}>
+                                <template lwc:if={d.done}>Redo review</template>
+                                <template lwc:else>Create pricing review checklist</template>
+                            </button>
+                            <template lwc:if={d.done}><button class="pr-btn sm gh" data-id={d.id} onclick={viewResponses}>View responses</button></template>
+                        </td>
+                    </tr></template></tbody>
+                </table></div>
+            </template>
+            <template lwc:else><div class="box"><p>No opportunities match &ldquo;{searchTerm}&rdquo;.</p></div></template>
+        </template>
+        <template lwc:else><div class="box"><p>No open new-business opportunities found for you or your team.</p></div></template>
+    </div>
+</template>

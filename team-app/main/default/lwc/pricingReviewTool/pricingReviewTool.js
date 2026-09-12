@@ -1,0 +1,213 @@
+import { LightningElement, wire } from 'lwc';
+import { refreshApex } from '@salesforce/apex';
+import getReviewData from '@salesforce/apex/PricingReviewController.getReviewData';
+import draftAnswers from '@salesforce/apex/PricingReviewController.draftAnswers';
+import draftOne from '@salesforce/apex/PricingReviewController.draftOne';
+import createReview from '@salesforce/apex/PricingReviewController.createReview';
+import getReview from '@salesforce/apex/PricingReviewController.getReview';
+import setReviewStatus from '@salesforce/apex/PricingReviewController.setReviewStatus';
+
+const QUESTIONS = [
+    'Total Budget and Operating Budget, Population/Student Count + Employees',
+    'Where did this Opportunity come from?',
+    'Do they have an Euna product currently? What? When purchased? Current ARR?',
+    'How partial has the prospect been to our solution thus far?',
+    'Who are we competing against and where do we expect them to be on pricing?',
+    'Who are comparable customers and what have we priced them at?',
+    'Does the prospect have budget for this project? How much?',
+    'How much weight is being placed on pricing in the evaluation?',
+    'Have we already communicated a previous quote or ballpark pricing?',
+    'Any timing pressure on delivery of a pricing quote?',
+    'Is this pricing based on: Budgetary / Direct Purchase / State Contract / RFP?',
+    'What is their purchasing process? Open to cooperative purchasing vehicles?',
+    'Is there an opportunity for a time-based incentive to drive a decision?',
+    'Over what period is the prospect evaluating TCO? 3 years or less? 5 or more?',
+    'What is more important: minimizing Year 1 cost or minimizing ongoing SaaS costs?',
+    'What are the main drivers behind their decision to purchase?',
+    'What differentiates Euna from our competition?',
+    'How many users need access to the software?',
+    'Is the target execution date known?',
+    'Has a SE or IM reviewed or scoped this?',
+    'What Sales Options have been included?',
+    'What non-standard items have been requested?',
+    'When does implementation need to be completed by?',
+    'What are your recommendations on Pricing and Term?'
+];
+const BATCHES = [
+    { label: 'Batch 1 \u2014 Deal Context', from: 1, to: 5 },
+    { label: 'Batch 2 \u2014 Competitive', from: 6, to: 10 },
+    { label: 'Batch 3 \u2014 Process', from: 11, to: 15 },
+    { label: 'Batch 4 \u2014 Deal Shape', from: 16, to: 20 },
+    { label: 'Batch 5 \u2014 Scope & Recommendation', from: 21, to: 24 }
+];
+const OVERRIDES = [['', 'Auto'], ['Done', 'Done'], ['Not Done', 'Not done']];
+
+export default class PricingReviewTool extends LightningElement {
+    wired;
+    rows = [];
+    isDirector = false;
+    scope = 'team';
+    searchTerm = '';
+    sortKey = 'arr';
+    sortDir = 'desc';
+    error;
+    selected;
+    viewing;
+    saving = false;
+    drafting = false;
+    done;
+    answers = {};
+    busyQ;
+    _scrollToBuilder = false;
+
+    renderedCallback() {
+        if (this._scrollToBuilder) {
+            const el = this.template.querySelector('.builder-box');
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); this._scrollToBuilder = false; }
+        }
+    }
+
+    @wire(getReviewData, { scope: '$scope' })
+    w(result) {
+        this.wired = result;
+        if (result.data) {
+            this.isDirector = result.data.isDirector;
+            this.rows = (result.data.deals || []).map((d) => ({
+                id: d.id, account: d.account, ae: d.ae, stage: d.stage, leadSource: d.leadSource,
+                recordUrl: '/lightning/r/Opportunity/' + d.id + '/view',
+                arr: d.arr, arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
+                statusPill: 'pill ' + (d.reviewDone ? 'p-hi' : 'p-ex'),
+                statusLabel: d.reviewDone ? 'Done' : 'Not done',
+                overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.statusOverride || '') === o[0] }))
+            }));
+            this.error = undefined;
+        } else if (result.error) { this.error = this.msg(result.error); }
+    }
+
+    money(n) { return n == null ? '\u2014' : '$' + Math.round(n).toLocaleString('en-US'); }
+    msg(e) { return (e && e.body && e.body.message) || 'Something went wrong.'; }
+    get hasRows() { return this.rows.length > 0; }
+    get openCount() { return this.rows.length; }
+    get doneCount() { return this.rows.filter((r) => r.done).length; }
+
+    // client-side search over the scoped set
+    get filteredRows() {
+        const t = (this.searchTerm || '').trim().toLowerCase();
+        if (!t) return this.rows;
+        return this.rows.filter((r) =>
+            [r.account, r.ae, r.stage].some((v) => (v || '').toLowerCase().includes(t)));
+    }
+    // sorting by size (ARR), close date, review status, or stage
+    get sortedRows() {
+        const rows = [...this.filteredRows];
+        const k = this.sortKey;
+        const dir = this.sortDir === 'desc' ? -1 : 1;
+        return rows.sort((a, b) => {
+            let av, bv;
+            if (k === 'arr') { av = a.arr || 0; bv = b.arr || 0; }
+            else if (k === 'done') { av = a.done ? 1 : 0; bv = b.done ? 1 : 0; }
+            else { av = (a[k] || '').toString().toLowerCase(); bv = (b[k] || '').toString().toLowerCase(); }
+            return av < bv ? -dir : av > bv ? dir : 0;
+        });
+    }
+    sortBy(e) {
+        const k = e.currentTarget.dataset.sort;
+        if (this.sortKey === k) { this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'; }
+        else { this.sortKey = k; this.sortDir = (k === 'arr' || k === 'done') ? 'desc' : 'asc'; }
+    }
+    arrow(k) { return this.sortKey === k ? (this.sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''; }
+    get sArr() { return this.arrow('arr'); }
+    get sClose() { return this.arrow('closeDate'); }
+    get sDone() { return this.arrow('done'); }
+    get sStage() { return this.arrow('stage'); }
+
+    get hasFiltered() { return this.filteredRows.length > 0; }
+    get scopeLabel() { return this.scope === 'team' ? 'Showing your team\u2019s deals' : 'Showing your deals'; }
+    get teamActive() { return 'seg ' + (this.scope === 'team' ? 'on' : ''); }
+    get mineActive() { return 'seg ' + (this.scope === 'mine' ? 'on' : ''); }
+
+    handleSearch(e) { this.searchTerm = e.target.value; }
+    showTeam() { this.scope = 'team'; }
+    showMine() { this.scope = 'mine'; }
+
+    // override the done/not-done status
+    setStatus(e) {
+        const id = e.currentTarget.dataset.id;
+        setReviewStatus({ opportunityId: id, newStatus: e.target.value })
+            .then(() => refreshApex(this.wired))
+            .catch((err) => { this.error = this.msg(err); });
+    }
+
+    // editable + read-only question groups
+    get questionGroups() { return this.groups(false); }
+    get viewGroups() { return this.groups(true); }
+    groups(readOnly) {
+        return BATCHES.map((b) => {
+            const items = [];
+            for (let n = b.from; n <= b.to; n++) {
+                const key = 'Q' + n;
+                items.push({
+                    key, num: n, label: QUESTIONS[n - 1], fullLabel: key + '. ' + QUESTIONS[n - 1],
+                    value: this.answers[key] || (readOnly ? '\u2014' : ''), busy: this.busyQ === key
+                });
+            }
+            return { label: b.label, items };
+        });
+    }
+    get busyAny() { return !!this.busyQ; }
+    get filledCount() {
+        return Object.keys(this.answers).filter(
+            (k) => /^Q\d+$/.test(k) && this.answers[k] && !this.answers[k].startsWith('[No data')).length;
+    }
+
+    // regenerate ('try') or expand a single question via Claude
+    regen(e, mode) {
+        const key = e.currentTarget.dataset.q;
+        const n = parseInt(key.slice(1), 10);
+        this.busyQ = key; this.error = undefined;
+        draftOne({ opportunityId: this.selected.id, questionNum: n, mode, current: this.answers[key] || '' })
+            .then((text) => { this.answers = { ...this.answers, [key]: text || '' }; })
+            .catch((err) => { this.error = this.msg(err); })
+            .finally(() => { this.busyQ = undefined; });
+    }
+    retryOne(e) { this.regen(e, 'try'); }
+    expandOne(e) { this.regen(e, 'expand'); }
+
+    // start a review: select the deal and ask Claude to pre-fill from SF context
+    pick(e) {
+        const id = e.currentTarget.dataset.id;
+        this.selected = this.rows.find((x) => x.id === id);
+        this.viewing = undefined; this.done = undefined; this.error = undefined;
+        this.answers = this.selected && this.selected.leadSource ? { Q2: this.selected.leadSource } : {};
+        this.drafting = true;
+        this._scrollToBuilder = true;
+        draftAnswers({ opportunityId: id })
+            .then((res) => { this.answers = res || this.answers; })
+            .catch((err) => { this.error = 'Pre-fill: ' + this.msg(err) + ' You can still answer manually.'; })
+            .finally(() => { this.drafting = false; });
+    }
+    cancel() { this.selected = undefined; this.drafting = false; }
+    setAnswer(e) {
+        const key = e.target.dataset.q;
+        const val = (e.detail && e.detail.value !== undefined) ? e.detail.value : e.target.value;
+        this.answers = { ...this.answers, [key]: val };
+    }
+
+    complete() {
+        this.saving = true; this.done = undefined; this.error = undefined;
+        createReview({ opportunityId: this.selected.id, answers: this.answers })
+            .then(() => { this.done = 'Pricing review completed \u2014 responses saved and the Euna Word document attached to the opportunity Files.'; this.selected = undefined; return refreshApex(this.wired); })
+            .catch((err) => { this.error = this.msg(err); })
+            .finally(() => { this.saving = false; });
+    }
+
+    viewResponses(e) {
+        const id = e.currentTarget.dataset.id;
+        this.viewing = this.rows.find((x) => x.id === id);
+        this.selected = undefined; this.done = undefined; this.error = undefined; this.answers = {};
+        getReview({ opportunityId: id })
+            .then((res) => { this.answers = res || {}; })
+            .catch((err) => { this.error = this.msg(err); });
+    }
+    closeView() { this.viewing = undefined; this.answers = {}; }
+}

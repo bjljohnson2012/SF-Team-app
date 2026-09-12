@@ -1,0 +1,26 @@
+<template>
+    <template lwc:if={showGrid}>
+        <div class="st-header">
+            <h1>Sales Tools</h1>
+            <p class="sub">Pick a tool to get started.</p>
+        </div>
+        <div class="st-bar"></div>
+        <div class="st-body">
+            <div class="grid">
+                <template for:each={tools} for:item="t">
+                    <button key={t.id} class="tool-card" data-id={t.id} onclick={open}>
+                        <span class="tc-icon"><lightning-icon icon-name={t.icon} size="small" variant="inverse"></lightning-icon></span>
+                        <span class="tc-name">{t.name}</span>
+                        <span class="tc-desc">{t.desc}</span>
+                        <span class="tc-tag">{t.tag}</span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <template lwc:if={isPricing}>
+        <div class="st-crumb"><button class="crumb-btn" onclick={back}>&larr; All Sales Tools</button></div>
+        <c-pricing-review-tool></c-pricing-review-tool>
+    </template>
+</template>
