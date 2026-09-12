@@ -247,3 +247,20 @@ Two changes, authorized by the org owner ("do it!"):
 - **Post-deploy verification:** anon Apex — both permission sets present (`GTM_Team_Johnson_Access`, `GTM_Team_Johnson_Viewer`); `getAccessMatrix()` users=1 (Ben, role "Full access"), canManage=true, assignable=200.
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `CockpitForecastController`/`salesPerfAdmin`/`pricingReviewTool` to the prior commit; the `GTM_Team_Johnson_Viewer` permission set can be left in place (harmless if unassigned) or destructive-deleted.
+
+## 2026-09-12 — Sales Tools hub tab + Pricing Review Checklist rename + prefill UX
+
+Authorized by the org owner ("deploy"):
+1. Restructured the GTM - Team Johnson app nav to Main / Sales Performance / Sales Tools / Admin. New "Sales Tools" hub tab shows a grid of tool cards; selecting "Pricing Review Checklist" opens the tool inline. Standalone Sales Tools app lands on the same hub.
+2. Renamed "Pricing Review View Checklist Tool" -> "Pricing Review Checklist" (card, header, tab label, component label).
+3. Fixed the perceived "create checklist did nothing" issue: draftAnswers works but takes ~6-27s and the builder opened off-screen at page top; it now scrolls into view on select, and the AI call was sped up (max_tokens 4096->2048, Gong transcript 1800->1200, calls 3->2, tasks 10->8, context clip 24000->16000).
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (12):** `LightningComponentBundle:salesTools` (new hub); `CustomTab:Sales_Tools_Home` (new, label "Sales Tools", motif Custom57: Toolbox); `CustomApplication:GTM_Team_Johnson` + `CustomApplication:Sales_Tools` (nav -> Sales_Tools_Home); `CustomTab:Pricing_Review_Checklist` (label rename); `LightningComponentBundle:pricingReviewTool` (H1 rename, scroll-into-view); `ApexClass:PricingReviewController` (draftAnswers speedup); `ApexClass:CockpitForecastController` (tabs label string); `PermissionSet:GTM_Team_Johnson_Access` + `PermissionSet:GTM_Team_Johnson_Viewer` (Sales_Tools_Home tab visibility); test classes unchanged (recompiled).
+- **Validated job id:** `0AfOL000003SERJ0A4` — `RunSpecifiedTests` (`PricingReviewControllerTest`, `CockpitForecastControllerTest`); 13/13, 0 failures.
+- **Quick-deploy:** `0AfOL000003SEUX0A4` — Succeeded, `checkOnly: false`, 0 errors.
+- **Review verdict:** Manual diligence — **PASS** (hub composes the existing exposed LWC; nav/label metadata only; AI call trimmed, still grounded). Formal `/sf-review` NOT run (checklists absent from public repo).
+- **Approved by:** org owner (benjamin.johnson), "deploy".
+- **Post-deploy verification:** anon Apex — GTM - Team Johnson nav = Team_Opportunity_Insights, Forecasting_Hub, Sales_Tools_Home, Sales_Perf_Admin; draftAnswers still returns 24 answers (~14s).
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert the two apps' nav to the Pricing_Review_Checklist tab and revert `pricingReviewTool`/`PricingReviewController`; destructive-delete `salesTools` + `Sales_Tools_Home` if desired.
