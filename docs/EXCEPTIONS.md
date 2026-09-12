@@ -264,3 +264,16 @@ Authorized by the org owner ("deploy"):
 - **Post-deploy verification:** anon Apex — GTM - Team Johnson nav = Team_Opportunity_Insights, Forecasting_Hub, Sales_Tools_Home, Sales_Perf_Admin; draftAnswers still returns 24 answers (~14s).
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert the two apps' nav to the Pricing_Review_Checklist tab and revert `pricingReviewTool`/`PricingReviewController`; destructive-delete `salesTools` + `Sales_Tools_Home` if desired.
+
+## 2026-09-12 — Fix: Pricing Review prefilled answers not showing in the form
+
+Hotfix to the prior deploy: after AI pre-fill, the 24 answer boxes rendered empty even though the answers loaded. Root cause: a native `<textarea value={x}>` in LWC does not display the bound value (a textarea's value comes from its text content, not a `value` attribute). Fix: bind the value as the textarea's text content and render the question fields only after drafting completes so each textarea is created already holding its value.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (1):** `LightningComponentBundle:pricingReviewTool`.
+- **Validated job id:** `0AfOL000003SEXl0AO` — `RunSpecifiedTests` (`CockpitRosterServiceTest`, LWC-only); 2/2, 0 failures.
+- **Quick-deploy:** `0AfOL000003SEZN0A4` — Succeeded, `checkOnly: false`, 0 errors.
+- **Approved by:** org owner (benjamin.johnson) — hotfix to the just-deployed feature reported broken.
+- **Note:** server-side `draftAnswers` was already confirmed returning 24 answers; this was purely a client-side rendering bug. Not visually verified in-org (SSO password wall); pending user confirmation.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `pricingReviewTool` to the prior commit.
