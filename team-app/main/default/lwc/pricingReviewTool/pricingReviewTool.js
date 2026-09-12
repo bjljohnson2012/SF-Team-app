@@ -2,6 +2,7 @@ import { LightningElement, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
 import getReviewData from '@salesforce/apex/PricingReviewController.getReviewData';
 import draftAnswers from '@salesforce/apex/PricingReviewController.draftAnswers';
+import draftOne from '@salesforce/apex/PricingReviewController.draftOne';
 import createReview from '@salesforce/apex/PricingReviewController.createReview';
 import getReview from '@salesforce/apex/PricingReviewController.getReview';
 import setReviewStatus from '@salesforce/apex/PricingReviewController.setReviewStatus';
@@ -56,6 +57,7 @@ export default class PricingReviewTool extends LightningElement {
     drafting = false;
     done;
     answers = {};
+    busyQ;
     _scrollToBuilder = false;
 
     renderedCallback() {
@@ -144,11 +146,32 @@ export default class PricingReviewTool extends LightningElement {
             const items = [];
             for (let n = b.from; n <= b.to; n++) {
                 const key = 'Q' + n;
-                items.push({ key, num: n, label: QUESTIONS[n - 1], value: this.answers[key] || (readOnly ? '\u2014' : '') });
+                items.push({
+                    key, num: n, label: QUESTIONS[n - 1], fullLabel: key + '. ' + QUESTIONS[n - 1],
+                    value: this.answers[key] || (readOnly ? '\u2014' : ''), busy: this.busyQ === key
+                });
             }
             return { label: b.label, items };
         });
     }
+    get busyAny() { return !!this.busyQ; }
+    get filledCount() {
+        return Object.keys(this.answers).filter(
+            (k) => /^Q\d+$/.test(k) && this.answers[k] && !this.answers[k].startsWith('[No data')).length;
+    }
+
+    // regenerate ('try') or expand a single question via Claude
+    regen(e, mode) {
+        const key = e.currentTarget.dataset.q;
+        const n = parseInt(key.slice(1), 10);
+        this.busyQ = key; this.error = undefined;
+        draftOne({ opportunityId: this.selected.id, questionNum: n, mode, current: this.answers[key] || '' })
+            .then((text) => { this.answers = { ...this.answers, [key]: text || '' }; })
+            .catch((err) => { this.error = this.msg(err); })
+            .finally(() => { this.busyQ = undefined; });
+    }
+    retryOne(e) { this.regen(e, 'try'); }
+    expandOne(e) { this.regen(e, 'expand'); }
 
     // start a review: select the deal and ask Claude to pre-fill from SF context
     pick(e) {
@@ -164,7 +187,11 @@ export default class PricingReviewTool extends LightningElement {
             .finally(() => { this.drafting = false; });
     }
     cancel() { this.selected = undefined; this.drafting = false; }
-    setAnswer(e) { this.answers = { ...this.answers, [e.target.dataset.q]: e.target.value }; }
+    setAnswer(e) {
+        const key = e.target.dataset.q;
+        const val = (e.detail && e.detail.value !== undefined) ? e.detail.value : e.target.value;
+        this.answers = { ...this.answers, [key]: val };
+    }
 
     complete() {
         this.saving = true; this.done = undefined; this.error = undefined;

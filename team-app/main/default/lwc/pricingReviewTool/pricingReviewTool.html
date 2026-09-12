@@ -16,12 +16,23 @@
                     <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip; this can take up to ~30 seconds.</p>
                 </template>
                 <template lwc:else>
-                    <p class="small">Answers were pre-filled from Salesforce by Claude. Review and edit each one &mdash; blanks are flagged &#9888; NOT ANSWERED in the generated doc so your Director sees what's missing.</p>
+                    <p class="small">Pre-filled from Salesforce by Claude ({filledCount} of 24 answered from data). Review and edit each one; use <b>Try again</b> to regenerate a question or <b>Expand</b> to add detail. Blanks are flagged &#9888; NOT ANSWERED in the generated doc.</p>
+                    <template lwc:if={error}><div class="err">{error}</div></template>
                     <template for:each={questionGroups} for:item="g">
                         <div key={g.label} class="batch">
                             <div class="batch-h">{g.label}</div>
                             <template for:each={g.items} for:item="q">
-                                <div key={q.key} class="fld"><label>{q.key}. {q.label}</label><textarea data-q={q.key} onchange={setAnswer}>{q.value}</textarea></div>
+                                <div key={q.key} class="fld">
+                                    <div class="fld-top">
+                                        <label>{q.fullLabel}</label>
+                                        <span class="qbtns">
+                                            <template lwc:if={q.busy}><span class="pr-spin"></span></template>
+                                            <button class="q-btn" data-q={q.key} onclick={retryOne} disabled={busyAny}>Try again</button>
+                                            <button class="q-btn gh" data-q={q.key} onclick={expandOne} disabled={busyAny}>Expand</button>
+                                        </span>
+                                    </div>
+                                    <lightning-textarea data-q={q.key} variant="label-hidden" label={q.fullLabel} value={q.value} onchange={setAnswer} disabled={q.busy}></lightning-textarea>
+                                </div>
                             </template>
                         </div>
                     </template>

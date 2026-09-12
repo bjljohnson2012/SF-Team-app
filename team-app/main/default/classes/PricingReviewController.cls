@@ -148,15 +148,7 @@ public with sharing class PricingReviewController {
     @AuraEnabled
     public static Map<String, String> draftAnswers(Id opportunityId) {
         if (opportunityId == null) throw new AuraHandledException('An opportunity is required.');
-        List<Opportunity> opps = [
-            SELECT Id, Name, AccountId, Account.Name, Account.BillingState, Account.BillingCity,
-                   Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
-                   EUNA_Solution__c, Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
-                   NextStep, Description, LeadSource, Type
-            FROM Opportunity WHERE Id = :opportunityId LIMIT 1
-        ];
-        if (opps.isEmpty()) throw new AuraHandledException('Opportunity not found or not accessible.');
-        Opportunity o = opps[0];
+        Opportunity o = loadContextOpp(opportunityId);
 
         String prompt = buildDraftPrompt(o);
         String raw;
@@ -173,6 +165,42 @@ public with sharing class PricingReviewController {
             out.put('Q' + i, String.isBlank(v) ? '[No data in Salesforce \u2014 AE to complete]' : v.trim());
         }
         return out;
+    }
+
+    /** Regenerates ('try') or expands ('expand') a single question via Claude. */
+    @AuraEnabled
+    public static String draftOne(Id opportunityId, Integer questionNum, String mode, String current) {
+        if (opportunityId == null || questionNum == null || questionNum < 1 || questionNum > QUESTIONS.size()) {
+            throw new AuraHandledException('A valid opportunity and question are required.');
+        }
+        Opportunity o = loadContextOpp(opportunityId);
+        String q = QUESTIONS[questionNum - 1];
+        String ask = (mode == 'expand')
+            ? 'Expand and sharpen the following draft answer with more specific, grounded detail. If the draft is empty or the context has no support, reply exactly "[No data in Salesforce \u2014 AE to complete]".\nQuestion: ' + q + '\nCurrent draft: ' + (String.isBlank(current) ? '(none)' : current)
+            : 'Draft a concise answer (1-3 sentences) to the following question, grounded ONLY in the context. If unsupported, reply exactly "[No data in Salesforce \u2014 AE to complete]".\nQuestion: ' + q;
+        String prompt = 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
+            + 'for a government/public-sector software deal. Use ONLY the Salesforce context below. Do not invent '
+            + 'facts, numbers, or names. Return ONLY the answer text \u2014 no preamble, no question restatement, no JSON.\n\n'
+            + ask + '\n\nCONTEXT:\n' + context(o);
+        String raw;
+        try {
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 700);
+        } catch (Exception e) {
+            throw new AuraHandledException('AI generation failed: ' + e.getMessage());
+        }
+        return String.isBlank(raw) ? '' : stripFences(raw).trim();
+    }
+
+    private static Opportunity loadContextOpp(Id opportunityId) {
+        List<Opportunity> opps = [
+            SELECT Id, Name, AccountId, Account.Name, Account.BillingState, Account.BillingCity,
+                   Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
+                   EUNA_Solution__c, Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
+                   NextStep, Description, LeadSource, Type
+            FROM Opportunity WHERE Id = :opportunityId LIMIT 1
+        ];
+        if (opps.isEmpty()) throw new AuraHandledException('Opportunity not found or not accessible.');
+        return opps[0];
     }
 
     private static String buildDraftPrompt(Opportunity o) {

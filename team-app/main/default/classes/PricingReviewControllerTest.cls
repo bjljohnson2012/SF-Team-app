@@ -103,6 +103,36 @@ private class PricingReviewControllerTest {
     }
 
     @isTest
+    static void draftOne_returnsText_and_validates() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User dir = usr(p.Id, null, 'Director');
+        insert dir;
+        Id rtId = [SELECT Id FROM RecordType WHERE SobjectType = 'Opportunity' AND DeveloperName = 'Euna_Sale' LIMIT 1].Id;
+
+        System.runAs(dir) {
+            Account a = new Account(Name = 'Acme');
+            insert a;
+            Opportunity o = new Opportunity(
+                Name = 'Deal', AccountId = a.Id, OwnerId = dir.Id, RecordTypeId = rtId,
+                Type = 'New Sale', StageName = 'Proposal', CloseDate = Date.today().addDays(30));
+            insert o;
+
+            Test.setMock(HttpCalloutMock.class, new DraftMock());
+            Test.startTest();
+            String t = PricingReviewController.draftOne(o.Id, 7, 'try', '');
+            String x = PricingReviewController.draftOne(o.Id, 7, 'expand', 'current draft');
+            Test.stopTest();
+            System.assertNotEquals(null, t, 'try returned text');
+            System.assertNotEquals(null, x, 'expand returned text');
+
+            try {
+                PricingReviewController.draftOne(o.Id, 99, 'try', '');
+                System.assert(false, 'expected AuraHandledException for bad question number');
+            } catch (AuraHandledException e) { System.assert(true); }
+        }
+    }
+
+    @isTest
     static void createNull_throws() {
         try {
             PricingReviewController.createReview(null, new Map<String, String>());
