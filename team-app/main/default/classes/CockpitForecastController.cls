@@ -671,7 +671,7 @@ public with sharing class CockpitForecastController {
             }
         }
 
-        info.tabs = new List<String>{ 'Main (Team Opportunity Insights)', 'Sales Performance', 'Pricing Review View Checklist Tool', 'Admin' };
+        info.tabs = new List<String>{ 'Main (Team Opportunity Insights)', 'Sales Performance', 'Sales Tools (Pricing Review Checklist)', 'Admin' };
         info.activities.add('View Forecast, Pipeline & Conversion sub-tabs');
         if (info.editInCall) info.activities.add('Tick deals into the call (Cockpit_In_Call__c)');
         if (info.overrideClass) info.activities.add('Override deal classification (Cockpit_Class_Override__c)');

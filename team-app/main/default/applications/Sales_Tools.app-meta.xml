@@ -8,6 +8,6 @@
     <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
     <label>Sales Tools</label>
     <navType>Standard</navType>
-    <tabs>Pricing_Review_Checklist</tabs>
+    <tabs>Sales_Tools_Home</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>

@@ -56,6 +56,14 @@ export default class PricingReviewTool extends LightningElement {
     drafting = false;
     done;
     answers = {};
+    _scrollToBuilder = false;
+
+    renderedCallback() {
+        if (this._scrollToBuilder) {
+            const el = this.template.querySelector('.builder-box');
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); this._scrollToBuilder = false; }
+        }
+    }
 
     @wire(getReviewData, { scope: '$scope' })
     w(result) {
@@ -149,6 +157,7 @@ export default class PricingReviewTool extends LightningElement {
         this.viewing = undefined; this.done = undefined; this.error = undefined;
         this.answers = this.selected && this.selected.leadSource ? { Q2: this.selected.leadSource } : {};
         this.drafting = true;
+        this._scrollToBuilder = true;
         draftAnswers({ opportunityId: id })
             .then((res) => { this.answers = res || this.answers; })
             .catch((err) => { this.error = 'Pre-fill: ' + this.msg(err) + ' You can still answer manually.'; })

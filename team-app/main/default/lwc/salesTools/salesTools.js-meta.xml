@@ -2,11 +2,10 @@
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
-    <masterLabel>Pricing Review Checklist</masterLabel>
-    <description>AE pricing review checklist that generates a Word doc and attaches it to the opportunity Files.</description>
+    <masterLabel>Sales Tools</masterLabel>
+    <description>Sales Tools hub: a grid of AE sales tools; opens the selected tool inline.</description>
     <targets>
         <target>lightning__Tab</target>
         <target>lightning__AppPage</target>
-        <target>lightning__RecordPage</target>
     </targets>
 </LightningComponentBundle>

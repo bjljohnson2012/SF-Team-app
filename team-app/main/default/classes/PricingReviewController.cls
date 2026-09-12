@@ -161,7 +161,7 @@ public with sharing class PricingReviewController {
         String prompt = buildDraftPrompt(o);
         String raw;
         try {
-            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 4096);
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 2048);
         } catch (Exception e) {
             throw new AuraHandledException('AI pre-fill failed: ' + e.getMessage());
         }
@@ -216,7 +216,7 @@ public with sharing class PricingReviewController {
         s += '\nRecent activity:\n';
         List<Task> tasks = [
             SELECT Subject, Description, ActivityDate, Type, CreatedDate
-            FROM Task WHERE WhatId = :o.Id ORDER BY CreatedDate DESC LIMIT 10
+            FROM Task WHERE WhatId = :o.Id ORDER BY CreatedDate DESC LIMIT 8
         ];
         if (tasks.isEmpty()) s += '  (none)\n';
         for (Task t : tasks) {
@@ -232,17 +232,17 @@ public with sharing class PricingReviewController {
             FROM Gong__Gong_Call__c
             WHERE Gong__Primary_Opportunity__c = :o.Id AND Gong__Is_Private__c = false
               AND Gong__Scope__c = 'External'
-            ORDER BY Gong__Call_Start__c DESC LIMIT 3
+            ORDER BY Gong__Call_Start__c DESC LIMIT 2
         ];
         if (calls.isEmpty()) s += '  (none)\n';
         for (Gong__Gong_Call__c c : calls) {
-            String body = String.isNotBlank(c.Gong_Transcript__c) ? clip(c.Gong_Transcript__c, 1800)
+            String body = String.isNotBlank(c.Gong_Transcript__c) ? clip(c.Gong_Transcript__c, 1200)
                         : ('brief: ' + clip(safe(c.Gong__Call_Brief__c), 1000));
             s += '  - ' + (c.Gong__Call_Start__c != null ? c.Gong__Call_Start__c.date().format() : '') + ' '
                + safe(c.Gong__Title__c) + (c.Gong__Pricing_Duration__c != null && c.Gong__Pricing_Duration__c > 0 ? ' [pricing discussed]' : '')
                + '\n    ' + body + '\n';
         }
-        return clip(s, 24000);
+        return clip(s, 16000);
     }
 
     /** Builds and attaches the branded Euna Pricing Review Checklist and persists the answers. */

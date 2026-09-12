@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
-    <label>Pricing Review View Checklist Tool</label>
+    <label>Pricing Review Checklist</label>
     <lwcComponent>pricingReviewTool</lwcComponent>
     <motif>Custom25: Money</motif>
 </CustomTab>
