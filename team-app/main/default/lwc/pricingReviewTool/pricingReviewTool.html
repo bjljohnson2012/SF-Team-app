@@ -13,24 +13,27 @@
             <div class="box builder-box">
                 <h3>Pricing Review Checklist &mdash; <a href={selected.recordUrl} target="_blank" title="Open the opportunity">{selected.account}</a></h3>
                 <template lwc:if={drafting}>
-                    <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip;</p>
+                    <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip; this can take up to ~30 seconds.</p>
                 </template>
                 <template lwc:else>
                     <p class="small">Answers were pre-filled from Salesforce by Claude. Review and edit each one &mdash; blanks are flagged &#9888; NOT ANSWERED in the generated doc so your Director sees what's missing.</p>
-                </template>
-                <template for:each={questionGroups} for:item="g">
-                    <div key={g.label} class="batch">
-                        <div class="batch-h">{g.label}</div>
-                        <template for:each={g.items} for:item="q">
-                            <div key={q.key} class="fld"><label>{q.key}. {q.label}</label><textarea data-q={q.key} value={q.value} onchange={setAnswer} disabled={drafting}></textarea></div>
-                        </template>
+                    <template for:each={questionGroups} for:item="g">
+                        <div key={g.label} class="batch">
+                            <div class="batch-h">{g.label}</div>
+                            <template for:each={g.items} for:item="q">
+                                <div key={q.key} class="fld"><label>{q.key}. {q.label}</label><textarea data-q={q.key} onchange={setAnswer}>{q.value}</textarea></div>
+                            </template>
+                        </div>
+                    </template>
+                    <div class="actions">
+                        <button class="pr-btn" onclick={complete} disabled={saving}>Complete</button>
+                        <button class="pr-btn gh" onclick={cancel}>Cancel</button>
+                        <template lwc:if={saving}><span class="pr-spin"></span> Saving responses &amp; attaching Word doc&hellip;</template>
                     </div>
                 </template>
-                <div class="actions">
-                    <button class="pr-btn" onclick={complete} disabled={saving}>Complete</button>
-                    <button class="pr-btn gh" onclick={cancel}>Cancel</button>
-                    <template lwc:if={saving}><span class="pr-spin"></span> Saving responses &amp; attaching Word doc&hellip;</template>
-                </div>
+                <template lwc:if={drafting}>
+                    <div class="actions"><button class="pr-btn gh" onclick={cancel}>Cancel</button></div>
+                </template>
             </div>
         </template>
 
