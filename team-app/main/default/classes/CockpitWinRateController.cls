@@ -42,7 +42,7 @@ public with sharing class CockpitWinRateController {
     }
 
     @AuraEnabled(cacheable=true)
-    public static CockpitCohortService.Page getPage(
+    public static CockpitCohortService.WinRatePage getPage(
         Id directorId, String teamMode, String productType, String sizeBand
     ) {
         CockpitCohortService.Filter f = new CockpitCohortService.Filter();

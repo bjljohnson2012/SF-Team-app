@@ -31,7 +31,7 @@ private class CockpitWinRateControllerTest {
         insert se;
 
         Test.startTest();
-        CockpitCohortService.Page page = CockpitWinRateController.getPage(
+        CockpitCohortService.WinRatePage page = CockpitWinRateController.getPage(
             se.Id, CockpitConstants.TEAM_MODE_DIRECTOR,
             CockpitConstants.PRODUCT_ALL, CockpitConstants.SIZE_ALL
         );
@@ -66,7 +66,7 @@ private class CockpitWinRateControllerTest {
         );
 
         Test.startTest();
-        CockpitCohortService.Page page = CockpitWinRateController.getPage(
+        CockpitCohortService.WinRatePage page = CockpitWinRateController.getPage(
             ae.Id, CockpitConstants.TEAM_MODE_DIRECTOR,
             CockpitConstants.PRODUCT_ALL, CockpitConstants.SIZE_ALL
         );

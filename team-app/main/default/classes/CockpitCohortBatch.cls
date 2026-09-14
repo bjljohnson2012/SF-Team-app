@@ -29,7 +29,7 @@ public without sharing class CockpitCohortBatch
             f.teamMode = CockpitConstants.TEAM_MODE_DIRECTOR;
             f.productType = CockpitConstants.PRODUCT_ALL;
             f.sizeBand = CockpitConstants.SIZE_ALL;
-            CockpitCohortService.Page page = CockpitCohortService.buildPage(f);
+            CockpitCohortService.WinRatePage page = CockpitCohortService.buildPage(f);
             List<Cockpit_Cohort_Snapshot__c> rows =
                 CockpitCohortService.toSnapshots(directorId, page, asOf);
             if (!rows.isEmpty()) {

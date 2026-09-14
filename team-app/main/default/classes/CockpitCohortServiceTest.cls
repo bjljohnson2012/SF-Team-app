@@ -29,7 +29,7 @@ private class CockpitCohortServiceTest {
         insert o;
 
         Test.startTest();
-        CockpitCohortService.Page page = pageFor(dir.Id);
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
         Test.stopTest();
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
@@ -56,7 +56,7 @@ private class CockpitCohortServiceTest {
         };
 
         Test.startTest();
-        CockpitCohortService.Page page = pageFor(dir.Id);
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
         Test.stopTest();
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
@@ -83,7 +83,7 @@ private class CockpitCohortServiceTest {
         };
 
         Test.startTest();
-        CockpitCohortService.Page page = pageFor(dir.Id);
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
         Test.stopTest();
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
@@ -97,9 +97,8 @@ private class CockpitCohortServiceTest {
 
     @isTest
     static void blankReason_isNeverReal() {
-        Opportunity o = new Opportunity(
-            IsClosed = true, IsWon = false, Lost_Reason__c = null
-        );
+        Opportunity o = (Opportunity) JSON.deserialize(
+            '{"IsClosed":true,"IsWon":false}', Opportunity.class);
         System.assertEquals('NEVER', CockpitCohortService.classifyForTest(o),
             'blank loss reason is never-real');
     }
@@ -116,7 +115,7 @@ private class CockpitCohortServiceTest {
             'Closed Lost', 'Adoption Issues');
 
         Test.startTest();
-        CockpitCohortService.Page page = pageFor(dir.Id);
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
         Test.stopTest();
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
@@ -146,7 +145,7 @@ private class CockpitCohortServiceTest {
         };
 
         Test.startTest();
-        CockpitCohortService.Page page = pageFor(dir.Id);
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
         Test.stopTest();
 
         CockpitCohortService.CohortRow mature = rowOf(page, '2025Q1');
@@ -179,7 +178,7 @@ private class CockpitCohortServiceTest {
         insert opps;
 
         Test.startTest();
-        CockpitCohortService.Page page = pageFor(dir.Id);
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
         Test.stopTest();
 
         System.assert(page.purgeSilentCount >= 1, 'silent close with no activity is a purge');
@@ -193,7 +192,7 @@ private class CockpitCohortServiceTest {
         System.assertEquals(0.5, CockpitCohortService.rate(1, 2), '1/2 stores at 4 decimals');
     }
 
-    static CockpitCohortService.Page pageFor(Id directorId) {
+    static CockpitCohortService.WinRatePage pageFor(Id directorId) {
         CockpitCohortService.Filter f = new CockpitCohortService.Filter();
         f.directorId = directorId;
         f.teamMode = CockpitConstants.TEAM_MODE_DIRECTOR;
@@ -202,7 +201,7 @@ private class CockpitCohortServiceTest {
         return CockpitCohortService.buildPage(f);
     }
 
-    static CockpitCohortService.CohortRow rowOf(CockpitCohortService.Page page, String key) {
+    static CockpitCohortService.CohortRow rowOf(CockpitCohortService.WinRatePage page, String key) {
         for (CockpitCohortService.CohortRow r : page.rows) {
             if (r.cohortKey == key) return r;
         }

@@ -52,7 +52,7 @@ public with sharing class CockpitCohortService {
         @AuraEnabled public Integer count = 0;
     }
 
-    public class Page {
+    public class WinRatePage {
         @AuraEnabled public List<CohortRow> rows;
         @AuraEnabled public Headline headlines;
         @AuraEnabled public String ghostedConvention;
@@ -121,7 +121,7 @@ public with sharing class CockpitCohortService {
         cachedSettings = s;
     }
 
-    public static Page buildPage(Filter f) {
+    public static WinRatePage buildPage(Filter f) {
         CockpitRosterService.ScopeResult scope = CockpitRosterService.resolveScope(
             f == null ? null : f.directorId,
             f == null ? null : f.teamMode
@@ -131,7 +131,7 @@ public with sharing class CockpitCohortService {
         String sizeBand = (f == null || String.isBlank(f.sizeBand))
             ? CockpitConstants.SIZE_ALL : f.sizeBand;
 
-        Page page = new Page();
+        WinRatePage page = new WinRatePage();
         page.directorName = scope.directorName;
         page.scopeCaption = 'Team of ' + scope.directorName
             + ' · ' + productLabel(productType)
@@ -283,7 +283,7 @@ public with sharing class CockpitCohortService {
         return page;
     }
 
-    public static List<Cockpit_Cohort_Snapshot__c> toSnapshots(Id directorId, Page page, Date asOf) {
+    public static List<Cockpit_Cohort_Snapshot__c> toSnapshots(Id directorId, WinRatePage page, Date asOf) {
         List<Cockpit_Cohort_Snapshot__c> rows = new List<Cockpit_Cohort_Snapshot__c>();
         if (page == null || page.rows == null) return rows;
         Settings cfg = settings();
