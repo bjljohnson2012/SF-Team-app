@@ -293,3 +293,17 @@ Fixes the empty-answer-boxes issue and adds per-question regeneration.
 - **Post-deploy verification:** anon Apex — `draftOne(Rochester, Q2, 'try')` returned a grounded answer in ~1.8s. Bulk `draftAnswers` already confirmed 24 answers server-side. In-form diagnostics added so the empty-box cause is visible if it persists.
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `pricingReviewTool`/`PricingReviewController` to the prior commit.
+
+## 2026-09-14 — Pricing Review prefill: include Unknown-scope Gong calls (fix over-frequent "No data")
+
+Root cause of the "[No data in Salesforce — AE to complete]" answers despite real data: `context()` filtered Gong calls to `Gong__Scope__c = 'External'`, but ~half of this org's non-private calls carry `Scope='Unknown'` (5,933 vs 6,781 External) — including Rochester's 7,197-char transcript — so the richest evidence was dropped before it reached Claude.
+- Gong query now includes all non-private, non-Internal calls (Unknown + External); pulls brief AND transcript (4,200 chars), 3 calls; activity raised to 15; context clip 16k->28k; max_tokens 2048->3200; prompt directs Claude to mine the transcript for Q4/Q5/Q9/Q16/Q17 and reserve "[No data]" for genuinely-absent evidence.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components (2, changed):** `ApexClass:PricingReviewController` (context/query/prompt), `ApexClass:PricingReviewControllerTest` (recompiled).
+- **Validated job id:** `0AfOL000003ST5N0AW` — `RunSpecifiedTests` (`PricingReviewControllerTest`); 6/6, 0 failures.
+- **Quick-deploy:** `0AfOL000003ST6z0AG` — Succeeded, `checkOnly: false`, 0 errors.
+- **Approved by:** org owner (benjamin.johnson) — reported the prefill was returning "No data" when Gong data existed.
+- **Post-deploy verification:** anon Apex — `draftAnswers(Rochester)` went from 5/24 to **13/24** answered; Q4/Q9/Q16/Q17 now populated from the Gong transcript (e.g., Q9 surfaces the ~$161,788 ARR already in Infor's RFP). Bulk call now ~31s (richer context); per-question "Try again" remains ~2s.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `PricingReviewController` to the prior commit.
