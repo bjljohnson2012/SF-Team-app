@@ -13,6 +13,8 @@ private class CockpitAeControllerTest {
         System.assertNotEquals(null, o.directors, 'director picker list is present');
         System.assertNotEquals(null, o.productTypes, 'product types come from Opportunity.EUNA_Solution__c');
         System.assert(o.sizeBands.contains(CockpitConstants.SIZE_ALL), 'size bands include All');
+        System.assert(o.sizeBands.contains(CockpitConstants.SIZE_UNDER_50K), 'under 50k band present');
+        System.assertNotEquals(null, o.runningUserName, 'running user name for My team caption');
     }
 
     @isTest
@@ -41,6 +43,12 @@ private class CockpitAeControllerTest {
             System.assertEquals(true, scoped.selfScoped, 'self-scope is explicit, not a director-only error');
             System.assertEquals(1, pay.rows.size(), 'an AE with no reports still sees their own row');
             System.assertEquals(ae.Id, pay.rows[0].ownerId, 'the row is the running AE');
+
+            CockpitAeCompositionService.Payload viaCtrl = CockpitAeController.loadComposition(
+                null, CockpitConstants.TEAM_MODE_MINE,
+                CockpitConstants.PRODUCT_ALL, CockpitConstants.SIZE_ALL);
+            System.assertEquals(1, viaCtrl.rows.size(), 'controller path returns the same self row');
+            System.assertEquals(ae.Id, viaCtrl.rows[0].ownerId, 'controller row is the running AE');
         }
     }
 
