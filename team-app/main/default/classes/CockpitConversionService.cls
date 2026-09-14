@@ -401,10 +401,10 @@ public with sharing class CockpitConversionService {
     }
 
     @TestVisible
-    class SnapPoint {
-        Date weekStart;
-        String band;
-        SnapPoint(Date w, String b) { weekStart = w; band = b; }
+    public class SnapPoint {
+        @TestVisible Date weekStart;
+        @TestVisible String band;
+        public SnapPoint(Date w, String b) { weekStart = w; band = b; }
     }
 
     private class ClosedDeal {
