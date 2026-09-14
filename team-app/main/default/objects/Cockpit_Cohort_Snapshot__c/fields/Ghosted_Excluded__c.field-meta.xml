@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ghosted_Excluded__c</fullName>
+    <label>Ghosted Excluded</label>
+    <description>Whether Ghosted was treated as never-real when this row was written.</description>
+    <inlineHelpText>Whether Ghosted was treated as never-real when this row was written.</inlineHelpText>
+    <type>Checkbox</type>
+    <defaultValue>true</defaultValue>
+</CustomField>

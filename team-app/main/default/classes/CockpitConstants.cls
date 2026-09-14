@@ -33,6 +33,36 @@ public with sharing class CockpitConstants {
         'SOLUTIONS ENGINEER', 'SALES ENGINEER'
     };
 
+    // Migration stages are not new-business conversion (Type Migration is already out).
+    public static final Set<String> MIGRATION_STAGES = new Set<String>{
+        'Migration', 'Migrating', 'Migration Complete'
+    };
+
+    // Product / solution family as it exists on Opportunity — do not invent a field.
+    public static final String PRODUCT_FIELD = 'EUNA_Solution__c';
+
+    public static final String SIZE_ALL = 'ALL';
+    public static final String SIZE_UNDER_50K = 'UNDER_50K';
+    public static final String SIZE_50_150K = 'BAND_50_150K';
+    public static final String SIZE_OVER_150K = 'OVER_150K';
+    public static final String PRODUCT_ALL = 'ALL';
+    public static final String TEAM_MODE_MY = 'my';
+    public static final String TEAM_MODE_DIRECTOR = 'director';
+
+    public static final String SETTING_EXCLUDE_GHOSTED = 'winrate.exclude.ghosted';
+    public static final String SETTING_THIN_SAMPLE = 'winrate.thin.sample';
+    public static final String SETTING_PURGE_SILENT_DAYS = 'winrate.purge.silent.days';
+    public static final String SETTING_PURGE_DUMP_MIN = 'winrate.purge.dump.min';
+    public static final String SETTING_SIZE_UNDER = 'winrate.size.under';
+    public static final String SETTING_SIZE_MID = 'winrate.size.mid';
+
+    public static final Date LOSS_REASON_RELIABLE_FROM = Date.newInstance(2026, 2, 5);
+    public static final Integer DEFAULT_THIN_SAMPLE = 15;
+    public static final Integer DEFAULT_PURGE_SILENT_DAYS = 60;
+    public static final Integer DEFAULT_PURGE_DUMP_MIN = 5;
+    public static final Decimal DEFAULT_SIZE_UNDER = 50000;
+    public static final Decimal DEFAULT_SIZE_MID = 150000;
+
     // Phase B thresholds and modeled-call weights (Phase A: Cockpit_Setting__mdt).
     public static final Integer THRESHOLD_HIGH = 7;   // score >= : Include-High
     public static final Integer THRESHOLD_MED  = 3;   // score >= : Include-Med

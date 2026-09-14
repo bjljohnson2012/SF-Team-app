@@ -27,11 +27,30 @@ private class CockpitRosterServiceTest {
     }
 
     @isTest
-    static void emptyTeam_returnsEmpty() {
+    static void emptyTeam_nonAE_returnsEmpty() {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
-        User lone = mk(p.Id, null, 'Director');
+        User lone = mk(p.Id, null, 'Solutions Engineer');
         insert lone;
-        System.assert(CockpitRosterService.teamIds(lone.Id).isEmpty(), 'no reports -> empty');
+        System.assert(CockpitRosterService.teamIds(lone.Id).isEmpty(),
+            'non-AE with no reports is not a valid viewer row');
+    }
+
+    @isTest
+    static void aeWithNoReports_seesSelf() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User ae = mk(p.Id, null, 'Account Executive');
+        insert ae;
+        Set<Id> ids = CockpitRosterService.teamIds(ae.Id);
+        System.assert(ids.contains(ae.Id), 'AE is a valid viewer of their own row');
+        System.assertEquals(1, ids.size(), 'self only');
+    }
+
+    @isTest
+    static void resolveScope_defaultsToRunningUser() {
+        CockpitRosterService.ScopeResult s = CockpitRosterService.resolveScope(
+            null, CockpitConstants.TEAM_MODE_MY);
+        System.assertEquals(UserInfo.getUserId(), s.directorId, 'my team is the running user');
+        System.assertNotEquals(null, s.directorName, 'director name populated');
     }
 
     static Integer seq = 0;

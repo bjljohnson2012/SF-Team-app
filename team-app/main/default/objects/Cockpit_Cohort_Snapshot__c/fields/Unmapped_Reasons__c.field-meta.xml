@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Unmapped_Reasons__c</fullName>
+    <label>Unmapped Reasons</label>
+    <description>Loss reasons in this snapshot that had no Cockpit_Loss_Root__mdt row.</description>
+    <inlineHelpText>Loss reasons in this snapshot that had no Cockpit_Loss_Root__mdt row.</inlineHelpText>
+    <type>LongTextArea</type>
+    <length>2000</length>
+    <visibleLines>3</visibleLines>
+</CustomField>

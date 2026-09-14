@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Nightly SQL-cohort win-rate snapshot per director. Rates are stored numbers (not formulas). ARR is Number, not Currency. Upserted on External_Id__c.</description>
+    <label>Cockpit Cohort Snapshot</label>
+    <nameField>
+        <displayFormat>CCS-{000000}</displayFormat>
+        <label>Snapshot Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Cockpit Cohort Snapshots</pluralLabel>
+    <sharingModel>ReadWrite</sharingModel>
+    <externalSharingModel>ReadWrite</externalSharingModel>
+    <enableActivities>false</enableActivities>
+    <enableReports>true</enableReports>
+    <enableBulkApi>true</enableBulkApi>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableSearch>true</enableSearch>
+    <startsWith>Consonant</startsWith>
+</CustomObject>
