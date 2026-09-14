@@ -153,7 +153,7 @@ public with sharing class PricingReviewController {
         String prompt = buildDraftPrompt(o);
         String raw;
         try {
-            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 3200);
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 4096);
         } catch (Exception e) {
             throw new AuraHandledException('AI pre-fill failed: ' + e.getMessage());
         }
@@ -176,11 +176,14 @@ public with sharing class PricingReviewController {
         Opportunity o = loadContextOpp(opportunityId);
         String q = QUESTIONS[questionNum - 1];
         String ask = (mode == 'expand')
-            ? 'Expand and sharpen the following draft answer with more specific, grounded detail. If the draft is empty or the context has no support, reply exactly "[No data in Salesforce \u2014 AE to complete]".\nQuestion: ' + q + '\nCurrent draft: ' + (String.isBlank(current) ? '(none)' : current)
-            : 'Draft a concise answer (1-3 sentences) to the following question, grounded ONLY in the context. If unsupported, reply exactly "[No data in Salesforce \u2014 AE to complete]".\nQuestion: ' + q;
+            ? 'Expand and sharpen the following draft answer with more specific detail from the context.\nQuestion: ' + q + '\nCurrent draft: ' + (String.isBlank(current) ? '(none)' : current)
+            : 'Draft a concise answer (1-3 sentences) to the following question.\nQuestion: ' + q;
         String prompt = 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
-            + 'for a government/public-sector software deal. Use ONLY the Salesforce context below. Do not invent '
-            + 'facts, numbers, or names. Return ONLY the answer text \u2014 no preamble, no question restatement, no JSON.\n\n'
+            + 'for a government/public-sector software deal. Answer using the Salesforce context below. If the '
+            + 'context has direct evidence, use it. If not, give your best inference from the context (entity type/'
+            + 'size, US public-sector procurement norms, deal stage, typical competitors and TCO) and PREFIX it '
+            + 'with "INFERRED: ". Do not fabricate specific figures, quotes, or names not in the context. '
+            + 'Return ONLY the answer text \u2014 no preamble, no question restatement, no JSON.\n\n'
             + ask + '\n\nCONTEXT:\n' + context(o);
         String raw;
         try {
@@ -208,16 +211,23 @@ public with sharing class PricingReviewController {
         String qs = '';
         for (Integer i = 0; i < QUESTIONS.size(); i++) qs += 'Q' + (i + 1) + ': ' + QUESTIONS[i] + '\n';
         return 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
-            + 'for a government/public-sector software deal. Draft a concise suggested answer (1-3 sentences) '
-            + 'for each of the 24 questions using the Salesforce context below.\n'
+            + 'for a government/public-sector software deal. Provide a useful draft answer (1-3 sentences) for '
+            + 'EVERY one of the 24 questions \u2014 do not leave any blank.\n'
             + 'The Gong call brief and transcript and the recent activity are your richest sources \u2014 read them '
-            + 'carefully and extract concrete evidence: competitors named, budget or pricing figures mentioned, '
-            + 'timelines, decision drivers, stakeholders, and prospect engagement. In particular use the Gong '
-            + 'transcript for Q4 (prospect partiality/engagement), Q5/Q17 (competition & differentiation), and '
-            + 'Q9 (prior pricing/ballpark), and the activity/description for Q16 (decision drivers).\n'
-            + 'Only answer "[No data in Salesforce \u2014 AE to complete]" when the context genuinely says nothing '
-            + 'relevant to that question \u2014 do not use it for a question the calls or activity do speak to. '
-            + 'Do not invent facts, numbers, or names that are not in the context.\n'
+            + 'carefully and extract concrete evidence: competitors named, budget or pricing figures, timelines, '
+            + 'decision drivers, stakeholders, and prospect engagement. Use the Gong transcript especially for Q4 '
+            + '(prospect partiality/engagement), Q5/Q17 (competition & differentiation), and Q9 (prior pricing/'
+            + 'ballpark), and the activity/description for Q16 (decision drivers).\n'
+            + 'For each question follow this order:\n'
+            + '1) If the context has direct evidence, answer from it.\n'
+            + '2) If not directly stated but reasonably inferable from the context (the entity type and size, '
+            + 'US public-sector procurement/RFP norms, the deal stage and solution, typical competitors and TCO '
+            + 'horizons for this kind of buyer), give your best inference and PREFIX it with "INFERRED: ".\n'
+            + '3) Use "[No data in Salesforce \u2014 AE to complete]" only as a last resort when you truly cannot even '
+            + 'infer a reasonable answer.\n'
+            + 'Aim to answer all 24. Every inferred answer MUST start with "INFERRED: " so the AE knows to verify '
+            + 'it. Do not fabricate specific figures, quotes, or names that are not in the context; inferences '
+            + 'should be qualitative or clearly hypothetical.\n'
             + 'Return ONLY a JSON object whose keys are Q1 through Q24 and whose values are strings. '
             + 'No markdown, no code fences, no commentary.\n\nQUESTIONS:\n' + qs + '\nCONTEXT:\n' + ctx;
     }

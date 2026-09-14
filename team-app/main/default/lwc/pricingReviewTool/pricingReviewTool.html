@@ -16,7 +16,7 @@
                     <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip; this can take up to ~30 seconds.</p>
                 </template>
                 <template lwc:else>
-                    <p class="small">Pre-filled from Salesforce by Claude ({filledCount} of 24 answered from data). Review and edit each one; use <b>Try again</b> to regenerate a question or <b>Expand</b> to add detail. Blanks are flagged &#9888; NOT ANSWERED in the generated doc.</p>
+                    <p class="small">Pre-filled from Salesforce by Claude ({filledCount} of 24). Answers marked <b>INFERRED:</b> were reasoned from context rather than found in the data &mdash; verify those before submitting. Use <b>Try again</b> to regenerate a question or <b>Expand</b> to add detail.</p>
                     <template lwc:if={error}><div class="err">{error}</div></template>
                     <template for:each={questionGroups} for:item="g">
                         <div key={g.label} class="batch">
