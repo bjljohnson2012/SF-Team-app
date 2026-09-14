@@ -153,7 +153,7 @@ public with sharing class PricingReviewController {
         String prompt = buildDraftPrompt(o);
         String raw;
         try {
-            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 2048);
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 3200);
         } catch (Exception e) {
             throw new AuraHandledException('AI pre-fill failed: ' + e.getMessage());
         }
@@ -208,10 +208,16 @@ public with sharing class PricingReviewController {
         String qs = '';
         for (Integer i = 0; i < QUESTIONS.size(); i++) qs += 'Q' + (i + 1) + ': ' + QUESTIONS[i] + '\n';
         return 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
-            + 'for a government/public-sector software deal. Using ONLY the Salesforce context below, draft '
-            + 'a concise suggested answer (1-3 sentences) for each of the 24 questions. Ground every answer in '
-            + 'the data provided. If there is no evidence for a question, answer exactly '
-            + '"[No data in Salesforce \u2014 AE to complete]". Do not invent facts, numbers, or names. '
+            + 'for a government/public-sector software deal. Draft a concise suggested answer (1-3 sentences) '
+            + 'for each of the 24 questions using the Salesforce context below.\n'
+            + 'The Gong call brief and transcript and the recent activity are your richest sources \u2014 read them '
+            + 'carefully and extract concrete evidence: competitors named, budget or pricing figures mentioned, '
+            + 'timelines, decision drivers, stakeholders, and prospect engagement. In particular use the Gong '
+            + 'transcript for Q4 (prospect partiality/engagement), Q5/Q17 (competition & differentiation), and '
+            + 'Q9 (prior pricing/ballpark), and the activity/description for Q16 (decision drivers).\n'
+            + 'Only answer "[No data in Salesforce \u2014 AE to complete]" when the context genuinely says nothing '
+            + 'relevant to that question \u2014 do not use it for a question the calls or activity do speak to. '
+            + 'Do not invent facts, numbers, or names that are not in the context.\n'
             + 'Return ONLY a JSON object whose keys are Q1 through Q24 and whose values are strings. '
             + 'No markdown, no code fences, no commentary.\n\nQUESTIONS:\n' + qs + '\nCONTEXT:\n' + ctx;
     }
@@ -244,33 +250,37 @@ public with sharing class PricingReviewController {
         s += '\nRecent activity:\n';
         List<Task> tasks = [
             SELECT Subject, Description, ActivityDate, Type, CreatedDate
-            FROM Task WHERE WhatId = :o.Id ORDER BY CreatedDate DESC LIMIT 8
+            FROM Task WHERE WhatId = :o.Id ORDER BY CreatedDate DESC LIMIT 15
         ];
         if (tasks.isEmpty()) s += '  (none)\n';
         for (Task t : tasks) {
             s += '  - ' + (t.CreatedDate != null ? t.CreatedDate.date().format() : '') + ' [' + safe(t.Type) + '] '
-               + safe(t.Subject) + ' \u2014 ' + clip(safe(t.Description), 300) + '\n';
+               + safe(t.Subject) + ' \u2014 ' + clip(safe(t.Description), 220) + '\n';
         }
 
-        // Gong calls incl. transcript/brief (Q4, Q9, Q17)
+        // Gong calls incl. transcript/brief (Q4, Q9, Q17). Scope is often 'Unknown'
+        // in this org, so we include everything non-private rather than External-only.
         s += '\nGong calls:\n';
         List<Gong__Gong_Call__c> calls = [
             SELECT Gong__Title__c, Gong__Call_Start__c, Gong__Call_Brief__c, Gong__Pricing_Duration__c,
                    Gong__Talk_Time_Them__c, Gong_Transcript__c
             FROM Gong__Gong_Call__c
             WHERE Gong__Primary_Opportunity__c = :o.Id AND Gong__Is_Private__c = false
-              AND Gong__Scope__c = 'External'
-            ORDER BY Gong__Call_Start__c DESC LIMIT 2
+              AND Gong__Scope__c != 'Internal'
+            ORDER BY Gong__Call_Start__c DESC LIMIT 3
         ];
         if (calls.isEmpty()) s += '  (none)\n';
         for (Gong__Gong_Call__c c : calls) {
-            String body = String.isNotBlank(c.Gong_Transcript__c) ? clip(c.Gong_Transcript__c, 1200)
-                        : ('brief: ' + clip(safe(c.Gong__Call_Brief__c), 1000));
+            String body = '';
+            if (String.isNotBlank(c.Gong__Call_Brief__c)) body += 'Brief: ' + clip(safe(c.Gong__Call_Brief__c), 900) + '\n    ';
+            if (String.isNotBlank(c.Gong_Transcript__c)) body += 'Transcript: ' + clip(c.Gong_Transcript__c, 4200);
+            if (String.isBlank(body)) body = '(no brief or transcript synced yet)';
+            String talk = (c.Gong__Talk_Time_Them__c != null) ? ' prospect-talk-time=' + c.Gong__Talk_Time_Them__c : '';
             s += '  - ' + (c.Gong__Call_Start__c != null ? c.Gong__Call_Start__c.date().format() : '') + ' '
-               + safe(c.Gong__Title__c) + (c.Gong__Pricing_Duration__c != null && c.Gong__Pricing_Duration__c > 0 ? ' [pricing discussed]' : '')
+               + safe(c.Gong__Title__c) + (c.Gong__Pricing_Duration__c != null && c.Gong__Pricing_Duration__c > 0 ? ' [pricing discussed]' : '') + talk
                + '\n    ' + body + '\n';
         }
-        return clip(s, 16000);
+        return clip(s, 28000);
     }
 
     /** Builds and attaches the branded Euna Pricing Review Checklist and persists the answers. */
