@@ -197,6 +197,10 @@ public with sharing class PricingReviewController {
     private static Opportunity loadContextOpp(Id opportunityId) {
         List<Opportunity> opps = [
             SELECT Id, Name, AccountId, Account.Name, Account.BillingState, Account.BillingCity,
+                   Account.Industry, Account.Sub_Vertical__c, Account.AnnualRevenue, Account.Total_Budget_bf__c,
+                   Account.Operating_Budget_Year__c, Account.Fiscal_Year_Start_Month__c, Account.Total_Population_bf__c,
+                   Account.Student_Count__c, Account.NumberOfEmployees, Account.Current_Budgeting_system__c,
+                   Account.Recent_Budget_Trends__c,
                    Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
                    EUNA_Solution__c, Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
                    NextStep, Description, LeadSource, Type
@@ -213,11 +217,13 @@ public with sharing class PricingReviewController {
         return 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
             + 'for a government/public-sector software deal. Provide a useful draft answer (1-3 sentences) for '
             + 'EVERY one of the 24 questions \u2014 do not leave any blank.\n'
-            + 'The Gong call brief and transcript and the recent activity are your richest sources \u2014 read them '
-            + 'carefully and extract concrete evidence: competitors named, budget or pricing figures, timelines, '
-            + 'decision drivers, stakeholders, and prospect engagement. Use the Gong transcript especially for Q4 '
-            + '(prospect partiality/engagement), Q5/Q17 (competition & differentiation), and Q9 (prior pricing/'
-            + 'ballpark), and the activity/description for Q16 (decision drivers).\n'
+            + 'Map the context sources to questions: use the ENTITY PROFILE (operating/total budget, student '
+            + 'count, employees, budget trends) for Q1 and Q7; the COMPARABLE CUSTOMERS list (their ARR) for Q6; '
+            + 'the QUOTED PRODUCTS & SALES OPTIONS for Q21 and to anchor Q24 pricing; and the Gong call brief and '
+            + 'transcript and recent activity for Q4 (engagement), Q5/Q17 (competition & differentiation), Q9 '
+            + '(prior pricing/ballpark), Q13/Q19 (timing), and Q16 (decision drivers). Read the Gong transcript '
+            + 'and budget-trends narrative carefully and extract concrete figures, competitors, timelines, and '
+            + 'stakeholders rather than generalizing.\n'
             + 'For each question follow this order:\n'
             + '1) If the context has direct evidence, answer from it.\n'
             + '2) If not directly stated but reasonably inferable from the context (the entity type and size, '
@@ -250,6 +256,55 @@ public with sharing class PricingReviewController {
             + '\nEuna Solution: ' + safe(o.EUNA_Solution__c) + '\nSales Segment: ' + safe(o.Sales_Segment__c)
             + '\nLead Source: ' + safe(o.LeadSource) + '\nNext Step: ' + safe(o.NextStep)
             + '\nDescription: ' + clip(safe(o.Description), 1500) + '\n';
+
+        // Entity profile from the Account (Q1: budget, size, student/employee counts)
+        if (o.Account != null) {
+            s += '\nEntity profile (from the Account record \u2014 authoritative for Q1):\n'
+              + '  Vertical / Sub-Vertical: ' + safe(o.Account.Industry) + ' / ' + safe(o.Account.Sub_Vertical__c) + '\n'
+              + '  Latest Operating Budget: ' + fmtCur(o.Account.AnnualRevenue) + '\n'
+              + '  Total Budget: ' + fmtCur(o.Account.Total_Budget_bf__c) + '\n'
+              + '  Operating Budget Year: ' + safe(o.Account.Operating_Budget_Year__c) + '\n'
+              + '  Fiscal Year Start Month: ' + safe(o.Account.Fiscal_Year_Start_Month__c) + '\n'
+              + '  Student Count: ' + num(o.Account.Student_Count__c) + '\n'
+              + '  Population Served: ' + num(o.Account.Total_Population_bf__c) + '\n'
+              + '  Employees: ' + num(o.Account.NumberOfEmployees) + '\n'
+              + '  Current Budgeting System: ' + safe(o.Account.Current_Budgeting_system__c) + '\n'
+              + '  Recent Budget Trends: ' + clip(safe(o.Account.Recent_Budget_Trends__c), 1400) + '\n';
+        }
+
+        // Comparable Euna customers by vertical for pricing anchors (Q6)
+        if (o.Account != null && String.isNotBlank(o.Account.Industry)) {
+            s += '\nComparable Euna customers (same vertical, active contracts \u2014 pricing anchors for Q6):\n';
+            List<Contract> comps = [
+                SELECT Account.Name, Account.Student_Count__c, ARR_Rollup__c, EUNA_Solution_Name_Formula__c
+                FROM Contract
+                WHERE Status = 'Activated' AND ARR_Rollup__c > 0
+                  AND Account.Industry = :o.Account.Industry AND AccountId != :o.AccountId
+                ORDER BY ARR_Rollup__c DESC LIMIT 8
+            ];
+            if (comps.isEmpty()) s += '  (none found)\n';
+            for (Contract c : comps) {
+                s += '  - ' + safe(c.Account != null ? c.Account.Name : '') + ' | students=' + num(c.Account != null ? c.Account.Student_Count__c : null)
+                   + ' | ARR=' + fmtCur(c.ARR_Rollup__c) + ' | ' + safe(c.EUNA_Solution_Name_Formula__c) + '\n';
+            }
+        }
+
+        // Quoted products / sales options (Q21)
+        s += '\nQuoted products & sales options (from the opportunity\u2019s Quotes \u2014 authoritative for Q21):\n';
+        Set<String> seenLines = new Set<String>();
+        for (QuoteLineItem q : [
+            SELECT Product2.Name, Quantity, UnitPrice, TotalPrice
+            FROM QuoteLineItem WHERE Quote.OpportunityId = :o.Id
+            ORDER BY Quote.CreatedDate DESC, TotalPrice DESC LIMIT 40
+        ]) {
+            Decimal qty = (q.Quantity == null) ? null : Decimal.valueOf(String.valueOf(q.Quantity));
+            Decimal unit = (q.UnitPrice == null) ? null : Decimal.valueOf(String.valueOf(q.UnitPrice));
+            Decimal tot = (q.TotalPrice == null) ? null : Decimal.valueOf(String.valueOf(q.TotalPrice));
+            String line = safe(q.Product2 != null ? q.Product2.Name : '') + ' | qty=' + num(qty)
+                        + ' | unit=' + fmtCur(unit) + ' | total=' + fmtCur(tot);
+            if (seenLines.add(line)) s += '  - ' + line + '\n';
+        }
+        if (seenLines.isEmpty()) s += '  (no quote lines)\n';
 
         // Existing Euna relationships (Q3)
         List<String> rels = new List<String>();
@@ -293,7 +348,7 @@ public with sharing class PricingReviewController {
                + safe(c.Gong__Title__c) + (c.Gong__Pricing_Duration__c != null && c.Gong__Pricing_Duration__c > 0 ? ' [pricing discussed]' : '') + talk
                + '\n    ' + body + '\n';
         }
-        return clip(s, 28000);
+        return clip(s, 34000);
     }
 
     /** Builds and attaches the branded Euna Pricing Review Checklist and persists the answers. */
@@ -409,6 +464,8 @@ public with sharing class PricingReviewController {
         return s == null ? '' : s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;');
     }
     private static String safe(String s) { return s == null ? '' : s; }
+    private static String num(Decimal d) { return d == null ? '' : String.valueOf(d.setScale(0)); }
+    private static String fmtCur(Decimal d) { return d == null ? '' : '$' + d.setScale(0).format(); }
     private static String clip(String s, Integer n) { return (s != null && s.length() > n) ? s.substring(0, n) + '\u2026' : s; }
     private static String join(List<String> parts, String sep) {
         List<String> keep = new List<String>();
