@@ -7,11 +7,7 @@ public with sharing class CockpitConversionController {
 
     @AuraEnabled(cacheable=true)
     public static CockpitConversionService.ScopeOptions getScopeOptions() {
-        try {
-            return CockpitConversionService.getScopeOptions();
-        } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
-        }
+        return CockpitConversionService.getScopeOptions();
     }
 
     @AuraEnabled(cacheable=true)
@@ -21,10 +17,6 @@ public with sharing class CockpitConversionController {
         String productType,
         String sizeBand
     ) {
-        try {
-            return CockpitConversionService.load(directorId, teamMode, productType, sizeBand);
-        } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
-        }
+        return CockpitConversionService.load(directorId, teamMode, productType, sizeBand);
     }
 }
