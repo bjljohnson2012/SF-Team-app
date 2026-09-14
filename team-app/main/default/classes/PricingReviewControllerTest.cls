@@ -102,6 +102,45 @@ private class PricingReviewControllerTest {
         } catch (AuraHandledException e) { System.assert(true); }
     }
 
+    // Returns a truncated/cut-off JSON body (as if the reply hit the token cap mid-answer).
+    private class TruncatedMock implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            String text = '{"Q1":"INFERRED: large urban district","Q2":"Partner referral","Q3":"Net-new account","Q4":"INFERRED: engagement has been we';
+            Map<String, Object> body = new Map<String, Object>{
+                'content' => new List<Object>{ new Map<String, Object>{ 'type' => 'text', 'text' => text } }
+            };
+            HttpResponse res = new HttpResponse();
+            res.setStatusCode(200);
+            res.setBody(JSON.serialize(body));
+            return res;
+        }
+    }
+
+    @isTest
+    static void draft_recovers_from_truncated_json() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User dir = usr(p.Id, null, 'Director');
+        insert dir;
+        Id rtId = [SELECT Id FROM RecordType WHERE SobjectType = 'Opportunity' AND DeveloperName = 'Euna_Sale' LIMIT 1].Id;
+        System.runAs(dir) {
+            Account a = new Account(Name = 'Acme');
+            insert a;
+            Opportunity o = new Opportunity(
+                Name = 'Deal', AccountId = a.Id, OwnerId = dir.Id, RecordTypeId = rtId,
+                Type = 'New Sale', StageName = 'Proposal', CloseDate = Date.today().addDays(30));
+            insert o;
+
+            Test.setMock(HttpCalloutMock.class, new TruncatedMock());
+            Test.startTest();
+            Map<String, String> ans = PricingReviewController.draftAnswers(o.Id);
+            Test.stopTest();
+
+            System.assertEquals(24, ans.size(), 'all 24 keys present (recovered + defaults)');
+            System.assertEquals('Partner referral', ans.get('Q2'), 'recovered a complete pair from truncated JSON');
+            System.assert(ans.get('Q4').startsWith('[No data'), 'the cut-off answer falls back to default');
+        }
+    }
+
     @isTest
     static void draftOne_returnsText_and_validates() {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];

@@ -153,7 +153,7 @@ public with sharing class PricingReviewController {
         String prompt = buildDraftPrompt(o);
         String raw;
         try {
-            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 4096);
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 8192);
         } catch (Exception e) {
             throw new AuraHandledException('AI pre-fill failed: ' + e.getMessage());
         }
@@ -230,6 +230,7 @@ public with sharing class PricingReviewController {
             + 'Answer ALL 24 \u2014 aim for zero "[No data]" responses. Every inferred answer MUST start with '
             + '"INFERRED: " so the AE knows to verify it. Do not fabricate specific figures, quotes, or names that '
             + 'are not in the context; inferences should be qualitative ranges or clearly hypothetical.\n'
+            + 'Keep every answer to 1-2 sentences (about 35 words max) so all 24 fit.\n'
             + 'Return ONLY a JSON object whose keys are Q1 through Q24 and whose values are strings. '
             + 'No markdown, no code fences, no commentary.\n\nQUESTIONS:\n' + qs + '\nCONTEXT:\n' + ctx;
     }
@@ -340,9 +341,20 @@ public with sharing class PricingReviewController {
                 out.put(k, v == null ? '' : String.valueOf(v));
             }
         } catch (Exception e) {
-            // A non-JSON model reply leaves the map empty; caller fills defaults.
+            // Truncated/invalid JSON (e.g. a long reply cut off) \u2014 recover below.
+        }
+        // Regex recovery salvages complete "Qn":"..." pairs even from a truncated reply,
+        // so one cut-off answer doesn't wipe the other 23.
+        if (out.isEmpty()) {
+            Matcher m = Pattern.compile('"(Q\\d+)"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"').matcher(jsonText);
+            while (m.find()) { out.put(m.group(1), unescapeJson(m.group(2))); }
         }
         return out;
+    }
+    private static String unescapeJson(String s) {
+        if (s == null) return '';
+        return s.replace('\\n', '\n').replace('\\r', '').replace('\\t', ' ')
+                .replace('\\"', '"').replace('\\/', '/').replace('\\\\', '\\');
     }
 
     /** Strips a ```json ... ``` fence if the model wrapped its reply. */
