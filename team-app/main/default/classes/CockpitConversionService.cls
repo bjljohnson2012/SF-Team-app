@@ -231,7 +231,7 @@ public with sharing class CockpitConversionService {
         page.lossReasonFloorCaption =
             'Loss reasons before ' + String.valueOf(LOSS_REASON_FLOOR)
             + ' are unreliable; the matrix floors there. Q3 2025 cleanup also distorts history.';
-        page.meddpiccAvailable = hasField('Cockpit_MEDDPICC__c');
+        page.meddpiccAvailable = canRead('Cockpit_MEDDPICC__c');
 
         if (page.scope.emptyScope) {
             return page;
@@ -590,13 +590,16 @@ public with sharing class CockpitConversionService {
         Set<String> nbTypes,
         List<String> migStages
     ) {
-        Boolean hasMedd = hasField('Cockpit_MEDDPICC__c');
-        Boolean hasCockpitPush = hasField('Cockpit_Push_Count__c');
+        Boolean hasMedd = canRead('Cockpit_MEDDPICC__c');
+        Boolean hasCockpitPush = canRead('Cockpit_Push_Count__c');
+        Boolean hasRollUp = canRead('Roll_Up_Forecast_bf__c');
+        Boolean hasPushCount = canRead('PushCount');
         page.meddpiccAvailable = hasMedd;
         Date today = Date.today();
 
-        String fields = 'OwnerId, ARR_Opportunity_Amount_USD_Num__c, LastActivityDate, '
-            + 'Next_Step_Date_bf__c, Roll_Up_Forecast_bf__c, PushCount';
+        String fields = 'OwnerId, ARR_Opportunity_Amount_USD_Num__c, LastActivityDate, Next_Step_Date_bf__c';
+        if (hasRollUp) fields += ', Roll_Up_Forecast_bf__c';
+        if (hasPushCount) fields += ', PushCount';
         if (hasMedd) fields += ', Cockpit_MEDDPICC__c';
         if (hasCockpitPush) fields += ', Cockpit_Push_Count__c';
 
@@ -637,9 +640,9 @@ public with sharing class CockpitConversionService {
             }
             Decimal pushes = hasCockpitPush
                 ? (Decimal) o.get('Cockpit_Push_Count__c')
-                : o.PushCount;
+                : (hasPushCount ? o.PushCount : null);
             if (pushes != null && pushes >= 3) a.pushed++;
-            if (ABOVE_BEST_CASE.contains(o.Roll_Up_Forecast_bf__c)) a.aboveArr += arr;
+            if (hasRollUp && ABOVE_BEST_CASE.contains(o.Roll_Up_Forecast_bf__c)) a.aboveArr += arr;
 
             if (hasMedd) {
                 Decimal medd = (Decimal) o.get('Cockpit_MEDDPICC__c');
@@ -744,8 +747,14 @@ public with sharing class CockpitConversionService {
     }
 
     private static Boolean hasField(String apiName) {
-        return Opportunity.SObjectType.getDescribe().fields.getMap()
-            .containsKey(apiName == null ? '' : apiName.toLowerCase());
+        return canRead(apiName);
+    }
+
+    private static Boolean canRead(String apiName) {
+        if (String.isBlank(apiName)) return false;
+        Schema.SObjectField f = Opportunity.SObjectType.getDescribe()
+            .fields.getMap().get(apiName.toLowerCase());
+        return f != null && f.getDescribe().isAccessible();
     }
 
     private static Decimal nz(Decimal d) { return d == null ? 0 : d; }

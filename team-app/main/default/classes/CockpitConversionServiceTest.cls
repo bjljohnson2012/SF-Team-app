@@ -115,9 +115,10 @@ private class CockpitConversionServiceTest {
             Account a = new Account(Name = 'Conv Acme');
             insert a;
             List<Opportunity> opps = new List<Opportunity>{
-                closedDeal(a.Id, rep.Id, rtId, 'Closed Won', 'Commit', 'Budget Professional', 40000, Date.today().addDays(-10), null),
+                closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Commit', 'Budget Professional', 40000, Date.today().addDays(-10), 'Ghosted'),
                 closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Best Case', 'Budget Professional', 180000, Date.today().addDays(-12), 'Ghosted'),
-                closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', null, 'Budget Professional', 20000, Date.today().addDays(-8), 'Perceived lack of ROI')
+                closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', null, 'Budget Professional', 20000, Date.today().addDays(-8), 'Perceived lack of ROI'),
+                openDeal(a.Id, rep.Id, rtId, 'Budget Professional', 60000)
             };
             insert opps;
 
@@ -140,12 +141,18 @@ private class CockpitConversionServiceTest {
             System.assertEquals(true, sawUnbanded, 'null Forecast_Category_before_Close__c → Unbanded');
             System.assertEquals(page.closedInWindow, bandSum, 'sum of bands equals closed in window');
             System.assertNotEquals(null, page.conventionCaption, 'page says it is closure-based');
+            System.assertNotEquals(null, page.liveBook, 'live book is computed');
+            System.assert(!page.lossMatrix.isEmpty(), 'loss matrix includes floored closed-lost reasons');
+            CockpitConversionService.PagePayload sized = CockpitConversionService.load(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, 'Budget Professional',
+                CockpitConversionService.SIZE_UNDER_50);
+            System.assertNotEquals(null, sized.scope.caption, 'product + size filters produce a caption');
         }
     }
 
     @isTest
     static void emptyScope_explainsNoAes_doesNotThrow() {
-        User lone = usr(null, 'Director');
+        User lone = usr(null, 'Solutions Engineer');
         insert lone;
         System.runAs(lone) {
             Test.startTest();
@@ -192,6 +199,21 @@ private class CockpitConversionServiceTest {
             SELECT Id FROM RecordType
             WHERE SobjectType = 'Opportunity' AND DeveloperName = 'Euna_Sale' LIMIT 1
         ].Id;
+    }
+
+    static Opportunity openDeal(Id accountId, Id ownerId, Id rtId, String solution, Decimal arr) {
+        return new Opportunity(
+            Name = 'Open Conv',
+            AccountId = accountId,
+            OwnerId = ownerId,
+            RecordTypeId = rtId,
+            Type = 'New Sale',
+            StageName = 'Proposal',
+            CloseDate = Date.today().addDays(20),
+            EUNA_Solution__c = solution,
+            Y1_ARR_Offered_Price__c = arr,
+            SQL_Datestamp_bf__c = Date.today().addDays(-15)
+        );
     }
 
     static Opportunity closedDeal(
