@@ -117,22 +117,23 @@ public with sharing class CockpitAeCompositionService {
         Date nextStart = qStart.addMonths(3);
         Date nextEnd = qStart.addMonths(6).addDays(-1);
 
-        List<Opportunity> opps = [
-            SELECT Id, OwnerId, CloseDate, LastActivityDate, StageName,
-                   Roll_Up_Forecast_bf__c, ARR_Opportunity_Amount_USD_Num__c,
-                   Cockpit_Class_Override__c, Pricing_Approval_Status__c,
-                   SQL_Datestamp_bf__c, Next_Step_Date_bf__c, Is_Holdover__c,
-                   EUNA_Solution__c
-            FROM Opportunity
-            WHERE IsClosed = false
-              AND OwnerId IN :owners
-              AND RecordType.DeveloperName = :CockpitConstants.SALE_RECORDTYPE
-              AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
-              AND StageName NOT IN :CockpitConstants.MIGRATION_STAGES
-              AND CloseDate >= :qStart AND CloseDate <= :winEnd
-            WITH USER_MODE
-            LIMIT 800
-        ];
+        String holdoverField = Schema.sObjectType.Opportunity.fields.Is_Holdover__c.isAccessible()
+            ? ', Is_Holdover__c' : '';
+        String soql = 'SELECT Id, OwnerId, CloseDate, LastActivityDate, StageName, '
+            + 'Roll_Up_Forecast_bf__c, ARR_Opportunity_Amount_USD_Num__c, '
+            + 'Cockpit_Class_Override__c, Pricing_Approval_Status__c, '
+            + 'SQL_Datestamp_bf__c, Next_Step_Date_bf__c, EUNA_Solution__c'
+            + holdoverField
+            + ' FROM Opportunity WHERE IsClosed = false AND OwnerId IN :owners'
+            + ' AND RecordType.DeveloperName = :saleRt'
+            + ' AND Type IN :newBiz'
+            + ' AND StageName NOT IN :mig'
+            + ' AND CloseDate >= :qStart AND CloseDate <= :winEnd'
+            + ' LIMIT 800';
+        String saleRt = CockpitConstants.SALE_RECORDTYPE;
+        Set<String> newBiz = CockpitConstants.NEW_BUSINESS_TYPES;
+        Set<String> mig = CockpitConstants.MIGRATION_STAGES;
+        List<Opportunity> opps = Database.query(soql, AccessLevel.USER_MODE);
 
         Map<Id, Booked> booked = queryBooked(owners, qStart, CockpitConstants.quarterEnd(
             today.year(), CockpitConstants.quarterOf(today)), productType, sizeBand);
@@ -268,7 +269,7 @@ public with sharing class CockpitAeCompositionService {
             }
             if (nz(o.ARR_Opportunity_Amount_USD_Num__c) == 0) zeroN++;
         }
-        if (commitN == 0) {
+        if (!currentAndNext.isEmpty() && commitN == 0) {
             out.add(sig('COMMIT', '0 deals in Commit across current and next quarter'));
         }
         if (scored >= 4 && ((Decimal) thin).divide(scored, 4) > 0.5) {
@@ -289,8 +290,9 @@ public with sharing class CockpitAeCompositionService {
             currentOpen += arr;
             if (arr > largest) largest = arr;
         }
-        if (currentOpen > 0 && (largest / currentOpen) * 100 > CockpitConstants.CONCENTRATION_PCT) {
-            Decimal pct = (largest / currentOpen) * 100;
+        Decimal concPct = currentOpen == 0 ? 0 : largest.divide(currentOpen, 6, System.RoundingMode.HALF_UP) * 100;
+        if (currentOpen > 0 && concPct.setScale(4, System.RoundingMode.HALF_UP) > CockpitConstants.CONCENTRATION_PCT) {
+            Decimal pct = concPct;
             out.add(sig('CONCENTRATION', 'Largest current-quarter deal is $' + largest.setScale(0)
                 + ' — ' + pct.setScale(1) + '% of this AE\'s current-quarter open ARR'));
         }
@@ -372,7 +374,7 @@ public with sharing class CockpitAeCompositionService {
         Decimal arr = nz(o.ARR_Opportunity_Amount_USD_Num__c);
         s.openN++;
         s.openArr += arr;
-        if (o.Is_Holdover__c == true) {
+        if (holdoverOf(o)) {
             s.holdoverN++;
             s.holdoverArr += arr;
         }
@@ -502,6 +504,14 @@ public with sharing class CockpitAeCompositionService {
         if (sizeBand == CockpitConstants.SIZE_50_150K) return '$50–150k';
         if (sizeBand == CockpitConstants.SIZE_OVER_150K) return '$150k+';
         return 'All sizes';
+    }
+
+    private static Boolean holdoverOf(Opportunity o) {
+        try {
+            return o.Is_Holdover__c == true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static Decimal nz(Decimal d) { return d == null ? 0 : d; }

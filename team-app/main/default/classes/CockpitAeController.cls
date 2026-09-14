@@ -43,7 +43,7 @@ public with sharing class CockpitAeController {
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            throw new AuraHandledException(e.getTypeName() + ': ' + e.getMessage());
         }
     }
 }

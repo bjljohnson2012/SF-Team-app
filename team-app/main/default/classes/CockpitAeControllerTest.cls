@@ -20,16 +20,19 @@ private class CockpitAeControllerTest {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User ae = mk(p.Id, null, 'Account Executive');
         insert ae;
+        PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'GTM_Team_Johnson_Access' LIMIT 1];
+        insert new PermissionSetAssignment(AssigneeId = ae.Id, PermissionSetId = ps.Id);
 
         System.runAs(ae) {
             Test.startTest();
+            CockpitRosterService.Scope scoped = CockpitRosterService.resolve(null, CockpitConstants.TEAM_MODE_MINE);
             CockpitAeCompositionService.Payload pay = CockpitAeController.loadComposition(
                 null, CockpitConstants.TEAM_MODE_MINE,
                 CockpitConstants.PRODUCT_ALL, CockpitConstants.SIZE_ALL);
             Test.stopTest();
+            System.assertEquals(true, scoped.selfScoped, 'self-scope is explicit, not a director-only error');
             System.assertEquals(1, pay.rows.size(), 'an AE with no reports still sees their own row');
             System.assertEquals(ae.Id, pay.rows[0].ownerId, 'the row is the running AE');
-            System.assertEquals(true, pay.selfScoped, 'self-scope is explicit, not a director-only error');
         }
     }
 
