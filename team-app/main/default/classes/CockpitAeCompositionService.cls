@@ -29,7 +29,7 @@ public with sharing class CockpitAeCompositionService {
         @AuraEnabled public Integer openN = 0;
         @AuraEnabled public Decimal holdoverArr = 0;
         @AuraEnabled public Integer holdoverN = 0;
-        @AuraEnabled public BandCell commit;
+        @AuraEnabled public BandCell commitBand;
         @AuraEnabled public BandCell mostLikely;
         @AuraEnabled public BandCell bestCase;
         @AuraEnabled public BandCell pipeline;
@@ -43,7 +43,7 @@ public with sharing class CockpitAeCompositionService {
         @AuraEnabled public Integer excludeN = 0;
         @AuraEnabled public Decimal evidenceCall = 0;
         public QuarterSlice() {
-            commit = new BandCell();
+            commitBand = new BandCell();
             mostLikely = new BandCell();
             bestCase = new BandCell();
             pipeline = new BandCell();
@@ -385,7 +385,7 @@ public with sharing class CockpitAeCompositionService {
     }
 
     private static BandCell cellFor(QuarterSlice s, String band) {
-        if (band == CockpitConstants.BAND_COMMIT) return s.commit;
+        if (band == CockpitConstants.BAND_COMMIT) return s.commitBand;
         if (band == CockpitConstants.BAND_ML) return s.mostLikely;
         if (band == CockpitConstants.BAND_BC) return s.bestCase;
         if (band == CockpitConstants.BAND_PIPE) return s.pipeline;
@@ -394,7 +394,7 @@ public with sharing class CockpitAeCompositionService {
     }
 
     private static void finishSlice(QuarterSlice s, Decimal bookedArr, Decimal wHi, Decimal wMed) {
-        share(s.commit, s.openArr);
+        share(s.commitBand, s.openArr);
         share(s.mostLikely, s.openArr);
         share(s.bestCase, s.openArr);
         share(s.pipeline, s.openArr);

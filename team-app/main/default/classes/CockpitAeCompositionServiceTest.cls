@@ -47,13 +47,16 @@ private class CockpitAeCompositionServiceTest {
     }
 
     static Opportunity deal(Id ownerId, Id oppId, String band, Decimal arr, Date closeDate) {
+        return dealOn(ownerId, oppId, band, arr, closeDate, today().addDays(-2));
+    }
+    static Opportunity dealOn(Id ownerId, Id oppId, String band, Decimal arr, Date closeDate, Date lastActivity) {
         return opp(new Map<String, Object>{
             'Id' => (String) oppId,
             'OwnerId' => (String) ownerId,
             'Roll_Up_Forecast_bf__c' => band,
             'ARR_Opportunity_Amount_USD_Num__c' => arr,
             'CloseDate' => iso(closeDate),
-            'LastActivityDate' => iso(today().addDays(-2)),
+            'LastActivityDate' => iso(lastActivity),
             'Is_Holdover__c' => false,
             'StageName' => 'Proposal',
             'SQL_Datestamp_bf__c' => iso(today().addDays(-10)),
@@ -113,8 +116,7 @@ private class CockpitAeCompositionServiceTest {
     @isTest
     static void futureLastActivity_isQuiet() {
         Id ae = fakeUser(3);
-        Opportunity o = deal(ae, fakeOpp(21), CockpitConstants.BAND_PIPE, 5000, qStart().addDays(8));
-        o.LastActivityDate = today().addDays(21);
+        Opportunity o = dealOn(ae, fakeOpp(21), CockpitConstants.BAND_PIPE, 5000, qStart().addDays(8), today().addDays(21));
         o.Cockpit_Class_Override__c = 'EX';
 
         Test.startTest();
@@ -208,19 +210,16 @@ private class CockpitAeCompositionServiceTest {
     @isTest
     static void cleanBook_emptyListNotNull() {
         Id ae = fakeUser(7);
-        Opportunity commit = deal(ae, fakeOpp(61), CockpitConstants.BAND_COMMIT, 40, qStart().addDays(4));
-        commit.Cockpit_Class_Override__c = 'HI';
-        commit.LastActivityDate = today().addDays(-1);
+        Opportunity commitDeal = deal(ae, fakeOpp(61), CockpitConstants.BAND_COMMIT, 40, qStart().addDays(4));
+        commitDeal.Cockpit_Class_Override__c = 'HI';
         Opportunity ml = deal(ae, fakeOpp(62), CockpitConstants.BAND_ML, 30, qStart().addDays(5));
         ml.Cockpit_Class_Override__c = 'MD';
-        ml.LastActivityDate = today().addDays(-1);
         Opportunity pipe = deal(ae, fakeOpp(63), CockpitConstants.BAND_PIPE, 30, qStart().addDays(6));
         pipe.Cockpit_Class_Override__c = 'EX';
-        pipe.LastActivityDate = today().addDays(-1);
 
         Test.startTest();
         CockpitAeCompositionService.Payload p = run(oneAe(ae, 'Pat'),
-            new List<Opportunity>{ commit, ml, pipe }, new Map<Id, CockpitAeCompositionService.Booked>());
+            new List<Opportunity>{ commitDeal, ml, pipe }, new Map<Id, CockpitAeCompositionService.Booked>());
         Test.stopTest();
 
         System.assertNotEquals(null, p.rows[0].signals, 'clean book is an empty list, never null');

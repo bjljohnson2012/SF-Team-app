@@ -60,7 +60,7 @@ export default class CockpitAeByAe extends LightningElement {
             hi: this.money(s.includeHighArr) + ' · ' + (s.includeHighN || 0),
             md: this.money(s.includeMedArr) + ' · ' + (s.includeMedN || 0),
             ex: this.money(s.excludeArr) + ' · ' + (s.excludeN || 0),
-            commit: this.cell(s.commit),
+            commit: this.cell(s.commitBand),
             mostLikely: this.cell(s.mostLikely),
             bestCase: this.cell(s.bestCase),
             pipeline: this.cell(s.pipeline),
