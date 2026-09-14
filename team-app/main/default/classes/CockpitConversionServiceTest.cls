@@ -149,7 +149,7 @@ private class CockpitConversionServiceTest {
                 },
                 Date.newInstance(2026, 7, 1)),
             'blank roll-up on a nearby week is Unbanded');
-        System.assertEquals('Commit',
+        System.assertEquals('Pipeline',
             CockpitConversionService.bandAsOf(
                 new List<CockpitConversionService.SnapPoint>{
                     new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Commit'),
