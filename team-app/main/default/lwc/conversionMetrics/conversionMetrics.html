@@ -1,9 +1,11 @@
 <template>
+    <template lwc:if={showChrome}>
     <div class="fh-header">
         <h1>Conversion Metrics</h1>
         <p class="sub">Sales Performance · Conversion Metrics · Metrics. What a forecast word turned out to mean.</p>
     </div>
     <div class="fh-bar"></div>
+    </template>
 
     <div class="fh-ctl" onscopechange={handleScopeChange}>
         <div class="fh-f wide">

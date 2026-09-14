@@ -1,4 +1,4 @@
-import { LightningElement, wire } from 'lwc';
+import { LightningElement, api, wire } from 'lwc';
 import load from '@salesforce/apex/CockpitConversionController.load';
 import getScopeOptions from '@salesforce/apex/CockpitConversionController.getScopeOptions';
 
@@ -6,6 +6,7 @@ const SESSION_KEY = 'gtmScopeFilters';
 const DEFAULT_SCOPE = { directorId: null, teamMode: 'mine', productType: '', sizeBand: 'ALL' };
 
 export default class ConversionMetrics extends LightningElement {
+    @api embedded = false;
     directorId = null;
     teamMode = 'mine';
     productType = '';
@@ -104,6 +105,10 @@ export default class ConversionMetrics extends LightningElement {
     emitScope() {
         const detail = this.persistScope();
         this.dispatchEvent(new CustomEvent('scopechange', { detail, bubbles: true, composed: true }));
+    }
+
+    get showChrome() {
+        return this.embedded !== true && this.embedded !== 'true' && this.embedded !== '';
     }
 
     get directorValue() {
