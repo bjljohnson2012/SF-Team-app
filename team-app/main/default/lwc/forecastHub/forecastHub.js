@@ -336,8 +336,6 @@ export default class ForecastHub extends LightningElement {
         if (this.vOpen) this.doughnut('cvOpen', this.openBreakdown());
         if (this.vWin) this.barChart('cvWin', this.conversionRows.map((r) => r.band),
             [{ label: 'Win rate', data: this.conversionRows.map((r) => Math.round((r.winRate || 0) * 1000) / 10), backgroundColor: '#00A9E0' }]);
-        if (this.vAe) this.barChart('cvAe', this.aeRows.map((r) => r.ae),
-            [{ label: 'Win rate %', data: this.aeRows.map((r) => Math.round((r.winRate || 0) * 1000) / 10), backgroundColor: '#CB007B' }]);
     }
     openBreakdown() {
         let hi = 0, md = 0, ex = 0;

@@ -1,0 +1,41 @@
+<template>
+    <div class="bar">
+        <div class="field">
+            <label>Team / Director</label>
+            <lightning-combobox
+                name="director"
+                label="Team / Director"
+                value={teamValue}
+                options={directorOptions}
+                onchange={handleTeam}
+                variant="label-hidden"
+                dropdown-alignment="left">
+            </lightning-combobox>
+        </div>
+        <div class="field">
+            <label>Product type</label>
+            <lightning-combobox
+                name="product"
+                label="Product type"
+                value={productType}
+                options={productOptions}
+                onchange={handleProduct}
+                variant="label-hidden"
+                dropdown-alignment="left">
+            </lightning-combobox>
+        </div>
+        <div class="field">
+            <label>Size</label>
+            <lightning-combobox
+                name="size"
+                label="Size"
+                value={sizeBand}
+                options={sizeOptions}
+                onchange={handleSize}
+                variant="label-hidden"
+                dropdown-alignment="left">
+            </lightning-combobox>
+        </div>
+        <p class="caption">{caption}</p>
+    </div>
+</template>

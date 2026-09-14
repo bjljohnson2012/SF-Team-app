@@ -1,0 +1,111 @@
+<template>
+    <div class="wrap">
+        <h2>AE by AE</h2>
+        <p class="lede">Where each rep’s number comes from right now — composition of the live book, plus facts worth raising in a 1:1. No advice in the data.</p>
+
+        <c-gtm-scope-filters onscopechange={handleScope}></c-gtm-scope-filters>
+
+        <template lwc:if={loading}>
+            <lightning-spinner size="small" alternative-text="Loading AE composition"></lightning-spinner>
+        </template>
+        <template lwc:if={error}><div class="err">{error}</div></template>
+
+        <template lwc:if={payload}>
+            <p class="caption">{scopeCaption}</p>
+            <p class="note">{weights}</p>
+            <p class="note">{classCaption}</p>
+
+            <template lwc:if={emptyReason}>
+                <div class="box">{emptyReason}</div>
+            </template>
+
+            <template lwc:if={hasTeamWindow}>
+                <h3>Team roll-up · {teamWindow.label}</h3>
+                <p class="note">Open book for the current quarter through the quarter after next. Omitted is its own column — never folded into Pipeline. Band ARR + Omitted + unbanded = open ARR.</p>
+                <div class="tw">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Band</th>
+                                <th class="num">Deals</th>
+                                <th class="num">Open ARR</th>
+                                <th class="num">Share</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Commit</td><td class="num">{teamWindow.commit.deals}</td><td class="num">{teamWindow.commit.arr}</td><td class="num">{teamWindow.commit.share}</td></tr>
+                            <tr><td>Most Likely</td><td class="num">{teamWindow.mostLikely.deals}</td><td class="num">{teamWindow.mostLikely.arr}</td><td class="num">{teamWindow.mostLikely.share}</td></tr>
+                            <tr><td>Best Case</td><td class="num">{teamWindow.bestCase.deals}</td><td class="num">{teamWindow.bestCase.arr}</td><td class="num">{teamWindow.bestCase.share}</td></tr>
+                            <tr><td>Pipeline</td><td class="num">{teamWindow.pipeline.deals}</td><td class="num">{teamWindow.pipeline.arr}</td><td class="num">{teamWindow.pipeline.share}</td></tr>
+                            <tr><td>Omitted</td><td class="num">{teamWindow.omitted.deals}</td><td class="num">{teamWindow.omitted.arr}</td><td class="num">{teamWindow.omitted.share}</td></tr>
+                            <tr><td>Unbanded</td><td class="num">{teamWindow.unbanded.deals}</td><td class="num">{teamWindow.unbanded.arr}</td><td class="num">{teamWindow.unbanded.share}</td></tr>
+                            <tr class="tot"><td>Total</td><td class="num">{teamWindow.openN}</td><td class="num">{teamWindow.open}</td><td class="num">100%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <template for:each={aeCards} for:item="ae">
+                <section key={ae.ownerId} class="ae">
+                    <h3>{ae.name}</h3>
+                    <div class="grid">
+                        <div class="q">
+                            <h4>{ae.currentQ.label}</h4>
+                            <div class="cards">
+                                <div class="card"><div class="lab">Booked to date</div><div class="val">{ae.currentQ.booked}</div><div class="note">{ae.currentQ.bookedN} deals</div></div>
+                                <div class="card"><div class="lab">Open ARR</div><div class="val">{ae.currentQ.open}</div><div class="note">{ae.currentQ.openN} deals · holdover {ae.currentQ.holdoverN} / {ae.currentQ.holdover}</div></div>
+                                <div class="card hero"><div class="lab">Evidence call</div><div class="val">{ae.currentQ.evidence}</div></div>
+                            </div>
+                            <div class="tw">
+                                <table>
+                                    <thead><tr><th>Band</th><th class="num">Deals</th><th class="num">ARR</th><th class="num">Share</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Commit</td><td class="num">{ae.currentQ.commit.deals}</td><td class="num">{ae.currentQ.commit.arr}</td><td class="num">{ae.currentQ.commit.share}</td></tr>
+                                        <tr><td>Most Likely</td><td class="num">{ae.currentQ.mostLikely.deals}</td><td class="num">{ae.currentQ.mostLikely.arr}</td><td class="num">{ae.currentQ.mostLikely.share}</td></tr>
+                                        <tr><td>Best Case</td><td class="num">{ae.currentQ.bestCase.deals}</td><td class="num">{ae.currentQ.bestCase.arr}</td><td class="num">{ae.currentQ.bestCase.share}</td></tr>
+                                        <tr><td>Pipeline</td><td class="num">{ae.currentQ.pipeline.deals}</td><td class="num">{ae.currentQ.pipeline.arr}</td><td class="num">{ae.currentQ.pipeline.share}</td></tr>
+                                        <tr><td>Omitted</td><td class="num">{ae.currentQ.omitted.deals}</td><td class="num">{ae.currentQ.omitted.arr}</td><td class="num">{ae.currentQ.omitted.share}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="cls">Include-High {ae.currentQ.hi} · Include-Med {ae.currentQ.md} · Exclude {ae.currentQ.ex}</p>
+                        </div>
+                        <div class="q">
+                            <h4>{ae.nextQ.label}</h4>
+                            <div class="cards">
+                                <div class="card"><div class="lab">Open ARR</div><div class="val">{ae.nextQ.open}</div><div class="note">{ae.nextQ.openN} deals · holdover {ae.nextQ.holdoverN} / {ae.nextQ.holdover}</div></div>
+                                <div class="card hero"><div class="lab">Evidence call</div><div class="val">{ae.nextQ.evidence}</div><div class="note">No Booked — next quarter</div></div>
+                            </div>
+                            <div class="tw">
+                                <table>
+                                    <thead><tr><th>Band</th><th class="num">Deals</th><th class="num">ARR</th><th class="num">Share</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Commit</td><td class="num">{ae.nextQ.commit.deals}</td><td class="num">{ae.nextQ.commit.arr}</td><td class="num">{ae.nextQ.commit.share}</td></tr>
+                                        <tr><td>Most Likely</td><td class="num">{ae.nextQ.mostLikely.deals}</td><td class="num">{ae.nextQ.mostLikely.arr}</td><td class="num">{ae.nextQ.mostLikely.share}</td></tr>
+                                        <tr><td>Best Case</td><td class="num">{ae.nextQ.bestCase.deals}</td><td class="num">{ae.nextQ.bestCase.arr}</td><td class="num">{ae.nextQ.bestCase.share}</td></tr>
+                                        <tr><td>Pipeline</td><td class="num">{ae.nextQ.pipeline.deals}</td><td class="num">{ae.nextQ.pipeline.arr}</td><td class="num">{ae.nextQ.pipeline.share}</td></tr>
+                                        <tr><td>Omitted</td><td class="num">{ae.nextQ.omitted.deals}</td><td class="num">{ae.nextQ.omitted.arr}</td><td class="num">{ae.nextQ.omitted.share}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="cls">Include-High {ae.nextQ.hi} · Include-Med {ae.nextQ.md} · Exclude {ae.nextQ.ex}</p>
+                        </div>
+                    </div>
+                    <div class="sigs">
+                        <h4>1:1 signals</h4>
+                        <template lwc:if={ae.hasSignals}>
+                            <ul>
+                                <template for:each={ae.signals} for:item="s">
+                                    <li key={s.code}>{s.fact}</li>
+                                </template>
+                            </ul>
+                        </template>
+                        <template lwc:else>
+                            <p class="clean">{ae.cleanBook}</p>
+                        </template>
+                    </div>
+                </section>
+            </template>
+        </template>
+    </div>
+</template>
