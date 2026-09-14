@@ -307,3 +307,16 @@ Root cause of the "[No data in Salesforce — AE to complete]" answers despite r
 - **Post-deploy verification:** anon Apex — `draftAnswers(Rochester)` went from 5/24 to **13/24** answered; Q4/Q9/Q16/Q17 now populated from the Gong transcript (e.g., Q9 surfaces the ~$161,788 ARR already in Infor's RFP). Bulk call now ~31s (richer context); per-question "Try again" remains ~2s.
 - **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
 - **Rollback:** revert `PricingReviewController` to the prior commit.
+
+## 2026-09-14 — Pricing Review prefill: fill all 24 with INFERRED marking
+
+Per owner request ("jump from 13 to 24; infer the rest with a note"). The prefill now answers all 24: direct evidence where present, otherwise a qualitative best-inference PREFIXED "INFERRED: " (no fabricated figures/names), with "[No data]" reserved for the truly impossible.
+- Prompt reworked to prefer INFERRED over "[No data]" and keep answers to 1-2 sentences. Interim regression: with max_tokens 4096 the fuller 24-answer JSON overflowed and truncated, so the whole parse failed and everything fell back to "[No data]" (0/24). Fixed by raising max_tokens to 8192 and adding a regex recovery in `toStringMap` that salvages complete `"Qn":"..."` pairs from a truncated reply (one cut-off answer no longer wipes the other 23). draftOne (Try again/Expand) uses the same INFERRED convention; the tool note explains INFERRED answers must be verified.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Components:** `ApexClass:PricingReviewController`, `ApexClass:PricingReviewControllerTest` (+ truncated-JSON recovery test), `LightningComponentBundle:pricingReviewTool` (note wording).
+- **Deploys (this iteration):** `0AfOL000003STgT0AW` (INFERRED), `0AfOL000003STrl0AG` (push-to-24, regressed to 0/24), `0AfOL000003SU7t0AG` (max_tokens 8192 + resilient parse — final). Final validate `0AfOL000003SU1R0AW`: 7/7, 0 failures.
+- **Approved by:** org owner (benjamin.johnson), "I want to jump from 13 to 24".
+- **Post-deploy verification:** anon Apex — `draftAnswers(Rochester)` now 24/24 answered (12 INFERRED, 0 "[No data]"), ~31s; inferred answers carry qualitative ranges (entity size, comparable ARR, user counts) clearly prefixed INFERRED.
+- **Carve-out note:** past the 2026-09-11 expiry; further prod changes should route through the euna-salesforce pipeline.
+- **Rollback:** revert `PricingReviewController`/`pricingReviewTool` to the prior commit.
