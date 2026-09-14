@@ -263,7 +263,7 @@ public with sharing class PricingReviewController {
               + '  Vertical / Sub-Vertical: ' + safe(o.Account.Industry) + ' / ' + safe(o.Account.Sub_Vertical__c) + '\n'
               + '  Latest Operating Budget: ' + fmtCur(o.Account.AnnualRevenue) + '\n'
               + '  Total Budget: ' + fmtCur(o.Account.Total_Budget_bf__c) + '\n'
-              + '  Operating Budget Year: ' + safe(o.Account.Operating_Budget_Year__c) + '\n'
+              + '  Operating Budget Year: ' + num(o.Account.Operating_Budget_Year__c) + '\n'
               + '  Fiscal Year Start Month: ' + safe(o.Account.Fiscal_Year_Start_Month__c) + '\n'
               + '  Student Count: ' + num(o.Account.Student_Count__c) + '\n'
               + '  Population Served: ' + num(o.Account.Total_Population_bf__c) + '\n'
