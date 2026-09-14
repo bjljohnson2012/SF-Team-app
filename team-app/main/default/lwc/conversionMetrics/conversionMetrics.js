@@ -157,18 +157,27 @@ export default class ConversionMetrics extends LightningElement {
     }
     get closedInWindow() { return this.page && this.page.closedInWindow != null ? this.page.closedInWindow : 0; }
 
-    get bandRows() {
-        return (this.page && this.page.bands ? this.page.bands : []).map((r) => ({
-            band: r.band,
-            pill: 'pill ' + this.bandClass(r.band),
-            won: r.won,
-            lost: r.lost,
-            total: r.total,
-            winRateCount: this.pct(r.winRateCount),
-            arrWon: this.money(r.arrWon),
-            arrTotal: this.money(r.arrTotal),
-            winRateArr: this.pct(r.winRateArr),
-            gapClass: r.largeDealsLose ? 'gap-warn' : ''
+    get checkpoints() {
+        const tables = this.page && this.page.bandCheckpoints ? this.page.bandCheckpoints : [];
+        return tables.map((cp) => ({
+            key: cp.key,
+            label: cp.label,
+            caption: cp.caption,
+            interpretation: cp.interpretation,
+            hasInterpretation: !!cp.interpretation,
+            rows: (cp.rows || []).map((r) => ({
+                rowKey: cp.key + ':' + r.band,
+                band: r.band,
+                pill: 'pill ' + this.bandClass(r.band),
+                won: r.won,
+                lost: r.lost,
+                total: r.total,
+                winRateCount: this.pct(r.winRateCount),
+                arrWon: this.money(r.arrWon),
+                arrTotal: this.money(r.arrTotal),
+                winRateArr: this.pct(r.winRateArr),
+                gapClass: r.largeDealsLose ? 'gap-warn' : ''
+            }))
         }));
     }
 

@@ -30,6 +30,10 @@ public with sharing class CockpitConversionService {
     public static final String TEAM_DIRECTOR = 'director';
     public static final String UNBANDED = 'Unbanded';
     public static final String ROOT_UNMAPPED = 'UNMAPPED';
+    public static final String CP_START = 'START';
+    public static final String CP_MID = 'MID';
+    public static final String CP_LAST = 'LAST_MONTH';
+    public static final Integer CHECKPOINT_WEEK_SLACK_DAYS = 10;
 
     public static final List<String> MIGRATION_STAGES = new List<String>{
         'Migration', 'Migrating', 'Migration Complete'
@@ -164,10 +168,19 @@ public with sharing class CockpitConversionService {
         @AuraEnabled public List<String> flags = new List<String>();
     }
 
+    public class CheckpointTable {
+        @AuraEnabled public String key;
+        @AuraEnabled public String label;
+        @AuraEnabled public String caption;
+        @AuraEnabled public List<BandRow> rows = new List<BandRow>();
+        @AuraEnabled public String interpretation;
+    }
+
     public class PagePayload {
         @AuraEnabled public Scope scope;
         @AuraEnabled public ScopeOptions options;
         @AuraEnabled public List<BandRow> bands = new List<BandRow>();
+        @AuraEnabled public List<CheckpointTable> bandCheckpoints = new List<CheckpointTable>();
         @AuraEnabled public String bandInterpretation;
         @AuraEnabled public String bandWriterCaption;
         @AuraEnabled public String conventionCaption;
@@ -184,25 +197,9 @@ public with sharing class CockpitConversionService {
     public static ScopeOptions getScopeOptions() {
         ScopeOptions o = new ScopeOptions();
         o.directors.add(new FilterOption(TEAM_MINE, 'My team'));
-        Set<Id> managerIds = new Set<Id>();
-        for (User u : [
-            SELECT ManagerId
-            FROM User
-            WHERE IsActive = true AND ManagerId != null
-            WITH USER_MODE
-        ]) {
-            managerIds.add(u.ManagerId);
-        }
-        if (!managerIds.isEmpty()) {
-            for (User d : [
-                SELECT Id, Name
-                FROM User
-                WHERE Id IN :managerIds AND IsActive = true
-                WITH USER_MODE
-                ORDER BY Name
-            ]) {
-                o.directors.add(new FilterOption(String.valueOf(d.Id), d.Name));
-            }
+        for (CockpitRosterService.DirectorOption d : CockpitRosterService.salesDirectors()) {
+            String label = String.isBlank(d.segment) ? d.name : (d.segment + ' · ' + d.name);
+            o.directors.add(new FilterOption(String.valueOf(d.userId), label));
         }
         o.productTypes.add(new FilterOption('', 'All products'));
         Schema.DescribeFieldResult sol = Opportunity.EUNA_Solution__c.getDescribe();
@@ -226,8 +223,9 @@ public with sharing class CockpitConversionService {
             'This tab is closure-based: it scores deals that closed in the window. '
             + 'Cohort conversion (from the SQL gate) lives on Win Rate Truth.';
         page.bandWriterCaption =
-            'Forecast_Category_before_Close__c is the band held before close (98%+ populated org-wide). '
-            + 'The writer is undocumented — OpportunityTriggerHandler does not set it.';
+            'Band at each checkpoint is Weekly_Forecast_Snapshot__c.Roll_Up_Forecast__c on the '
+            + 'week nearest that date (within ' + CHECKPOINT_WEEK_SLACK_DAYS + ' days). '
+            + 'No snapshot in range → Unbanded. Live read — not a nightly batch.';
         page.lossReasonFloorCaption =
             'Loss reasons before ' + String.valueOf(LOSS_REASON_FLOOR)
             + ' are unreliable; the matrix floors there. Q3 2025 cleanup also distorts history.';
@@ -239,59 +237,15 @@ public with sharing class CockpitConversionService {
 
         String extra = extraFilters(page.scope.productType, page.scope.sizeBand);
         List<Id> owners = page.scope.ownerIds;
-        Map<String, BandRow> teamBands = new Map<String, BandRow>();
-        Map<Id, CommitAcc> commitByOwner = new Map<Id, CommitAcc>();
-        Integer closed = 0;
-
-        String bandSoql =
-            'SELECT Forecast_Category_before_Close__c band, OwnerId oid, IsWon won, '
-            + 'COUNT(Id) c, SUM(ARR_Opportunity_Amount_USD_Num__c) arr '
-            + 'FROM Opportunity '
-            + 'WHERE IsClosed = true AND CloseDate >= :closedSince '
-            + 'AND OwnerId IN :owners '
-            + 'AND RecordType.DeveloperName = :saleRt '
-            + 'AND Type IN :nbTypes '
-            + 'AND StageName NOT IN :migStages '
-            + extra
-            + ' GROUP BY Forecast_Category_before_Close__c, OwnerId, IsWon';
         Date closedSince = CLOSED_SINCE;
         String saleRt = CockpitConstants.SALE_RECORDTYPE;
         Set<String> nbTypes = CockpitConstants.NEW_BUSINESS_TYPES;
         List<String> migStages = MIGRATION_STAGES;
 
-        for (AggregateResult ar : Database.query(bandSoql, AccessLevel.USER_MODE)) {
-            String band = normalizeBand((String) ar.get('band'));
-            Id oid = (Id) ar.get('oid');
-            Boolean won = (Boolean) ar.get('won');
-            Integer c = (Integer) ar.get('c');
-            Decimal arr = nz((Decimal) ar.get('arr'));
-            closed += c;
-
-            BandRow row = teamBands.get(band);
-            if (row == null) {
-                row = new BandRow();
-                row.band = band;
-                teamBands.put(band, row);
-            }
-            applyOutcome(row, won, c, arr);
-
-            if (band == 'Commit') {
-                CommitAcc ca = commitByOwner.get(oid);
-                if (ca == null) {
-                    ca = new CommitAcc();
-                    ca.ownerId = oid;
-                    commitByOwner.put(oid, ca);
-                }
-                ca.commitCloses += c;
-                if (won) ca.won += c;
-            }
-        }
-
-        page.closedInWindow = closed;
-        page.bands = orderBands(teamBands);
-        finalizeBands(page.bands);
-        page.bandInterpretation = interpret(page.bands);
-        page.commitAccuracy = toCommitRows(commitByOwner, page.scope.ownerNames);
+        List<ClosedDeal> deals = loadClosedDeals(
+            owners, extra, productType, closedSince, saleRt, nbTypes, migStages);
+        page.closedInWindow = deals.size();
+        fillBandCheckpoints(page, deals);
 
         fillLossMatrix(page, owners, extra, productType, closedSince, saleRt, nbTypes, migStages);
         fillLiveBook(page, owners, extra, productType, saleRt, nbTypes, migStages);
@@ -405,6 +359,36 @@ public with sharing class CockpitConversionService {
     }
 
     @TestVisible
+    static Date checkpointDate(Date closeDate, String key) {
+        if (closeDate == null) return null;
+        Integer q = CockpitConstants.quarterOf(closeDate);
+        Date start = CockpitConstants.quarterStart(closeDate.year(), q);
+        if (key == CP_MID) return start.addDays(45);
+        if (key == CP_LAST) return start.addMonths(2);
+        return start;
+    }
+
+    @TestVisible
+    static String bandAsOf(List<SnapPoint> points, Date checkpoint) {
+        if (points == null || points.isEmpty() || checkpoint == null) return UNBANDED;
+        SnapPoint best = null;
+        Integer bestDist = null;
+        for (SnapPoint p : points) {
+            if (p == null || p.weekStart == null) continue;
+            Integer dist = Math.abs(p.weekStart.daysBetween(checkpoint));
+            Boolean better = best == null
+                || dist < bestDist
+                || (dist == bestDist && p.weekStart < best.weekStart);
+            if (better) {
+                best = p;
+                bestDist = dist;
+            }
+        }
+        if (best == null || bestDist > CHECKPOINT_WEEK_SLACK_DAYS) return UNBANDED;
+        return normalizeBand(best.band);
+    }
+
+    @TestVisible
     static String normalizeBand(String raw) {
         return String.isBlank(raw) ? UNBANDED : raw;
     }
@@ -414,6 +398,21 @@ public with sharing class CockpitConversionService {
         if (String.isBlank(reason)) return ROOT_UNMAPPED;
         String mapped = LOSS_ROOT.get(reason);
         return mapped == null ? ROOT_UNMAPPED : mapped;
+    }
+
+    @TestVisible
+    class SnapPoint {
+        Date weekStart;
+        String band;
+        SnapPoint(Date w, String b) { weekStart = w; band = b; }
+    }
+
+    private class ClosedDeal {
+        Id id;
+        Id ownerId;
+        Boolean won;
+        Date closeDate;
+        Decimal arr;
     }
 
     private class CommitAcc {
@@ -433,6 +432,147 @@ public with sharing class CockpitConversionService {
         Integer nextLapsed = 0;
         Integer pushed = 0;
         Decimal aboveArr = 0;
+    }
+
+    private static List<ClosedDeal> loadClosedDeals(
+        List<Id> owners,
+        String extra,
+        String productType,
+        Date closedSince,
+        String saleRt,
+        Set<String> nbTypes,
+        List<String> migStages
+    ) {
+        String soql =
+            'SELECT Id, OwnerId, IsWon, CloseDate, ARR_Opportunity_Amount_USD_Num__c '
+            + 'FROM Opportunity '
+            + 'WHERE IsClosed = true AND CloseDate >= :closedSince '
+            + 'AND OwnerId IN :owners '
+            + 'AND RecordType.DeveloperName = :saleRt '
+            + 'AND Type IN :nbTypes '
+            + 'AND StageName NOT IN :migStages '
+            + extra
+            + ' LIMIT 2000';
+        List<ClosedDeal> deals = new List<ClosedDeal>();
+        for (Opportunity o : Database.query(soql, AccessLevel.USER_MODE)) {
+            ClosedDeal d = new ClosedDeal();
+            d.id = o.Id;
+            d.ownerId = o.OwnerId;
+            d.won = o.IsWon;
+            d.closeDate = o.CloseDate;
+            d.arr = nz(o.ARR_Opportunity_Amount_USD_Num__c);
+            deals.add(d);
+        }
+        return deals;
+    }
+
+    private static void fillBandCheckpoints(PagePayload page, List<ClosedDeal> deals) {
+        Map<Id, List<SnapPoint>> snaps = loadSnaps(deals);
+        Map<Id, CommitAcc> commitByOwner = new Map<Id, CommitAcc>();
+        List<String> keys = new List<String>{ CP_START, CP_MID, CP_LAST };
+        Map<String, String> labels = new Map<String, String>{
+            CP_START => 'Beginning of the quarter',
+            CP_MID => 'Middle of the quarter',
+            CP_LAST => 'Last month of the quarter'
+        };
+        Map<String, String> captions = new Map<String, String>{
+            CP_START => 'Band on the week nearest the first day of the close quarter.',
+            CP_MID => 'Band on the week nearest day 45 of the close quarter.',
+            CP_LAST => 'Band on the week nearest the first day of the close quarter’s last month. Commit accuracy uses this checkpoint.'
+        };
+
+        page.bandCheckpoints = new List<CheckpointTable>();
+        List<String> interpretations = new List<String>();
+        for (String key : keys) {
+            Map<String, BandRow> teamBands = new Map<String, BandRow>();
+            for (ClosedDeal d : deals) {
+                String band = bandAsOf(snaps.get(d.id), checkpointDate(d.closeDate, key));
+                BandRow row = teamBands.get(band);
+                if (row == null) {
+                    row = new BandRow();
+                    row.band = band;
+                    teamBands.put(band, row);
+                }
+                applyOutcome(row, d.won, 1, d.arr);
+                if (key == CP_LAST && band == 'Commit') {
+                    CommitAcc ca = commitByOwner.get(d.ownerId);
+                    if (ca == null) {
+                        ca = new CommitAcc();
+                        ca.ownerId = d.ownerId;
+                        commitByOwner.put(d.ownerId, ca);
+                    }
+                    ca.commitCloses++;
+                    if (d.won == true) ca.won++;
+                }
+            }
+            CheckpointTable t = new CheckpointTable();
+            t.key = key;
+            t.label = labels.get(key);
+            t.caption = captions.get(key);
+            t.rows = orderBands(teamBands);
+            finalizeBands(t.rows);
+            t.interpretation = interpret(t.rows);
+            if (String.isNotBlank(t.interpretation)) {
+                interpretations.add(t.label + ': ' + t.interpretation);
+            }
+            page.bandCheckpoints.add(t);
+        }
+        page.bands = page.bandCheckpoints.isEmpty()
+            ? new List<BandRow>()
+            : page.bandCheckpoints[page.bandCheckpoints.size() - 1].rows;
+        page.bandInterpretation = interpretations.isEmpty() ? null : String.join(interpretations, ' ');
+        page.commitAccuracy = toCommitRows(commitByOwner, page.scope.ownerNames);
+    }
+
+    private static Map<Id, List<SnapPoint>> loadSnaps(List<ClosedDeal> deals) {
+        Map<Id, List<SnapPoint>> out = new Map<Id, List<SnapPoint>>();
+        if (deals == null || deals.isEmpty() || !canReadWeeklySnapshots()) return out;
+
+        List<Id> ids = new List<Id>();
+        Date minD;
+        Date maxD;
+        for (ClosedDeal d : deals) {
+            ids.add(d.id);
+            Date s = checkpointDate(d.closeDate, CP_START);
+            Date e = checkpointDate(d.closeDate, CP_LAST);
+            if (s != null) s = s.addDays(-CHECKPOINT_WEEK_SLACK_DAYS);
+            if (e != null) e = e.addDays(CHECKPOINT_WEEK_SLACK_DAYS);
+            if (s != null && (minD == null || s < minD)) minD = s;
+            if (e != null && (maxD == null || e > maxD)) maxD = e;
+        }
+        if (minD == null || maxD == null) return out;
+
+        for (Integer i = 0; i < ids.size(); i += 200) {
+            Integer last = Math.min(i + 200, ids.size());
+            List<Id> slice = new List<Id>();
+            for (Integer j = i; j < last; j++) slice.add(ids[j]);
+            for (Weekly_Forecast_Snapshot__c w : [
+                SELECT Opportunity__c, Roll_Up_Forecast__c, Week__r.Week_Start__c
+                FROM Weekly_Forecast_Snapshot__c
+                WHERE Opportunity__c IN :slice
+                AND Week__r.Week_Start__c >= :minD
+                AND Week__r.Week_Start__c <= :maxD
+                WITH USER_MODE
+                LIMIT 10000
+            ]) {
+                if (w.Opportunity__c == null) continue;
+                if (!out.containsKey(w.Opportunity__c)) {
+                    out.put(w.Opportunity__c, new List<SnapPoint>());
+                }
+                out.get(w.Opportunity__c).add(
+                    new SnapPoint(w.Week__r.Week_Start__c, w.Roll_Up_Forecast__c));
+            }
+        }
+        return out;
+    }
+
+    private static Boolean canReadWeeklySnapshots() {
+        Schema.SObjectType t = Schema.getGlobalDescribe().get('Weekly_Forecast_Snapshot__c');
+        if (t == null) return false;
+        Schema.DescribeSObjectResult d = t.getDescribe();
+        if (!d.isAccessible()) return false;
+        Schema.SObjectField f = d.fields.getMap().get('roll_up_forecast__c');
+        return f != null && f.getDescribe().isAccessible();
     }
 
     private static void applyOutcome(BandRow row, Boolean won, Integer c, Decimal arr) {

@@ -47,6 +47,55 @@ public with sharing class CockpitRosterService {
         return ids;
     }
 
+    /**
+     * Sales directors only — Forecast_Director__mdt (active, not excluded)
+     * joined to an active User. This is the Team / Director picker, not a
+     * dump of every manager who happens to have reports (CS, SE, etc.).
+     */
+    public class DirectorOption {
+        @AuraEnabled public Id userId;
+        @AuraEnabled public String name;
+        @AuraEnabled public String segment;
+        public DirectorOption(Id i, String n, String s) {
+            userId = i;
+            name = n;
+            segment = s;
+        }
+    }
+
+    public static List<DirectorOption> salesDirectors() {
+        List<Forecast_Director__mdt> rows = [
+            SELECT Username__c, MasterLabel, Segment_Label__c, Display_Order__c
+            FROM Forecast_Director__mdt
+            WHERE Is_Active__c = true AND Excluded__c = false
+            ORDER BY Display_Order__c, MasterLabel
+        ];
+        Set<String> usernames = new Set<String>();
+        for (Forecast_Director__mdt r : rows) {
+            if (String.isNotBlank(r.Username__c)) usernames.add(r.Username__c);
+        }
+        Map<String, User> byUser = new Map<String, User>();
+        if (!usernames.isEmpty()) {
+            for (User u : [
+                SELECT Id, Name, Username
+                FROM User
+                WHERE Username IN :usernames AND IsActive = true
+                WITH USER_MODE
+            ]) {
+                byUser.put(u.Username, u);
+            }
+        }
+        List<DirectorOption> out = new List<DirectorOption>();
+        Set<Id> seen = new Set<Id>();
+        for (Forecast_Director__mdt r : rows) {
+            User u = byUser.get(r.Username__c);
+            if (u == null || seen.contains(u.Id)) continue;
+            seen.add(u.Id);
+            out.add(new DirectorOption(u.Id, u.Name, r.Segment_Label__c));
+        }
+        return out;
+    }
+
     private static Boolean isNonAE(User u) {
         String haystack = (
             (u.Title == null ? '' : u.Title) + ' ' +

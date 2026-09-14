@@ -27,6 +27,32 @@ private class CockpitRosterServiceTest {
     }
 
     @isTest
+    static void salesDirectors_onlyActiveForecastDirectors() {
+        Set<String> allowed = new Set<String>();
+        for (Forecast_Director__mdt d : [
+            SELECT Username__c FROM Forecast_Director__mdt
+            WHERE Is_Active__c = true AND Excluded__c = false
+        ]) {
+            if (String.isNotBlank(d.Username__c)) allowed.add(d.Username__c.toLowerCase());
+        }
+
+        Test.startTest();
+        List<CockpitRosterService.DirectorOption> dirs = CockpitRosterService.salesDirectors();
+        Test.stopTest();
+
+        Set<Id> seen = new Set<Id>();
+        for (CockpitRosterService.DirectorOption d : dirs) {
+            System.assertNotEquals(null, d.userId, 'sales director has a user id');
+            System.assertEquals(false, seen.contains(d.userId), 'each sales director once');
+            seen.add(d.userId);
+            User u = [SELECT Username, IsActive FROM User WHERE Id = :d.userId];
+            System.assertEquals(true, u.IsActive, 'inactive users stay out of the picker');
+            System.assert(allowed.contains(u.Username.toLowerCase()),
+                'picker is Forecast_Director__mdt, not every manager');
+        }
+    }
+
+    @isTest
     static void emptyTeam_returnsEmpty() {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User lone = mk(p.Id, null, 'Director');

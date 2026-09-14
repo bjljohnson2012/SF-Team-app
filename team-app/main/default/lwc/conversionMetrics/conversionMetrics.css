@@ -34,6 +34,8 @@
 .fh-body { padding: 18px 20px 40px; }
 h2 { font-size: 16.5px; color: var(--indigo); margin: 22px 0 8px; font-weight: 700; }
 h3 { font-size: 13.5px; color: var(--indigo); margin: 14px 0 8px; font-weight: 700; }
+.checkpoint { margin: 0 0 18px; }
+.checkpoint h3 { margin-top: 16px; }
 .lede { color: #475467; margin: 0 0 12px; max-width: 1050px; }
 .note { color: #667085; font-size: 12px; margin: 0 0 14px; max-width: 1050px; }
 
