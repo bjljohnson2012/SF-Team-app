@@ -293,7 +293,6 @@ public with sharing class CockpitConversionService {
         page.bandInterpretation = interpret(page.bands);
         page.commitAccuracy = toCommitRows(commitByOwner, page.scope.ownerNames);
 
-        String productType = page.scope.productType;
         fillLossMatrix(page, owners, extra, productType, closedSince, saleRt, nbTypes, migStages);
         fillLiveBook(page, owners, extra, productType, saleRt, nbTypes, migStages);
         page.medianCycleDays = loadMedianCycle(owners, extra, productType, closedSince, saleRt, nbTypes, migStages);
