@@ -407,6 +407,8 @@ public with sharing class CockpitConversionService {
         public SnapPoint(Date w, String b) { weekStart = w; band = b; }
     }
 
+    @TestVisible static Map<Id, List<SnapPoint>> snapshotOverride;
+
     private class ClosedDeal {
         Id id;
         Id ownerId;
@@ -525,6 +527,7 @@ public with sharing class CockpitConversionService {
     }
 
     private static Map<Id, List<SnapPoint>> loadSnaps(List<ClosedDeal> deals) {
+        if (snapshotOverride != null) return snapshotOverride;
         Map<Id, List<SnapPoint>> out = new Map<Id, List<SnapPoint>>();
         if (deals == null || deals.isEmpty() || !canReadWeeklySnapshots()) return out;
 
@@ -542,25 +545,39 @@ public with sharing class CockpitConversionService {
         }
         if (minD == null || maxD == null) return out;
 
+        Map<Id, Date> weekStartById = new Map<Id, Date>();
+        for (Forecast_Week__c wk : [
+            SELECT Id, Week_Start__c FROM Forecast_Week__c
+            WHERE Week_Start__c >= :minD AND Week_Start__c <= :maxD
+        ]) {
+            weekStartById.put(wk.Id, wk.Week_Start__c);
+        }
+        if (weekStartById.isEmpty()) return out;
+        Set<Id> weekIds = weekStartById.keySet();
+
         for (Integer i = 0; i < ids.size(); i += 200) {
             Integer last = Math.min(i + 200, ids.size());
             List<Id> slice = new List<Id>();
-            for (Integer j = i; j < last; j++) slice.add(ids[j]);
+            List<String> textIds = new List<String>();
+            for (Integer j = i; j < last; j++) {
+                slice.add(ids[j]);
+                textIds.add(String.valueOf(ids[j]));
+            }
             for (Weekly_Forecast_Snapshot__c w : [
-                SELECT Opportunity__c, Roll_Up_Forecast__c, Week__r.Week_Start__c
+                SELECT Opportunity__c, Opportunity_Id_Text__c, Roll_Up_Forecast__c, Week__c
                 FROM Weekly_Forecast_Snapshot__c
-                WHERE Opportunity__c IN :slice
-                AND Week__r.Week_Start__c >= :minD
-                AND Week__r.Week_Start__c <= :maxD
-                WITH USER_MODE
+                WHERE Week__c IN :weekIds
+                AND (Opportunity__c IN :slice OR Opportunity_Id_Text__c IN :textIds)
                 LIMIT 10000
             ]) {
-                if (w.Opportunity__c == null) continue;
-                if (!out.containsKey(w.Opportunity__c)) {
-                    out.put(w.Opportunity__c, new List<SnapPoint>());
+                Id oppId = w.Opportunity__c;
+                if (oppId == null && String.isNotBlank(w.Opportunity_Id_Text__c)) {
+                    try { oppId = (Id) w.Opportunity_Id_Text__c; } catch (Exception e) { oppId = null; }
                 }
-                out.get(w.Opportunity__c).add(
-                    new SnapPoint(w.Week__r.Week_Start__c, w.Roll_Up_Forecast__c));
+                if (oppId == null) continue;
+                Date ws = weekStartById.get(w.Week__c);
+                if (!out.containsKey(oppId)) out.put(oppId, new List<SnapPoint>());
+                out.get(oppId).add(new SnapPoint(ws, w.Roll_Up_Forecast__c));
             }
         }
         return out;

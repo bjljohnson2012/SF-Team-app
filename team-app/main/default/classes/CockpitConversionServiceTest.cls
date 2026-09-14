@@ -176,11 +176,13 @@ private class CockpitConversionServiceTest {
             Opportunity large = closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Best Case',
                 'Budget Professional', 180000, closeQ3.addDays(-5), 'Ghosted');
             insert new List<Opportunity>{ moved, bare, large, openDeal(a.Id, rep.Id, rtId, 'Budget Professional', 60000) };
-            insertSnapshots(moved.Id, new List<Date>{
-                Date.newInstance(2026, 7, 2),
-                Date.newInstance(2026, 8, 13),
-                Date.newInstance(2026, 9, 3)
-            }, new List<String>{ 'Commit', 'Best Case', 'Pipeline' });
+            CockpitConversionService.snapshotOverride = new Map<Id, List<CockpitConversionService.SnapPoint>>{
+                moved.Id => new List<CockpitConversionService.SnapPoint>{
+                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Commit'),
+                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 8, 13), 'Best Case'),
+                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 9, 3), 'Pipeline')
+                }
+            };
 
             Test.startTest();
             CockpitConversionService.PagePayload page = CockpitConversionService.load(
@@ -215,6 +217,10 @@ private class CockpitConversionServiceTest {
             System.assertNotEquals(null, page.conventionCaption, 'page says it is closure-based');
             System.assertNotEquals(null, page.liveBook, 'live book is computed');
             System.assert(!page.lossMatrix.isEmpty(), 'loss matrix includes floored closed-lost reasons');
+            CockpitConversionService.snapshotOverride = null;
+            CockpitConversionService.PagePayload liveQuery = CockpitConversionService.load(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL);
+            System.assertEquals(3, liveQuery.bandCheckpoints.size(), 'live snapshot query still builds three tables');
             CockpitConversionService.PagePayload sized = CockpitConversionService.load(
                 dir.Id, CockpitConversionService.TEAM_DIRECTOR, 'Budget Professional',
                 CockpitConversionService.SIZE_UNDER_50);
@@ -314,28 +320,6 @@ private class CockpitConversionServiceTest {
             if (b.band == band && b.total >= minTotal) return true;
         }
         return false;
-    }
-
-    static void insertSnapshots(Id oppId, List<Date> weekStarts, List<String> bands) {
-        List<Forecast_Week__c> weeks = new List<Forecast_Week__c>();
-        for (Integer i = 0; i < weekStarts.size(); i++) {
-            weeks.add(new Forecast_Week__c(
-                Name = String.valueOf(weekStarts[i]),
-                Fiscal_Period__c = '2026-Q3',
-                Week_Start__c = weekStarts[i]
-            ));
-        }
-        insert weeks;
-        List<Weekly_Forecast_Snapshot__c> snaps = new List<Weekly_Forecast_Snapshot__c>();
-        for (Integer i = 0; i < weeks.size(); i++) {
-            snaps.add(new Weekly_Forecast_Snapshot__c(
-                Week__c = weeks[i].Id,
-                Opportunity__c = oppId,
-                Opportunity_Id_Text__c = String.valueOf(oppId),
-                Roll_Up_Forecast__c = bands[i]
-            ));
-        }
-        insert snaps;
     }
 
     static Integer seq = 0;
