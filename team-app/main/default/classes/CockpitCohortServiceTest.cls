@@ -111,8 +111,8 @@ private class CockpitCohortServiceTest {
         Account a = new Account(Name = 'Unmapped');
         insert a;
         Date sql = Date.newInstance(2025, 2, 1);
-        insert closed(a.Id, ae.Id, rt, 'Adopt', sql, Date.newInstance(2025, 5, 1),
-            'Closed Lost', 'Adoption Issues');
+        insert closed(a.Id, ae.Id, rt, 'Refs', sql, Date.newInstance(2025, 5, 1),
+            'Closed Lost', 'Quality of references');
 
         Test.startTest();
         CockpitCohortService.WinRatePage page = pageFor(dir.Id);
@@ -122,8 +122,8 @@ private class CockpitCohortServiceTest {
         System.assertEquals(1, row.worked, 'unmapped reason counts as worked loss');
         System.assertEquals(0, row.neverReal, 'unmapped is not never-real');
         System.assertEquals(1, page.unmappedReasons.size(), 'unmapped reasons are surfaced');
-        System.assertEquals('Adoption Issues', page.unmappedReasons[0].reason,
-            'Adoption Issues has no CMDT row');
+        System.assertEquals('Quality of references', page.unmappedReasons[0].reason,
+            'Quality of references is left unmapped so mapping honesty can surface it');
     }
 
     @isTest

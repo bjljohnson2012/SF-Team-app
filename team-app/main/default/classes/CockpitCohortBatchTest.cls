@@ -39,15 +39,16 @@ private class CockpitCohortBatchTest {
     }
 
     @isTest
-    static void schedule_executes() {
-        Test.startTest();
+    static void schedule_enqueuesWithoutRunningOrgDirectors() {
         String jobId = System.schedule(
             'Cockpit cohort test ' + String.valueOf(Crypto.getRandomInteger()),
             '0 15 2 * * ?',
             new CockpitCohortBatch()
         );
-        Test.stopTest();
-        System.assertNotEquals(null, jobId, 'schedulable accepted');
+        CronTrigger ct = [SELECT Id, CronJobDetail.Name FROM CronTrigger WHERE Id = :jobId];
+        System.assertNotEquals(null, ct.Id, 'schedulable accepted');
+        System.assert(ct.CronJobDetail.Name.contains('Cockpit cohort test'),
+            'job name is the one we scheduled');
     }
 
     static Integer seq = 0;
