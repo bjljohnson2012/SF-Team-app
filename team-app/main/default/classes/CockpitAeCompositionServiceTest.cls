@@ -137,18 +137,22 @@ private class CockpitAeCompositionServiceTest {
     static void concentration_firesAbove40_notAt40() {
         Id ae = fakeUser(4);
         List<Opportunity> at40 = new List<Opportunity>{
-            deal(ae, fakeOpp(31), CockpitConstants.BAND_PIPE, 40000, qStart().addDays(2)),
-            deal(ae, fakeOpp(32), CockpitConstants.BAND_PIPE, 60000, qStart().addDays(3))
+            deal(ae, fakeOpp(31), CockpitConstants.BAND_PIPE, 40, qStart().addDays(2)),
+            deal(ae, fakeOpp(32), CockpitConstants.BAND_PIPE, 30, qStart().addDays(3)),
+            deal(ae, fakeOpp(35), CockpitConstants.BAND_PIPE, 30, qStart().addDays(4))
         };
         at40[0].Cockpit_Class_Override__c = 'EX';
         at40[1].Cockpit_Class_Override__c = 'EX';
+        at40[2].Cockpit_Class_Override__c = 'EX';
 
         List<Opportunity> over40 = new List<Opportunity>{
-            deal(ae, fakeOpp(33), CockpitConstants.BAND_PIPE, 41000, qStart().addDays(2)),
-            deal(ae, fakeOpp(34), CockpitConstants.BAND_PIPE, 59000, qStart().addDays(3))
+            deal(ae, fakeOpp(33), CockpitConstants.BAND_PIPE, 41, qStart().addDays(2)),
+            deal(ae, fakeOpp(34), CockpitConstants.BAND_PIPE, 30, qStart().addDays(3)),
+            deal(ae, fakeOpp(36), CockpitConstants.BAND_PIPE, 29, qStart().addDays(4))
         };
         over40[0].Cockpit_Class_Override__c = 'EX';
         over40[1].Cockpit_Class_Override__c = 'EX';
+        over40[2].Cockpit_Class_Override__c = 'EX';
 
         Test.startTest();
         List<CockpitAeCompositionService.Signal> eq =

@@ -26,9 +26,17 @@ private class CockpitAeControllerTest {
         System.runAs(ae) {
             Test.startTest();
             CockpitRosterService.Scope scoped = CockpitRosterService.resolve(null, CockpitConstants.TEAM_MODE_MINE);
-            CockpitAeCompositionService.Payload pay = CockpitAeController.loadComposition(
-                null, CockpitConstants.TEAM_MODE_MINE,
-                CockpitConstants.PRODUCT_ALL, CockpitConstants.SIZE_ALL);
+            CockpitAeCompositionService.Payload pay;
+            try {
+                CockpitAeCompositionService.ScopeRequest req =
+                    new CockpitAeCompositionService.ScopeRequest();
+                req.teamMode = CockpitConstants.TEAM_MODE_MINE;
+                req.productType = CockpitConstants.PRODUCT_ALL;
+                req.sizeBand = CockpitConstants.SIZE_ALL;
+                pay = CockpitAeCompositionService.compute(req);
+            } catch (Exception e) {
+                System.assert(false, e.getTypeName() + ': ' + e.getMessage() + ' @ ' + e.getStackTraceString());
+            }
             Test.stopTest();
             System.assertEquals(true, scoped.selfScoped, 'self-scope is explicit, not a director-only error');
             System.assertEquals(1, pay.rows.size(), 'an AE with no reports still sees their own row');

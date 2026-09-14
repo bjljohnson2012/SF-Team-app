@@ -117,22 +117,16 @@ public with sharing class CockpitAeCompositionService {
         Date nextStart = qStart.addMonths(3);
         Date nextEnd = qStart.addMonths(6).addDays(-1);
 
-        String holdoverField = Schema.sObjectType.Opportunity.fields.Is_Holdover__c.isAccessible()
-            ? ', Is_Holdover__c' : '';
-        String soql = 'SELECT Id, OwnerId, CloseDate, LastActivityDate, StageName, '
-            + 'Roll_Up_Forecast_bf__c, ARR_Opportunity_Amount_USD_Num__c, '
-            + 'Cockpit_Class_Override__c, Pricing_Approval_Status__c, '
-            + 'SQL_Datestamp_bf__c, Next_Step_Date_bf__c, EUNA_Solution__c'
-            + holdoverField
+        String saleRt = CockpitConstants.SALE_RECORDTYPE;
+        Set<String> newBiz = CockpitConstants.NEW_BUSINESS_TYPES;
+        Set<String> mig = CockpitConstants.MIGRATION_STAGES;
+        String soql = 'SELECT ' + openFieldList()
             + ' FROM Opportunity WHERE IsClosed = false AND OwnerId IN :owners'
             + ' AND RecordType.DeveloperName = :saleRt'
             + ' AND Type IN :newBiz'
             + ' AND StageName NOT IN :mig'
             + ' AND CloseDate >= :qStart AND CloseDate <= :winEnd'
             + ' LIMIT 800';
-        String saleRt = CockpitConstants.SALE_RECORDTYPE;
-        Set<String> newBiz = CockpitConstants.NEW_BUSINESS_TYPES;
-        Set<String> mig = CockpitConstants.MIGRATION_STAGES;
         List<Opportunity> opps = Database.query(soql, AccessLevel.USER_MODE);
 
         Map<Id, Booked> booked = queryBooked(owners, qStart, CockpitConstants.quarterEnd(
