@@ -223,11 +223,13 @@ public with sharing class PricingReviewController {
             + '2) If not directly stated but reasonably inferable from the context (the entity type and size, '
             + 'US public-sector procurement/RFP norms, the deal stage and solution, typical competitors and TCO '
             + 'horizons for this kind of buyer), give your best inference and PREFIX it with "INFERRED: ".\n'
-            + '3) Use "[No data in Salesforce \u2014 AE to complete]" only as a last resort when you truly cannot even '
-            + 'infer a reasonable answer.\n'
-            + 'Aim to answer all 24. Every inferred answer MUST start with "INFERRED: " so the AE knows to verify '
-            + 'it. Do not fabricate specific figures, quotes, or names that are not in the context; inferences '
-            + 'should be qualitative or clearly hypothetical.\n'
+            + '3) "[No data in Salesforce \u2014 AE to complete]" is almost never acceptable \u2014 for a standard '
+            + 'public-sector pricing checklist you can always reason a qualitative INFERRED answer (e.g. likely '
+            + 'entity size, typical user counts, comparable buyers, common evaluation horizon, sensible pricing/'
+            + 'term recommendation). Use it only if a question is truly impossible to infer.\n'
+            + 'Answer ALL 24 \u2014 aim for zero "[No data]" responses. Every inferred answer MUST start with '
+            + '"INFERRED: " so the AE knows to verify it. Do not fabricate specific figures, quotes, or names that '
+            + 'are not in the context; inferences should be qualitative ranges or clearly hypothetical.\n'
             + 'Return ONLY a JSON object whose keys are Q1 through Q24 and whose values are strings. '
             + 'No markdown, no code fences, no commentary.\n\nQUESTIONS:\n' + qs + '\nCONTEXT:\n' + ctx;
     }
