@@ -364,7 +364,7 @@ public with sharing class PricingReviewController {
         Opportunity o = opps[0];
         String acct = (o.Account != null) ? o.Account.Name : o.Name;
         String director = String.isNotBlank(o.Sales_Director__c) ? o.Sales_Director__c : DEFAULT_DIRECTOR;
-        String html = buildDoc(o, acct, director, answers);
+        Blob docx = buildDocx(o, acct, director, answers);
 
         // Persist the responses so they can be reviewed again on the tool page.
         o.Pricing_Review_Answers__c = JSON.serialize(answers);
@@ -372,8 +372,8 @@ public with sharing class PricingReviewController {
 
         ContentVersion cv = new ContentVersion(
             Title = 'Pricing Review - ' + acct + ' - ' + Date.today().format(),
-            PathOnClient = 'Euna_Pricing_Review_' + acct.replaceAll('[^a-zA-Z0-9]', '_') + '.doc',
-            VersionData = Blob.valueOf(html)
+            PathOnClient = 'Euna_Pricing_Review_' + acct.replaceAll('[^a-zA-Z0-9]', '_') + '.docx',
+            VersionData = docx
         );
         insert cv;
         Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
@@ -423,45 +423,97 @@ public with sharing class PricingReviewController {
         return (a >= 0 && b > a) ? t.substring(a, b + 1) : t;
     }
 
-    private static String buildDoc(Opportunity o, String acct, String director, Map<String, String> answers) {
+    // ---- .docx (WordprocessingML) generation ----
+    private static final String INDIGO = '281978', ORANGE = 'FF6E14', RED = 'DC2626', GRAY = '64748B';
+    private static final String CONTENT_TYPES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        + '<Default Extension="xml" ContentType="application/xml"/>'
+        + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        + '</Types>';
+    private static final String PKG_RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+        + '</Relationships>';
+
+    /** Builds the branded Euna Pricing Review Checklist as a real .docx package. */
+    private static Blob buildDocx(Opportunity o, String acct, String director, Map<String, String> answers) {
         String rep = (o.Owner != null) ? o.Owner.Name : '';
+        String body = wpara(wrun('EUNA SOLUTIONS\u00AE', true, ORANGE, 20), 40)
+            + wpara(wrun('Pricing Review Checklist', true, INDIGO, 48), 40)
+            + wpara(wrun('Complete before submitting for pricing approval \u2014 Internal Use Only', false, GRAY, 18), 200)
+            + wheading('Opportunity Details')
+            + wtbl(wdrow('Opportunity Name', o.Name) + wdrow('Date', Date.today().format())
+                 + wdrow('Sales Rep', rep) + wdrow('Sales Director', director))
+            + wpara(wrun('', false, null, 8), 120)
+            + wheading('Review Questions')
+            + wtbl(wqHeader() + wqRows(answers))
+            + wpara(wrun('', false, null, 8), 120)
+            + wheading('Sign-Off')
+            + wtbl('<w:tr>' + wcell(wrun('Sales Director Approval', true, null, 20), 4800, null)
+                 + wcell(wrun('No', false, null, 20), 4800, null) + '</w:tr>')
+            + wpara(wrun('Euna Solutions\u00AE \u2014 Pricing Review Checklist \u2014 Internal Use Only', false, '9CA3AF', 16), 0);
+        String docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body
+            + '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="900" w:bottom="1080" w:left="900"/></w:sectPr>'
+            + '</w:body></w:document>';
+        return DocxZip.build(
+            new List<String>{ '[Content_Types].xml', '_rels/.rels', 'word/document.xml' },
+            new Map<String, Blob>{
+                '[Content_Types].xml' => Blob.valueOf(CONTENT_TYPES),
+                '_rels/.rels' => Blob.valueOf(PKG_RELS),
+                'word/document.xml' => Blob.valueOf(docXml)
+            });
+    }
+    private static String wqHeader() {
+        return '<w:tr>' + wcell(wrun('#', true, 'FFFFFF', 18), 600, INDIGO)
+            + wcell(wrun('Question / Review Item', true, 'FFFFFF', 18), 4000, INDIGO)
+            + wcell(wrun('Notes / Response', true, 'FFFFFF', 18), 5000, INDIGO) + '</w:tr>';
+    }
+    private static String wqRows(Map<String, String> answers) {
         String rows = '';
         for (Integer i = 0; i < QUESTIONS.size(); i++) {
             String ans = answers.get('Q' + (i + 1));
-            Boolean blank = String.isBlank(ans);
-            String cellVal = blank
-                ? '<span style="color:#DC2626;font-weight:bold">\u26A0 NOT ANSWERED</span>'
-                : esc(ans);
-            String bg = (Math.mod(i, 2) == 0) ? ' style="background:#F8F9FC"' : '';
-            rows += '<tr' + bg + '><td><b>Q' + (i + 1) + '</b></td><td><b>' + esc(QUESTIONS[i])
-                 + '</b></td><td>' + cellVal + '</td></tr>';
+            String ansRun = String.isBlank(ans) ? wrun('\u26A0 NOT ANSWERED', true, RED, 18) : wrun(ans, false, null, 18);
+            rows += '<w:tr>' + wcell(wrun('Q' + (i + 1), true, null, 18), 600, null)
+                + wcell(wrun(QUESTIONS[i], true, null, 18), 4000, null) + wcell(ansRun, 5000, null) + '</w:tr>';
         }
-        return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" '
-            + 'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Euna Pricing Review Checklist</title></head>'
-            + '<body style="font-family:\'Open Sans\',Calibri,Arial,sans-serif;color:#1a1a2e">'
-            + '<p style="color:#FF6E14;font-weight:bold;font-size:11pt;margin:0">EUNA SOLUTIONS\u00AE</p>'
-            + '<h1 style="color:#281978;font-family:Montserrat,Arial,sans-serif;font-size:24pt;margin:2px 0">Pricing Review Checklist</h1>'
-            + '<p style="color:#64748B;font-size:10pt;margin:0 0 14px">Complete before submitting for pricing approval \u2014 Internal Use Only</p>'
-            + '<h2 style="color:#281978;border-bottom:2px solid #281978;padding-bottom:3px">Opportunity Details</h2>'
-            + '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">'
-            + drow('Opportunity Name', o.Name) + drow('Date', Date.today().format())
-            + drow('Sales Rep', rep) + drow('Sales Director', director) + '</table>'
-            + '<h2 style="color:#281978;border-bottom:2px solid #281978;padding-bottom:3px;margin-top:18px">Review Questions</h2>'
-            + '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">'
-            + '<tr style="background:#281978;color:#fff"><td width="6%"><b>#</b></td><td width="42%"><b>Question / Review Item</b></td><td><b>Notes / Response</b></td></tr>'
-            + rows + '</table>'
-            + '<h2 style="color:#281978;border-bottom:2px solid #281978;padding-bottom:3px;margin-top:18px">Sign-Off</h2>'
-            + '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">'
-            + '<tr><td width="50%"><b>Sales Director Approval</b></td><td>No</td></tr></table>'
-            + '<p style="text-align:center;color:#9CA3AF;font-style:italic;font-size:9pt;margin-top:20px">'
-            + 'Euna Solutions\u00AE \u2014 Pricing Review Checklist \u2014 Internal Use Only</p>'
-            + '</body></html>';
+        return rows;
     }
-    private static String drow(String k, String v) {
-        return '<tr><td style="background:#281978;color:#fff;width:30%"><b>' + esc(k) + '</b></td><td>' + esc(String.isBlank(v) ? '\u2014' : v) + '</td></tr>';
+    private static String wdrow(String k, String v) {
+        return '<w:tr>' + wcell(wrun(k, true, 'FFFFFF', 20), 2880, INDIGO)
+            + wcell(wrun(String.isBlank(v) ? '\u2014' : v, false, null, 20), 6720, null) + '</w:tr>';
     }
-    private static String esc(String s) {
-        return s == null ? '' : s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;');
+    private static String wrun(String t, Boolean bold, String color, Integer sz) {
+        String rpr = '<w:rPr>' + (bold ? '<w:b/>' : '') + (color != null ? '<w:color w:val="' + color + '"/>' : '')
+            + (sz != null ? '<w:sz w:val="' + sz + '"/>' : '') + '</w:rPr>';
+        String bodyXml = '';
+        List<String> lines = xesc(t).split('\n');
+        for (Integer i = 0; i < lines.size(); i++) {
+            if (i > 0) bodyXml += '<w:br/>';
+            bodyXml += '<w:t xml:space="preserve">' + lines[i] + '</w:t>';
+        }
+        return '<w:r>' + rpr + bodyXml + '</w:r>';
+    }
+    private static String wpara(String runsXml, Integer spaceAfter) {
+        return '<w:p><w:pPr><w:spacing w:after="' + spaceAfter + '"/></w:pPr>' + runsXml + '</w:p>';
+    }
+    private static String wheading(String t) { return wpara(wrun(t, true, INDIGO, 26), 80); }
+    private static String wcell(String runsXml, Integer w, String fill) {
+        return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>'
+            + (fill != null ? '<w:shd w:val="clear" w:fill="' + fill + '"/>' : '')
+            + '<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tcMar>'
+            + '</w:tcPr><w:p><w:pPr><w:spacing w:after="0"/></w:pPr>' + runsXml + '</w:p></w:tc>';
+    }
+    private static String wtbl(String rowsXml) {
+        return '<w:tbl><w:tblPr><w:tblW w:w="9600" w:type="dxa"/><w:tblBorders>'
+            + '<w:top w:val="single" w:sz="4" w:color="D1D5DB"/><w:left w:val="single" w:sz="4" w:color="D1D5DB"/>'
+            + '<w:bottom w:val="single" w:sz="4" w:color="D1D5DB"/><w:right w:val="single" w:sz="4" w:color="D1D5DB"/>'
+            + '<w:insideH w:val="single" w:sz="4" w:color="D1D5DB"/><w:insideV w:val="single" w:sz="4" w:color="D1D5DB"/>'
+            + '</w:tblBorders></w:tblPr>' + rowsXml + '</w:tbl>';
+    }
+    private static String xesc(String s) {
+        return s == null ? '' : s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;');
     }
     private static String safe(String s) { return s == null ? '' : s; }
     private static String num(Decimal d) { return d == null ? '' : String.valueOf(d.setScale(0)); }
