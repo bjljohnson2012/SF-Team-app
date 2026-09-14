@@ -1,0 +1,119 @@
+<template>
+    <div class="wrap">
+        <h2>Win rate truth</h2>
+        <p class="lede">
+            Of the deals this team actually started (SQL quarter, not CreatedDate), how many did it win —
+            and how much of what looks like losing is a data artifact. Pair
+            <strong>contested win rate</strong> with <strong>qualification yield</strong>.
+            Native Insights will disagree on purpose: that tool is closure-based.
+        </p>
+
+        <c-gtm-scope-filters onscopechange={handleScope}></c-gtm-scope-filters>
+        <p class="scope" lwc:if={scopeCaption}>{scopeCaption}</p>
+        <p class="ghost">{ghostedConvention}</p>
+        <p class="snap">{snapshotAsOf}</p>
+
+        <template lwc:if={loading}>
+            <div class="box"><span class="spin"></span> Loading cohorts…</div>
+        </template>
+        <template lwc:elseif={error}>
+            <div class="box bad">{error}</div>
+        </template>
+        <template lwc:elseif={emptyMessage}>
+            <div class="box">{emptyMessage}</div>
+        </template>
+        <template lwc:elseif={hasRows}>
+            <div class="cards">
+                <template for:each={headlines} for:item="c">
+                    <div key={c.key} class={c.cls}>
+                        <div class="lab">{c.lab}</div>
+                        <div class="val">{c.val}</div>
+                        <div class="note">{c.note}</div>
+                    </div>
+                </template>
+            </div>
+            <p class="meta">Maturity uses p75 SQL→close of {p75} days. Immature vintages stay visible and are excluded from headlines.</p>
+
+            <div class="tw">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SQL cohort</th>
+                            <th class="num">Created</th>
+                            <th class="num">Won</th>
+                            <th class="num">Worked</th>
+                            <th class="num">Never-real</th>
+                            <th class="num">Open</th>
+                            <th class="num">Cohort</th>
+                            <th class="num">Resolved</th>
+                            <th class="num">Contested</th>
+                            <th class="num">Qual yield</th>
+                            <th class="num">Closure</th>
+                            <th class="num">Distortion</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={rows} for:item="r">
+                            <tr key={r.key} class={r.rowClass}>
+                                <td>{r.label}</td>
+                                <td class="num">{r.created}</td>
+                                <td class="num">{r.won}</td>
+                                <td class="num">{r.worked}</td>
+                                <td class="num">{r.neverReal}</td>
+                                <td class="num">{r.stillOpen}</td>
+                                <td class="num">{r.cohortConversion}</td>
+                                <td class="num">{r.resolvedWR}</td>
+                                <td class="num">{r.contestedWR}</td>
+                                <td class="num">{r.qualYield}</td>
+                                <td class="num">{r.closureBased}</td>
+                                <td class="num">{r.distortion}</td>
+                                <td><span class="badge" lwc:if={r.badge}>{r.badge}</span></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="cards two">
+                <div class="card">
+                    <div class="lab">Silent purge</div>
+                    <div class="val">{purgeSilent}</div>
+                    <div class="note">Closed-lost, CloseDate − LastActivityDate &gt; 60 days (or no activity). Future Events make LastActivityDate look fresh.</div>
+                </div>
+                <div class="card">
+                    <div class="lab">Dump purge</div>
+                    <div class="val">{purgeDump}</div>
+                    <div class="note">Same owner and CloseDate, not won, group of 5+.</div>
+                </div>
+            </div>
+
+            <template lwc:if={hasUnmapped}>
+                <h3>Unmapped loss reasons</h3>
+                <p class="lede">These count as worked losses today so contested stays conservative — map them in Cockpit Loss Root.</p>
+                <div class="tw">
+                    <table>
+                        <thead><tr><th>Reason</th><th class="num">Count</th></tr></thead>
+                        <tbody>
+                            <template for:each={unmapped} for:item="u">
+                                <tr key={u.reason} class="thin">
+                                    <td>{u.reason}</td>
+                                    <td class="num">{u.count}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </template>
+        <template lwc:elseif={loadedOnce}>
+            <div class="box">No SQL-qualified new-business deals in this scope.</div>
+        </template>
+
+        <ul class="caps">
+            <template for:each={captions} for:item="c">
+                <li key={c}>{c}</li>
+            </template>
+        </ul>
+    </div>
+</template>
