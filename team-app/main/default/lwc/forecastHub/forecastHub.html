@@ -177,7 +177,18 @@
                 </table></div></template>
             </template>
 
-            <!-- CONVERSION > Metrics (replaces Problems) -->
+            <!-- CONVERSION > Problems -->
+            <template lwc:if={vProblems}>
+                <h2>Problems</h2>
+                <p class="lede">Loss-reason inventory. Unmapped reasons (highlighted) count as worked losses today, so they keep win rates conservative but hide the pattern &mdash; map them.</p>
+                <template lwc:if={hasProblems}><div class="tw"><table>
+                    <thead><tr><th>Loss reason</th><th class="num">Count</th><th>Root cause</th></tr></thead>
+                    <tbody><template for:each={problemDisplay} for:item="r"><tr key={r.reason} class={r.rowClass}><td>{r.reason}</td><td class="num">{r.count}</td><td>{r.root}</td></tr></template></tbody>
+                </table></div></template>
+                <template lwc:else><div class="box"><p>No closed-lost history in range.</p></div></template>
+            </template>
+
+            <!-- CONVERSION > Metrics -->
             <template lwc:if={vMetrics}>
                 <c-conversion-metrics embedded={metricsEmbedded}></c-conversion-metrics>
             </template>
