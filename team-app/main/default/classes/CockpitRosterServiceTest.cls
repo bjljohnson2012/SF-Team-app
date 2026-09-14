@@ -34,6 +34,19 @@ private class CockpitRosterServiceTest {
         System.assert(CockpitRosterService.teamIds(lone.Id).isEmpty(), 'no reports -> empty');
     }
 
+    @isTest
+    static void resolve_aeWithNoReports_isSelf() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User ae = mk(p.Id, null, 'Account Executive');
+        insert ae;
+        System.runAs(ae) {
+            CockpitRosterService.Scope s = CockpitRosterService.resolve(null, 'mine');
+            System.assertEquals(true, s.selfScoped, 'AE without reports is a valid viewer of their row');
+            System.assertEquals(1, s.members.size(), 'self row only');
+            System.assertEquals(ae.Id, s.members[0].userId, 'running AE');
+        }
+    }
+
     static Integer seq = 0;
     static User mk(Id profileId, Id mgr, String title) {
         seq++;

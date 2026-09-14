@@ -47,6 +47,90 @@ public with sharing class CockpitRosterService {
         return ids;
     }
 
+    public class Scope {
+        @AuraEnabled public Id directorId;
+        @AuraEnabled public String directorName;
+        @AuraEnabled public Boolean selfScoped;
+        @AuraEnabled public List<Member> members;
+        public Set<Id> ids() {
+            Set<Id> out = new Set<Id>();
+            if (members == null) return out;
+            for (Member m : members) out.add(m.userId);
+            return out;
+        }
+    }
+
+    /**
+     * Director-driven roster. Default is the running user's team; an AE with
+     * no reports sees themselves. Never a hardcoded director id.
+     */
+    public static Scope resolve(Id directorId, String teamMode) {
+        Boolean mine = String.isBlank(teamMode)
+            || teamMode == CockpitConstants.TEAM_MODE_MINE
+            || directorId == null;
+        Id scopeId = mine ? UserInfo.getUserId() : directorId;
+
+        Scope s = new Scope();
+        s.directorId = scopeId;
+        s.members = teamFor(scopeId);
+        s.selfScoped = false;
+
+        if (s.members.isEmpty()) {
+            User me = [
+                SELECT Id, Name, Title, Profile.Name, UserRole.Name
+                FROM User WHERE Id = :UserInfo.getUserId()
+                WITH USER_MODE
+            ];
+            if (!isNonAE(me)) {
+                s.members.add(new Member(me.Id, me.Name));
+                s.selfScoped = true;
+                s.directorId = me.Id;
+                s.directorName = me.Name;
+                return s;
+            }
+        }
+
+        User director = [
+            SELECT Id, Name FROM User WHERE Id = :scopeId
+            WITH USER_MODE LIMIT 1
+        ];
+        s.directorName = director.Name;
+        return s;
+    }
+
+    /** Active managers — the director picker, not a Team Johnson hardcode. */
+    public static List<Member> listDirectors() {
+        Set<Id> mgrIds = new Set<Id>();
+        for (AggregateResult ar : [
+            SELECT ManagerId mid
+            FROM User
+            WHERE IsActive = true AND ManagerId != null
+            WITH USER_MODE
+            GROUP BY ManagerId
+        ]) {
+            mgrIds.add((Id) ar.get('mid'));
+        }
+        List<Member> out = new List<Member>();
+        if (mgrIds.isEmpty()) return out;
+        for (User u : [
+            SELECT Id, Name FROM User
+            WHERE Id IN :mgrIds AND IsActive = true
+            WITH USER_MODE ORDER BY Name
+        ]) {
+            out.add(new Member(u.Id, u.Name));
+        }
+        return out;
+    }
+
+    /** Euna product / solution family as it exists on Opportunity. */
+    public static List<String> productTypes() {
+        List<String> out = new List<String>();
+        for (Schema.PicklistEntry e : Opportunity.EUNA_Solution__c.getDescribe().getPicklistValues()) {
+            if (e.isActive()) out.add(e.getValue());
+        }
+        return out;
+    }
+
     private static Boolean isNonAE(User u) {
         String haystack = (
             (u.Title == null ? '' : u.Title) + ' ' +

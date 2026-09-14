@@ -33,6 +33,28 @@ public with sharing class CockpitConstants {
         'SOLUTIONS ENGINEER', 'SALES ENGINEER'
     };
 
+    // Migration stages are not new-business pipeline (canon).
+    public static final Set<String> MIGRATION_STAGES = new Set<String>{
+        'Migration', 'Migrating', 'Migration Complete'
+    };
+
+    public static final String BAND_COMMIT = 'Commit';
+    public static final String BAND_ML = 'Most Likely';
+    public static final String BAND_BC = 'Best Case';
+    public static final String BAND_PIPE = 'Pipeline';
+    public static final String BAND_OMITTED = 'Omitted';
+
+    public static final String SIZE_ALL = 'ALL';
+    public static final String SIZE_UNDER_50K = 'UNDER_50K';
+    public static final String SIZE_50_150K = 'BAND_50_150K';
+    public static final String SIZE_OVER_150K = 'OVER_150K';
+
+    public static final String TEAM_MODE_MINE = 'mine';
+    public static final String TEAM_MODE_DIRECTOR = 'director';
+    public static final String PRODUCT_ALL = 'ALL';
+
+    public static final Decimal CONCENTRATION_PCT = 40;
+
     // Phase B thresholds and modeled-call weights (Phase A: Cockpit_Setting__mdt).
     public static final Integer THRESHOLD_HIGH = 7;   // score >= : Include-High
     public static final Integer THRESHOLD_MED  = 3;   // score >= : Include-Med
