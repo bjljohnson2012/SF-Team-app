@@ -30,7 +30,11 @@ private class CockpitConversionControllerTest {
                 System.assert(underCso.contains(u.UserRoleId),
                     'picker lists leaders whose role rolls up to Chief Sales Officer');
             }
-            System.assert(!opts.productTypes.isEmpty(), 'product type is EUNA_Solution__c');
+            System.assertEquals(5, opts.productTypes.size(), 'All products + four families');
+            System.assertEquals('Budget', opts.productTypes[1].label);
+            System.assertEquals('Grants', opts.productTypes[2].label);
+            System.assertEquals('Procurement Sourcing', opts.productTypes[3].label);
+            System.assertEquals('Procurement Marketplace', opts.productTypes[4].label);
             System.assert(!opts.sizeBands.isEmpty(), 'ARR size bands served from Apex');
             System.assertNotEquals(null, page, 'load returns a payload');
             System.assertNotEquals(null, page.scope, 'scope is director-driven');

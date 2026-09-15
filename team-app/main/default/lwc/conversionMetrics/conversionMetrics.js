@@ -74,7 +74,7 @@ export default class ConversionMetrics extends LightningElement {
             const s = Object.assign({}, DEFAULT_SCOPE, JSON.parse(raw));
             this.directorId = s.directorId || null;
             this.teamMode = s.teamMode || 'mine';
-            this.productType = s.productType || '';
+            this.productType = this.groupProduct(s.productType);
             this.sizeBand = s.sizeBand || 'ALL';
             this.closeQuarter = s.closeQuarter || '';
         } catch (e) {
@@ -102,7 +102,7 @@ export default class ConversionMetrics extends LightningElement {
         const d = (event && event.detail) || {};
         if (d.directorId !== undefined) this.directorId = d.directorId || null;
         if (d.teamMode !== undefined) this.teamMode = d.teamMode || 'mine';
-        if (d.productType !== undefined) this.productType = d.productType || '';
+        if (d.productType !== undefined) this.productType = this.groupProduct(d.productType);
         if (d.sizeBand !== undefined) this.sizeBand = d.sizeBand || 'ALL';
         if (d.closeQuarter !== undefined) this.closeQuarter = d.closeQuarter || '';
         this.persistScope();
@@ -121,8 +121,22 @@ export default class ConversionMetrics extends LightningElement {
     }
 
     handleProduct(event) {
-        this.productType = event.target.value || '';
+        this.productType = this.groupProduct(event.target.value);
         this.emitScope();
+    }
+
+    groupProduct(raw) {
+        const v = raw || '';
+        if (!v || v === 'ALL') return '';
+        if (v === 'BUDGET' || v === 'GRANTS' || v === 'PROC_SOURCING' || v === 'PROC_MARKET') {
+            return v;
+        }
+        const u = v.toUpperCase();
+        if (u.includes('BUDGET')) return 'BUDGET';
+        if (u.includes('GRANT') || u.includes('AMPLIFUND')) return 'GRANTS';
+        if (u.includes('EQUALLEVEL') || u.includes('EL VENDOR')) return 'PROC_MARKET';
+        if (u.includes('BONFIRE') || u.includes('IONWAVE')) return 'PROC_SOURCING';
+        return '';
     }
 
     handleSize(event) {

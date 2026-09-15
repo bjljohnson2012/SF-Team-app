@@ -253,12 +253,69 @@ private class CockpitConversionServiceTest {
                 dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL, '2026-Q3');
             System.assertEquals(3, liveQuery.bandCheckpoints.size(), 'live snapshot query still builds three tables');
             CockpitConversionService.PagePayload sized = CockpitConversionService.load(
-                dir.Id, CockpitConversionService.TEAM_DIRECTOR, 'Budget Professional',
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, CockpitConstants.PRODUCT_GROUP_BUDGET,
                 CockpitConversionService.SIZE_UNDER_50, '2026-Q3');
             System.assertNotEquals(null, sized.scope.caption, 'product + size filters produce a caption');
+            System.assert(sized.scope.caption.contains('Budget'), 'caption names the Budget group');
             System.assert(sized.scope.caption.contains('2026 Q3') || sized.scope.caption.contains('2026-Q3'),
                 'caption names the close quarter');
         }
+    }
+
+    @isTest
+    static void productType_fourGroups_budgetExcludesGrants() {
+        User dir = setupDirectorWithRep();
+        User rep = [SELECT Id FROM User WHERE ManagerId = :dir.Id LIMIT 1];
+        Id rtId = eunaSaleRtId();
+        Date closeQ3 = Date.newInstance(2026, 9, 10);
+        System.runAs(dir) {
+            Account a = new Account(Name = 'Conv Product');
+            insert a;
+            insert new List<Opportunity>{
+                closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Commit',
+                    'Budget Professional', 40000, closeQ3, 'Ghosted'),
+                closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Commit',
+                    'Grants', 30000, closeQ3, 'Ghosted')
+            };
+            Test.startTest();
+            CockpitConversionService.PagePayload budget = CockpitConversionService.load(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, CockpitConstants.PRODUCT_GROUP_BUDGET,
+                CockpitConversionService.SIZE_ALL, '2026-Q3');
+            CockpitConversionService.PagePayload grants = CockpitConversionService.load(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, CockpitConstants.PRODUCT_GROUP_GRANTS,
+                CockpitConversionService.SIZE_ALL, '2026-Q3');
+            CockpitConversionService.ScopeOptions opts = CockpitConversionService.getScopeOptions();
+            Test.stopTest();
+            System.assertEquals(1, budget.closedInWindow, 'Budget group is Pro + Ent only');
+            System.assertEquals(CockpitConstants.PRODUCT_GROUP_BUDGET, budget.scope.productType);
+            System.assertEquals(1, grants.closedInWindow, 'Grants group excludes Budget');
+            System.assertEquals(5, opts.productTypes.size(), 'All products + four families');
+            System.assertEquals('', opts.productTypes[0].value);
+            System.assertEquals(CockpitConstants.PRODUCT_GROUP_BUDGET, opts.productTypes[1].value);
+            System.assertEquals('Budget', opts.productTypes[1].label);
+            System.assertEquals('Grants', opts.productTypes[2].label);
+            System.assertEquals('Procurement Sourcing', opts.productTypes[3].label);
+            System.assertEquals('Procurement Marketplace', opts.productTypes[4].label);
+        }
+    }
+
+    @isTest
+    static void normalizeProductGroup_mapsSkuAndKeepsFamily() {
+        System.assertEquals(CockpitConstants.PRODUCT_GROUP_BUDGET,
+            CockpitConversionService.normalizeProductGroup('Budget Professional'));
+        System.assertEquals(CockpitConstants.PRODUCT_GROUP_GRANTS,
+            CockpitConversionService.normalizeProductGroup('Amplifund'));
+        System.assertEquals(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING,
+            CockpitConversionService.normalizeProductGroup('Procurement-Bonfire'));
+        System.assertEquals(CockpitConstants.PRODUCT_GROUP_PROC_MARKET,
+            CockpitConversionService.normalizeProductGroup('Procurement-EqualLevel'));
+        System.assertEquals(CockpitConstants.PRODUCT_GROUP_BUDGET,
+            CockpitConversionService.normalizeProductGroup(CockpitConstants.PRODUCT_GROUP_BUDGET));
+        System.assertEquals('', CockpitConversionService.normalizeProductGroup(''));
+        System.assertEquals('Budget', CockpitConversionService.productCaption(CockpitConstants.PRODUCT_GROUP_BUDGET));
+        System.assertEquals('Procurement Sourcing',
+            CockpitConversionService.productCaption(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING));
+        System.assertEquals('All products', CockpitConversionService.productCaption(null));
     }
 
     @isTest

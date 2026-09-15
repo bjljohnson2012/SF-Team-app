@@ -228,12 +228,10 @@ public with sharing class CockpitConversionService {
             o.directors.add(new FilterOption(String.valueOf(d.userId), label));
         }
         o.productTypes.add(new FilterOption('', 'All products'));
-        Schema.DescribeFieldResult sol = Opportunity.EUNA_Solution__c.getDescribe();
-        for (Schema.PicklistEntry pe : sol.getPicklistValues()) {
-            if (pe.isActive()) {
-                o.productTypes.add(new FilterOption(pe.getValue(), pe.getLabel()));
-            }
-        }
+        o.productTypes.add(new FilterOption(CockpitConstants.PRODUCT_GROUP_BUDGET, 'Budget'));
+        o.productTypes.add(new FilterOption(CockpitConstants.PRODUCT_GROUP_GRANTS, 'Grants'));
+        o.productTypes.add(new FilterOption(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING, 'Procurement Sourcing'));
+        o.productTypes.add(new FilterOption(CockpitConstants.PRODUCT_GROUP_PROC_MARKET, 'Procurement Marketplace'));
         o.sizeBands.add(new FilterOption(SIZE_ALL, 'All sizes'));
         o.sizeBands.add(new FilterOption(SIZE_UNDER_50, 'Under $50k'));
         o.sizeBands.add(new FilterOption(SIZE_50_150, '$50–150k'));
@@ -303,16 +301,17 @@ public with sharing class CockpitConversionService {
         String saleRt = CockpitConstants.SALE_RECORDTYPE;
         Set<String> nbTypes = CockpitConstants.NEW_BUSINESS_TYPES;
         List<String> migStages = MIGRATION_STAGES;
+        Set<String> solutions = CockpitConstants.solutionsInProductFilter(page.scope.productType);
 
         List<ClosedDeal> deals = loadClosedDeals(
-            owners, extra, productType, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
+            owners, extra, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
         page.closedInWindow = deals.size();
         fillBandCheckpoints(page, deals);
 
-        fillLossMatrix(page, owners, extra, productType, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
-        fillLiveBook(page, owners, liveExtra, productType, saleRt, nbTypes, migStages);
+        fillLossMatrix(page, owners, extra, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
+        fillLiveBook(page, owners, liveExtra, solutions, saleRt, nbTypes, migStages);
         page.medianCycleDays = loadMedianCycle(
-            owners, extra, productType, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
+            owners, extra, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
         return page;
     }
 
@@ -386,7 +385,7 @@ public with sharing class CockpitConversionService {
     ) {
         Scope s = new Scope();
         s.teamMode = String.isBlank(teamMode) ? TEAM_MINE : teamMode;
-        s.productType = productType;
+        s.productType = normalizeProductGroup(productType);
         s.sizeBand = String.isBlank(sizeBand) ? SIZE_ALL : sizeBand;
         s.closeQuarter = String.isBlank(closeQuarter) ? currentQuarterKey() : closeQuarter;
         s.aeSelfFallback = false;
@@ -532,7 +531,7 @@ public with sharing class CockpitConversionService {
     private static List<ClosedDeal> loadClosedDeals(
         List<Id> owners,
         String extra,
-        String productType,
+        Set<String> solutions,
         Date closedSince,
         String saleRt,
         Set<String> nbTypes,
@@ -870,7 +869,7 @@ public with sharing class CockpitConversionService {
         PagePayload page,
         List<Id> owners,
         String extra,
-        String productType,
+        Set<String> solutions,
         Date closedSince,
         String saleRt,
         Set<String> nbTypes,
@@ -951,7 +950,7 @@ public with sharing class CockpitConversionService {
         PagePayload page,
         List<Id> owners,
         String extra,
-        String productType,
+        Set<String> solutions,
         String saleRt,
         Set<String> nbTypes,
         List<String> migStages
@@ -1049,7 +1048,7 @@ public with sharing class CockpitConversionService {
     private static Integer loadMedianCycle(
         List<Id> owners,
         String extra,
-        String productType,
+        Set<String> solutions,
         Date closedSince,
         String saleRt,
         Set<String> nbTypes,
@@ -1075,10 +1074,46 @@ public with sharing class CockpitConversionService {
         return medianCycle(days);
     }
 
+    @TestVisible
+    static String normalizeProductGroup(String productType) {
+        if (String.isBlank(productType) || productType == CockpitConstants.PRODUCT_ALL) return productType;
+        if (productType == CockpitConstants.PRODUCT_GROUP_BUDGET
+            || productType == CockpitConstants.PRODUCT_GROUP_GRANTS
+            || productType == CockpitConstants.PRODUCT_GROUP_PROC_SOURCING
+            || productType == CockpitConstants.PRODUCT_GROUP_PROC_MARKET) {
+            return productType;
+        }
+        if (CockpitConstants.SOLUTIONS_BUDGET.contains(productType)) {
+            return CockpitConstants.PRODUCT_GROUP_BUDGET;
+        }
+        if (CockpitConstants.SOLUTIONS_GRANTS.contains(productType)) {
+            return CockpitConstants.PRODUCT_GROUP_GRANTS;
+        }
+        if (CockpitConstants.SOLUTIONS_PROC_SOURCING.contains(productType)) {
+            return CockpitConstants.PRODUCT_GROUP_PROC_SOURCING;
+        }
+        if (CockpitConstants.SOLUTIONS_PROC_MARKET.contains(productType)) {
+            return CockpitConstants.PRODUCT_GROUP_PROC_MARKET;
+        }
+        return productType;
+    }
+
+    @TestVisible
+    static String productCaption(String productType) {
+        if (String.isBlank(productType) || productType == CockpitConstants.PRODUCT_ALL) {
+            return 'All products';
+        }
+        if (productType == CockpitConstants.PRODUCT_GROUP_BUDGET) return 'Budget';
+        if (productType == CockpitConstants.PRODUCT_GROUP_GRANTS) return 'Grants';
+        if (productType == CockpitConstants.PRODUCT_GROUP_PROC_SOURCING) return 'Procurement Sourcing';
+        if (productType == CockpitConstants.PRODUCT_GROUP_PROC_MARKET) return 'Procurement Marketplace';
+        return productType;
+    }
+
     private static String extraFilters(String productType, String sizeBand, Date qStart, Date qEnd) {
         String extra = '';
-        if (String.isNotBlank(productType)) {
-            extra += ' AND EUNA_Solution__c = :productType ';
+        if (String.isNotBlank(productType) && productType != CockpitConstants.PRODUCT_ALL) {
+            extra += ' AND EUNA_Solution__c IN :solutions ';
         }
         if (sizeBand == SIZE_UNDER_50) {
             extra += ' AND ARR_Opportunity_Amount_USD_Num__c < 50000 ';
@@ -1095,7 +1130,7 @@ public with sharing class CockpitConversionService {
     }
 
     private static String scopeCaption(Scope s) {
-        String product = String.isBlank(s.productType) ? 'All products' : s.productType;
+        String product = productCaption(s.productType);
         String size = SIZE_ALL;
         if (s.sizeBand == SIZE_UNDER_50) size = 'Under $50k';
         else if (s.sizeBand == SIZE_50_150) size = '$50–150k';
