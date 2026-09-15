@@ -119,6 +119,10 @@ private class PricingReviewEvidenceTest {
         String pack = PricingReviewEvidence.build(loaded);
         String q6 = PricingReviewEvidence.buildForQuestion(loaded, 6,
             'Who are comparable customers and what have we priced them at?');
+        String q3 = PricingReviewEvidence.buildForQuestion(loaded, 3,
+            'Do they have an Euna product currently? What? When purchased? Current ARR?');
+        String q11 = PricingReviewEvidence.buildForQuestion(loaded, 11,
+            'Is this pricing based on: Budgetary / Direct Purchase / State Contract / RFP?');
         Test.stopTest();
 
         System.assert(pack.contains('Pat Buyer'), 'contacts are in the pack');
@@ -160,13 +164,8 @@ private class PricingReviewEvidenceTest {
         System.assert(pack.contains('RFP and opportunity Files'), 'RFP / Files section is always present');
         System.assert(pack.contains('operating-budget range 0.5x-2x'),
             'comparables state the tighter operating-budget band');
-
-        String q3 = PricingReviewEvidence.buildForQuestion(loaded, 3,
-            'Do they have an Euna product currently? What? When purchased? Current ARR?');
         System.assert(q3.contains('Active Contracts / Active ARR'),
             'Q3 focus tells the model to search Active ARR');
-        String q11 = PricingReviewEvidence.buildForQuestion(loaded, 11,
-            'Is this pricing based on: Budgetary / Direct Purchase / State Contract / RFP?');
         System.assert(q11.contains('RFP Details'), 'Q11 focus searches RFP Details');
     }
 
