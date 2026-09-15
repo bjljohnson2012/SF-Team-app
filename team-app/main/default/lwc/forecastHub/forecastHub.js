@@ -46,7 +46,7 @@ const CLASS_CHIPS = [['ALL', 'All'], ['PICK', 'In call'], ['HI', 'High'], ['MD',
 const SECTIONS = [
     { id: 'forecast', label: 'Forecast', subs: [['summary', 'Call Summary'], ['current', 'Current Qtr'], ['next', 'Next Qtr'], ['pull', 'Pull-Ins'], ['hygiene', 'Hygiene & Risks']] },
     { id: 'pipeline', label: 'Pipeline', subs: [['created', 'Created'], ['open', 'Open'], ['won', 'Closed-Won']] },
-    { id: 'conversion', label: 'Conversion Metrics', subs: [['win', 'Win Rate Truth'], ['ae', 'AE by AE'], ['problems', 'Problems']] }
+    { id: 'conversion', label: 'Conversion Metrics', subs: [['win', 'Win Rate Truth'], ['ae', 'AE by AE'], ['problems', 'Problems'], ['metrics', 'Metrics']] }
 ];
 
 export default class ForecastHub extends LightningElement {
@@ -269,6 +269,8 @@ export default class ForecastHub extends LightningElement {
     get vWin() { return this.isConversion && this.subConversion === 'win'; }
     get vAe() { return this.isConversion && this.subConversion === 'ae'; }
     get vProblems() { return this.isConversion && this.subConversion === 'problems'; }
+    get vMetrics() { return this.isConversion && this.subConversion === 'metrics'; }
+    get metricsEmbedded() { return true; }
     get showFilters() { return this.vCurrent || this.vNext; }
 
     get aeOptions() { return [{ v: 'ALL', label: 'All AEs', sel: this.aeFilter === 'ALL' }].concat(this.aeNames.map((n) => ({ v: n, label: n, sel: this.aeFilter === n }))); }

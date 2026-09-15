@@ -181,6 +181,11 @@
                 </table></div></template>
                 <template lwc:else><div class="box"><p>No closed-lost history in range.</p></div></template>
             </template>
+
+            <!-- CONVERSION > Metrics -->
+            <template lwc:if={vMetrics}>
+                <c-conversion-metrics embedded={metricsEmbedded}></c-conversion-metrics>
+            </template>
         </div>
     </template>
 </template>
