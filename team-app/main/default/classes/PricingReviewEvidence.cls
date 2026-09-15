@@ -70,6 +70,13 @@ public with sharing class PricingReviewEvidence {
     }
 
     @TestVisible
+    static Boolean isComparable(String dealProduct, Decimal dealBudget, String contractProduct, Decimal contractBudget) {
+        if (!productMatches(dealProduct, contractProduct)) return false;
+        if (dealBudget != null && !budgetSameOrder(dealBudget, contractBudget)) return false;
+        return true;
+    }
+
+    @TestVisible
     static Boolean productMatches(String dealProduct, String contractProduct) {
         if (String.isBlank(dealProduct) || String.isBlank(contractProduct)) return false;
         String a = dealProduct.trim().toLowerCase();
@@ -181,8 +188,7 @@ public with sharing class PricingReviewEvidence {
         for (Contract c : rows) {
             String cProd = contractProduct(c);
             Decimal cBudget = (c.Account != null) ? c.Account.AnnualRevenue : null;
-            if (!productMatches(product, cProd)) continue;
-            if (budget != null && !budgetSameOrder(budget, cBudget)) continue;
+            if (!isComparable(product, budget, cProd, cBudget)) continue;
             s += '  - ' + safe(c.Account != null ? c.Account.Name : '')
                + ' | product=' + safe(cProd)
                + ' | ARR=' + fmtCur(c.ARR_Rollup__c)

@@ -70,9 +70,9 @@ private class PricingReviewEvidenceTest {
             OpportunityId = o.Id, ContactId = c.Id, Role = 'Decision Maker', IsPrimary = true);
 
         insert new Task(Subject = 'Old note', WhatId = o.Id, Status = 'Completed',
-            Description = 'Stale ballpark from last year');
+            ActivityDate = Date.today().addDays(-10), Description = 'Stale ballpark from last year');
         Task newer = new Task(Subject = 'Fresh email reply', WhatId = o.Id, Status = 'Completed',
-            Description = 'Latest RFP timeline');
+            ActivityDate = Date.today(), Description = 'Latest RFP timeline');
         insert newer;
 
         insert new Event(
@@ -146,72 +146,36 @@ private class PricingReviewEvidenceTest {
 
     @isTest
     static void comparables_require_vertical_product_and_budget() {
-        Id custRt = [SELECT Id FROM RecordType WHERE SobjectType = 'Account' AND DeveloperName = 'Customer_EUNA' LIMIT 1].Id;
+        System.assert(PricingReviewEvidence.isComparable(
+            'Budget Professional', 965000000, 'Budget Professional', 700000000),
+            'same vertical product and budget band matches');
+        System.assert(!PricingReviewEvidence.isComparable(
+            'Budget Professional', 965000000, 'Payments', 800000000),
+            'different product type is rejected even with a similar budget');
+        System.assert(!PricingReviewEvidence.isComparable(
+            'Budget Professional', 965000000, 'Budget Professional', 5000000),
+            'same product with a different annual-budget order of magnitude is rejected');
+        System.assert(PricingReviewEvidence.isComparable(
+            'Budget Professional', null, 'Budget Professional', 5000000),
+            'when the prospect has no budget, product match alone is enough');
+
         Id saleRt = [SELECT Id FROM RecordType WHERE SobjectType = 'Opportunity' AND DeveloperName = 'Euna_Sale' LIMIT 1].Id;
-        List<EUNA_Solution__c> sols = [
-            SELECT Id, Name FROM EUNA_Solution__c WHERE Name = 'Budget Professional' LIMIT 1
-        ];
-        if (sols.isEmpty()) {
-            sols = [SELECT Id, Name FROM EUNA_Solution__c WHERE Name != null LIMIT 1];
-        }
-        System.assert(!sols.isEmpty(), 'need an EUNA_Solution__c row to attach product type');
-        Id solId = sols[0].Id;
-        String solName = sols[0].Name;
-
-        Account prospect = new Account(
-            Name = 'Prospect District', RecordTypeId = custRt, Industry = 'K12', AnnualRevenue = 965000000);
-        Account matchAcc = new Account(
-            Name = 'Match Peer District', RecordTypeId = custRt, Industry = 'K12', AnnualRevenue = 700000000);
-        Account wrongProdAcc = new Account(
-            Name = 'Wrong Product District', RecordTypeId = custRt, Industry = 'K12', AnnualRevenue = 800000000);
-        Account tinyBudgetAcc = new Account(
-            Name = 'Tiny Budget District', RecordTypeId = custRt, Industry = 'K12', AnnualRevenue = 5000000);
-        insert new List<Account>{ prospect, matchAcc, wrongProdAcc, tinyBudgetAcc };
-
+        Account prospect = new Account(Name = 'Prospect District', Industry = 'K12', AnnualRevenue = 965000000);
+        insert prospect;
         Opportunity o = new Opportunity(
             Name = 'Prospect Deal', AccountId = prospect.Id, RecordTypeId = saleRt,
             Type = 'New Sale', StageName = 'Proposal', CloseDate = Date.today().addDays(40),
-            EUNA_Solution__c = solName, Euna_Solutions_Lookup__c = solId);
+            EUNA_Solution__c = 'Budget Professional');
         insert o;
 
-        Date start = Date.today().addYears(-2);
-        Contract match = new Contract(
-            AccountId = matchAcc.Id, Status = 'Draft', StartDate = start, ContractTerm = 12,
-            EUNA_Solution_Lookup__c = solId, ARR_Rollup__c = 175849);
-        Contract wrongProd = new Contract(
-            AccountId = wrongProdAcc.Id, Status = 'Draft', StartDate = start, ContractTerm = 12,
-            ARR_Rollup__c = 400000);
-        Contract tiny = new Contract(
-            AccountId = tinyBudgetAcc.Id, Status = 'Draft', StartDate = start, ContractTerm = 12,
-            EUNA_Solution_Lookup__c = solId, ARR_Rollup__c = 20000);
-        insert new List<Contract>{ match, wrongProd, tiny };
-        activateIfPossible(new List<Contract>{ match, wrongProd, tiny });
-
-        Opportunity loaded = loadOpp(o.Id);
         Test.startTest();
-        String pack = PricingReviewEvidence.build(loaded);
+        String pack = PricingReviewEvidence.build(loadOpp(o.Id));
         Test.stopTest();
-
-        Boolean activated = [SELECT COUNT() FROM Contract WHERE Id = :match.Id AND Status = 'Activated'] > 0;
-        if (activated) {
-            System.assert(pack.contains('Match Peer District'),
-                'vertical+product+budget peer is cited: ' + pack);
-            System.assert(pack.contains('product=' + solName) || pack.contains(solName),
-                'comparable names the product');
-            System.assert(pack.contains('/lightning/r/Account/' + matchAcc.Id + '/view'),
-                'comparable links the Account');
-            System.assert(!pack.contains('Wrong Product District'),
-                'different product type is not cited');
-            System.assert(!pack.contains('Tiny Budget District'),
-                'different annual-budget order of magnitude is not cited');
-        } else {
-            System.assert(pack.contains('Comparable Euna customers'),
-                'comparables section is present even when contracts stay Draft');
-            System.assert(PricingReviewEvidence.productMatches(solName, solName),
-                'product filter is still enforced in helpers');
-            System.assert(!PricingReviewEvidence.budgetSameOrder(965000000, 5000000),
-                'tiny budget is rejected by the order-of-magnitude helper');
-        }
+        System.assert(pack.contains('Comparable Euna customers'), 'comparables section is present');
+        System.assert(pack.contains('vertical=K12'), 'filter states the deal vertical');
+        System.assert(pack.contains('product=Budget Professional'), 'filter states the deal product');
+        System.assert(pack.contains('Account: ') && pack.contains('/lightning/r/Account/'),
+            'Account URL helper is used in the pack');
     }
 
     @isTest
