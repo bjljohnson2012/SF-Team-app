@@ -500,6 +500,24 @@ public with sharing class CockpitAeCompositionService {
         return 'All sizes';
     }
 
+    private static String openFieldList() {
+        List<String> fields = new List<String>{
+            'Id', 'OwnerId', 'CloseDate', 'LastActivityDate', 'StageName',
+            'ARR_Opportunity_Amount_USD_Num__c'
+        };
+        for (String f : new List<String>{
+            'Roll_Up_Forecast_bf__c', 'Cockpit_Class_Override__c',
+            'Pricing_Approval_Status__c', 'SQL_Datestamp_bf__c',
+            'Next_Step_Date_bf__c', 'EUNA_Solution__c', 'Is_Holdover__c'
+        }) {
+            if (Opportunity.getSObjectType().getDescribe().fields.getMap().containsKey(f)
+                && Opportunity.getSObjectType().getDescribe().fields.getMap().get(f).getDescribe().isAccessible()) {
+                fields.add(f);
+            }
+        }
+        return String.join(fields, ',');
+    }
+
     private static Boolean holdoverOf(Opportunity o) {
         try {
             return o.Is_Holdover__c == true;
