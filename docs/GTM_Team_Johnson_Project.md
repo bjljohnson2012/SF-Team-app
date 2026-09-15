@@ -73,9 +73,9 @@ Spec references (uploaded skills): `pricing-review-checklist v2.skill` (24 quest
 
 ---
 
-## 5. Deploy history (prod, direct-CLI under the now-expired carve-out)
+## 5. Deploy history (prod)
 
-All recorded in `docs/EXCEPTIONS.md` on branch `cursor/record-deploy-exception-91f8` (PR #2). Most recent first:
+Historical carve-out deploys are in `docs/EXCEPTIONS.md` on `cursor/record-deploy-exception-91f8` (PR #2). The 2026-09-15 retrieval deploy was owner-authorized after that carve-out expired (`validate` → `quick` only). Most recent first:
 
 | Date | What | Quick-deploy job |
 |---|---|---|
