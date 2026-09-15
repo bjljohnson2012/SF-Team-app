@@ -5,7 +5,6 @@ import CHARTJS from '@salesforce/resourceUrl/chartjs';
 import load from '@salesforce/apex/CockpitForecastController.load';
 import getCreatedPipeline from '@salesforce/apex/CockpitForecastController.getCreatedPipeline';
 import getConversion from '@salesforce/apex/CockpitForecastController.getConversion';
-import getWinRateTruth from '@salesforce/apex/CockpitForecastController.getWinRateTruth';
 import getAeConversion from '@salesforce/apex/CockpitForecastController.getAeConversion';
 import getProblems from '@salesforce/apex/CockpitForecastController.getProblems';
 import getClosedWon from '@salesforce/apex/CockpitForecastController.getClosedWon';
@@ -67,7 +66,6 @@ export default class ForecastHub extends LightningElement {
     classFilter = 'ALL';
     createdRows = [];
     conversionRows = [];
-    winRows = [];
     aeRows = [];
     problemRows = [];
     closedWonRows = [];
@@ -91,7 +89,6 @@ export default class ForecastHub extends LightningElement {
     }
     @wire(getCreatedPipeline) wCP({ data }) { if (data) this.createdRows = data; }
     @wire(getConversion) wCV({ data }) { if (data) this.conversionRows = data; }
-    @wire(getWinRateTruth) wWR({ data }) { if (data) this.winRows = data; }
     @wire(getAeConversion) wAE({ data }) { if (data) this.aeRows = data; }
     @wire(getProblems) wPB({ data }) { if (data) this.problemRows = data; }
     @wire(getClosedWon) wCW({ data }) { if (data) this.closedWonRows = data; }
@@ -245,7 +242,6 @@ export default class ForecastHub extends LightningElement {
     // analytics displays
     get createdDisplay() { return this.createdRows.map((r) => ({ label: r.label, bookedArr: this.money(r.bookedArr), createdArr: this.money(r.createdArr), bookedN: r.bookedN, createdN: r.createdN })); }
     get conversionDisplay() { return this.conversionRows.map((r) => ({ band: r.band, bandPill: 'pill ' + (BAND_META[r.band] || 'p-pipe'), total: r.total, won: r.won, winRate: this.pctFmt(r.winRate), totalArr: this.money(r.totalArr), wonArr: this.money(r.wonArr), winRateArr: this.pctFmt(r.winRateArr) })); }
-    get winDisplay() { return this.winRows.map((r) => ({ label: r.label, created: r.created, won: r.won, worked: r.worked, never: r.never, stillOpen: r.stillOpen, cohortWR: this.pctFmt(r.cohortWR), resolvedWR: this.pctFmt(r.resolvedWR), contestedWR: this.pctFmt(r.contestedWR), qualYield: this.pctFmt(r.qualYield), rowClass: r.label.indexOf('Team') === 0 ? 'teamrow' : '' })); }
     get aeDisplay() { return this.aeRows.map((r) => ({ ae: r.ae, won: r.won, lost: r.lost, winRate: this.pctFmt(r.winRate), wonArr: this.money(r.wonArr), lostArr: this.money(r.lostArr), topRoot: ROOT_LABELS[r.topRoot] || (r.topRoot || '-') })); }
     get problemDisplay() { return this.problemRows.map((r) => ({ reason: r.reason, count: r.count, root: ROOT_LABELS[r.root] || r.root, rowClass: r.mapped ? '' : 'teamrow' })); }
     get closedWonDisplay() { return this.closedWonRows.map((d) => ({ id: d.id, url: SFBASE + d.id, account: d.account, ae: d.ae, arrFmt: this.money(d.arr), closeDate: d.closeDate })); }
@@ -284,7 +280,6 @@ export default class ForecastHub extends LightningElement {
     get statusText() { return this.hasData ? this.deals.length + ' open opps \u00b7 ' + this.teamSize + ' AEs' : ''; }
     get hasCreated() { return this.createdDisplay.length > 0; }
     get hasConversion() { return this.conversionDisplay.length > 0; }
-    get hasWin() { return this.winDisplay.length > 0; }
     get hasAe() { return this.aeDisplay.length > 0; }
     get hasProblems() { return this.problemDisplay.length > 0; }
     get hasWon() { return this.closedWonDisplay.length > 0; }
@@ -336,8 +331,6 @@ export default class ForecastHub extends LightningElement {
             [{ label: 'Created ARR', data: this.createdRows.map((r) => r.createdArr || 0), backgroundColor: '#4A32C4' },
              { label: 'Booked ARR', data: this.createdRows.map((r) => r.bookedArr || 0), backgroundColor: '#FF6E14' }]);
         if (this.vOpen) this.doughnut('cvOpen', this.openBreakdown());
-        if (this.vWin) this.barChart('cvWin', this.conversionRows.map((r) => r.band),
-            [{ label: 'Win rate', data: this.conversionRows.map((r) => Math.round((r.winRate || 0) * 1000) / 10), backgroundColor: '#00A9E0' }]);
         if (this.vAe) this.barChart('cvAe', this.aeRows.map((r) => r.ae),
             [{ label: 'Win rate %', data: this.aeRows.map((r) => Math.round((r.winRate || 0) * 1000) / 10), backgroundColor: '#CB007B' }]);
     }

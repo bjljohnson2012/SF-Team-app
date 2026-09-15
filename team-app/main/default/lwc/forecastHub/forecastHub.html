@@ -155,15 +155,9 @@
                 <template lwc:else><div class="box"><p>No closed-won deals in the last 12 months.</p></div></template>
             </template>
 
-            <!-- CONVERSION > Win Rate Truth -->
+            <!-- CONVERSION > Win Rate Truth (owned by winRateTruth + gtmScopeFilters) -->
             <template lwc:if={vWin}>
-                <h2>Win rate truth</h2>
-                <p class="lede">Creation-cohort win rates following opportunities forward from the SQL gate. Four denominators, because each answers a different question.</p>
-                <div class="chartbox"><canvas data-id="cvWin"></canvas></div>
-                <template lwc:if={hasWin}><div class="tw"><table>
-                    <thead><tr><th>Cohort</th><th class="num">Created</th><th class="num">Won</th><th class="num">Worked</th><th class="num">Never-real</th><th class="num">Open</th><th class="num">Cohort WR</th><th class="num">Resolved WR</th><th class="num">Contested WR</th><th class="num">Qual yield</th></tr></thead>
-                    <tbody><template for:each={winDisplay} for:item="r"><tr key={r.label} class={r.rowClass}><td>{r.label}</td><td class="num">{r.created}</td><td class="num">{r.won}</td><td class="num">{r.worked}</td><td class="num">{r.never}</td><td class="num">{r.stillOpen}</td><td class="num">{r.cohortWR}</td><td class="num">{r.resolvedWR}</td><td class="num">{r.contestedWR}</td><td class="num">{r.qualYield}</td></tr></template></tbody>
-                </table></div></template>
+                <c-win-rate-truth></c-win-rate-truth>
             </template>
 
             <!-- CONVERSION > AE by AE (live composition; consumes gtmScopeFilters) -->
