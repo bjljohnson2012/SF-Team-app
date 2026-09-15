@@ -42,3 +42,20 @@ Follow-up so assigned users can run `CockpitWinRateController`. Authored only in
 - **Approved by:** org owner (benjamin.johnson), same deploy authorization as the WRT package.
 - **Post-deploy verification:** retrieve of both permsets shows `CockpitWinRateController`, both CMDT types, and snapshot read, plus retained `CockpitAeController`.
 - **Rollback:** remove the three WRT grant blocks from each permset.
+
+## 2026-09-15 — Win Rate Truth `getFilterOptions` compile fix
+
+Owner reported `apex://CockpitWinRateController: No apex action available for CockpitWinRateController.getFilterOptions` after a sibling Conversion Metrics deploy overwrote `CockpitRosterService` / `CockpitConstants` and dropped `listDirectors` / `resolveScope`. Same overwrite also invalidated AE by AE (`productTypes()`, band constants). Owner had already authorized the WRT prod path; this is the follow-up hotfix for that live error.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`), user `benjamin.johnson@eunasolutions.com`
+- **Branch:** `cursor/win-rate-truth-4c8f` (PR #6)
+- **Components:** `CockpitConstants`, `CockpitRosterService` (+ test). WRT controller/service/batch included so they recompile; body unchanged. Kept live `salesDirectors()` CSO picker. `listDirectors` / `resolveScope` / `directorIdsForBatch` wrap it. Restored AE `productTypes()`, `mine` mode, and band/concentration constants. AE-self only when title/role contains Account Executive so Conversion Metrics `emptyTeam_returnsEmpty` still holds.
+- **Not in this package:** `forecastHub`, Conversion Metrics / AE page files, permsets.
+- **Pre-deploy freshness retrieve:** `CockpitRosterService` / `CockpitConstants` still LastModified 20:44:07/08 (CSO picker only; no `listDirectors`). WRT controller/service/batch matched local except trailing newline.
+- **Validated job id:** `0AfOL000003T0yz0AC` — `RunSpecifiedTests` (`CockpitRosterServiceTest`, `CockpitWinRateControllerTest`, `CockpitCohortServiceTest`, `CockpitCohortBatchTest`, `CockpitConversionServiceTest`, `CockpitConversionControllerTest`); 33 tests, 0 failures; 9/9 components. Check-only.
+- **Quick-deploy job id:** `0AfOL000003T1Bt0AK` — Succeeded, `checkOnly: false`.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Review verdict:** Manual diligence — **PASS** (retrieve-before-deploy; CSO picker preserved; Conversion Metrics tests in the validate set). Formal `/sf-review` NOT run.
+- **Approved by:** org owner (benjamin.johnson), live-error follow-up to the authorized WRT deploy.
+- **Post-deploy verification:** Tooling `IsValid=true` on `CockpitWinRateController`, `CockpitCohortService`, `CockpitCohortBatch`, `CockpitAeController`, `CockpitAeCompositionService`, `CockpitConversionController`. Anonymous Apex `getFilterOptions` / `getPage` (Ben / My team / All / All): 12 director picks (My team + CSO leaders), 15 products, 15 cohort rows, contested 47.8%, closure-based 40.6%, caption `Team of Ben Johnson · All products · All sizes`. AE `getScopeOptions`: 11 directors, 14 products, 4 size bands.
+- **Rollback:** redeploy the 20:44 Conversion Metrics copies of `CockpitRosterService` / `CockpitConstants` (that would re-break WRT and AE).
