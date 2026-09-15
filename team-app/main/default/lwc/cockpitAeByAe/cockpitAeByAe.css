@@ -1,0 +1,44 @@
+:host {
+    --indigo: #281978;
+    --orange: #FF6E14;
+    --gray: #E2E8EF;
+    display: block;
+    color: #101828;
+    font-size: 13px;
+}
+
+.wrap { padding: 4px 0 24px; }
+h2 { font-size: 16.5px; color: var(--indigo); margin: 4px 0 8px; font-weight: 700; }
+h3 { font-size: 14.5px; color: var(--indigo); margin: 16px 0 8px; font-weight: 700; }
+h4 { font-size: 12.5px; margin: 0 0 8px; color: #344054; font-weight: 700; }
+.lede { color: #475467; margin: 0 0 12px; max-width: 1050px; }
+.caption { font-weight: 700; color: var(--indigo); margin: 0 0 4px; }
+.note { color: #667085; font-size: 12px; margin: 0 0 8px; }
+.err { background: #FEF3F2; border: 1px solid #F04438; color: #B00020; padding: 10px 12px; border-radius: 8px; }
+.box { background: #fff; border: 1px solid var(--gray); border-left: 5px solid var(--orange); border-radius: 8px; padding: 12px 14px; }
+
+.ae { background: #fff; border: 1px solid var(--gray); border-radius: 10px; padding: 14px 16px 16px; margin: 14px 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0 0 10px; }
+.card { background: #F5F8FA; border: 1px solid var(--gray); border-radius: 8px; padding: 10px 12px; }
+.card .lab { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: #667085; font-weight: 700; }
+.card .val { font-size: 20px; font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; margin: 4px 0 0; }
+.card .note { font-size: 11px; margin: 2px 0 0; }
+.card.hero { background: var(--indigo); border-color: var(--indigo); }
+.card.hero .lab, .card.hero .note { color: #E2E8EF; }
+.card.hero .val { color: #fff; }
+
+.tw { overflow: auto; border: 1px solid var(--gray); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--gray); }
+th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: #667085; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tot td { font-weight: 700; background: #F5F8FA; }
+.cls { font-size: 12px; color: #475467; margin: 8px 0 0; }
+
+.sigs { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--gray); }
+.sigs ul { margin: 0; padding-left: 18px; }
+.sigs li { margin: 4px 0; }
+.clean { margin: 0; color: #0F7B3E; font-weight: 600; }
