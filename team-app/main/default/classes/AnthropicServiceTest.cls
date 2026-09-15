@@ -72,4 +72,66 @@ private class AnthropicServiceTest {
             System.assert(true, 'Malformed body should throw');
         }
     }
+
+    private class CaptureMock implements HttpCalloutMock {
+        public static String lastBody;
+        public HttpResponse respond(HttpRequest req) {
+            lastBody = req.getBody();
+            HttpResponse res = new HttpResponse();
+            res.setStatusCode(200);
+            res.setBody('{"content":[{"type":"text","text":"ok"}]}');
+            return res;
+        }
+    }
+
+    private class ToolRejectThenOk implements HttpCalloutMock {
+        Integer n = 0;
+        public HttpResponse respond(HttpRequest req) {
+            n++;
+            HttpResponse res = new HttpResponse();
+            if (n == 1) {
+                res.setStatusCode(400);
+                res.setBody('{"error":{"message":"unknown tool web_search"}}');
+            } else {
+                res.setStatusCode(200);
+                res.setBody('{"content":[{"type":"text","text":"fallback"}]}');
+            }
+            return res;
+        }
+    }
+
+    @isTest
+    static void complete_withWebSearch_sendsTool() {
+        CaptureMock.lastBody = null;
+        Test.setMock(HttpCalloutMock.class, new CaptureMock());
+        Test.startTest();
+        String out = AnthropicService.complete('Need a cite', 'claude-sonnet-5', 256, true);
+        Test.stopTest();
+        System.assertEquals('ok', out, 'text is returned');
+        System.assert(CaptureMock.lastBody != null && CaptureMock.lastBody.contains('web_search'),
+            'request enables Anthropic web_search: ' + CaptureMock.lastBody);
+    }
+
+    @isTest
+    static void complete_webSearchRejected_fallsBack() {
+        Test.setMock(HttpCalloutMock.class, new ToolRejectThenOk());
+        Test.startTest();
+        String out = AnthropicService.complete('Need a cite', 'claude-sonnet-5', 256, true);
+        Test.stopTest();
+        System.assertEquals('fallback', out, 'retries without the tool after a tool rejection');
+    }
+
+    @isTest
+    static void extractText_appendsCitationUrls() {
+        String body = '{"content":[{"type":"text","text":"Infor is a common ERP peer.","citations":[{"type":"web_search_result_location","url":"https://example.com/infor"}]}]}';
+        String text = AnthropicService.extractText(body);
+        System.assert(text.contains('Infor is a common ERP peer.'), 'keeps the model text');
+        System.assert(text.contains('https://example.com/infor'), 'appends the cited URL');
+    }
+
+    @isTest
+    static void isToolRejected_detectsWebSearchErrors() {
+        System.assert(AnthropicService.isToolRejected('unknown tool web_search'), 'web_search rejection');
+        System.assert(!AnthropicService.isToolRejected('rate limited'), 'other errors are not tool rejections');
+    }
 }

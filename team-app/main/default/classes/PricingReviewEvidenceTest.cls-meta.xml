@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>62.0</apiVersion>
-    <description>Sales Tools Pricing Review Checklist: deal list, AI pre-fill from newest Salesforce/Gong evidence (web search when needed), Complete to .docx, and Done/Not-done override.</description>
+    <description>Tests for PricingReviewEvidence retrieval: quote, contacts, activity, emails, Gong Unknown-scope, and vertical+product+budget comparables.</description>
     <packageVersions>
         <majorNumber>3</majorNumber>
         <minorNumber>0</minorNumber>

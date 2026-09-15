@@ -1,8 +1,9 @@
 /**
  * Sales Tools > Pricing Review View Checklist Tool.
  * Implements the Euna "pricing-review-checklist" skill in-platform: for open
- * deals >= $30K ARR, the tool reads the opportunity's context (fields, activity,
- * Gong calls, existing Euna relationships) and asks Claude to pre-fill the 24
+ * deals >= $30K ARR, the tool reads newest quote/opp/account/contact/activity/
+ * email/call/Gong evidence (Unknown scope included) and asks Claude to pre-fill
+ * the 24 checklist questions, searching the web only when that pack is silent.
  * checklist questions. The AE reviews/edits and clicks Complete, which persists
  * the answers on the opportunity and attaches a branded Euna Word document to
  * its Files. Saved answers are readable back on the tool page.
@@ -141,9 +142,9 @@ public with sharing class PricingReviewController {
     }
 
     /**
-     * Reads the opportunity's context and asks Claude to draft an answer to each
-     * of the 24 questions. Grounded in Salesforce only; questions with no basis
-     * come back flagged for the AE to complete.
+     * Reads the opportunity's newest Salesforce + Gong evidence and asks Claude
+     * to draft each of the 24 questions. Web search is used only when that pack
+     * still does not answer; reasoned answers stay prefixed INFERRED:.
      */
     @AuraEnabled
     public static Map<String, String> draftAnswers(Id opportunityId) {
@@ -153,7 +154,7 @@ public with sharing class PricingReviewController {
         String prompt = buildDraftPrompt(o);
         String raw;
         try {
-            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 8192);
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 8192, true);
         } catch (Exception e) {
             throw new AuraHandledException('AI pre-fill failed: ' + e.getMessage());
         }
@@ -179,15 +180,19 @@ public with sharing class PricingReviewController {
             ? 'Expand and sharpen the following draft answer with more specific detail from the context.\nQuestion: ' + q + '\nCurrent draft: ' + (String.isBlank(current) ? '(none)' : current)
             : 'Draft a concise answer (1-3 sentences) to the following question.\nQuestion: ' + q;
         String prompt = 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
-            + 'for a government/public-sector software deal. Answer using the Salesforce context below. If the '
-            + 'context has direct evidence, use it. If not, give your best inference from the context (entity type/'
-            + 'size, US public-sector procurement norms, deal stage, typical competitors and TCO) and PREFIX it '
-            + 'with "INFERRED: ". Do not fabricate specific figures, quotes, or names not in the context. '
+            + 'for a government/public-sector software deal. Search every evidence section below (quote, '
+            + 'opportunity, account, contacts, all activity, emails, calls, Gong transcripts and briefs including '
+            + 'Unknown scope). Prefer the newest dated fact over an older one. If Salesforce and Gong still do '
+            + 'not answer, search the web and cite the source URL. If the context has direct evidence, use it. '
+            + 'If not, give your best inference and PREFIX it with "INFERRED: ". Do not fabricate specific '
+            + 'figures, quotes, or names not in the context or a cited web source. '
+            + 'For comparable customers (Q6), only cite accounts that match this deal\'s vertical AND product '
+            + 'type AND annual-budget order of magnitude; always name the product and include the Account URL. '
             + 'Return ONLY the answer text \u2014 no preamble, no question restatement, no JSON.\n\n'
-            + ask + '\n\nCONTEXT:\n' + context(o);
+            + ask + '\n\nCONTEXT:\n' + PricingReviewEvidence.buildForQuestion(o, questionNum, q);
         String raw;
         try {
-            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 700);
+            raw = AnthropicService.complete(prompt, 'claude-sonnet-5', 700, true);
         } catch (Exception e) {
             throw new AuraHandledException('AI generation failed: ' + e.getMessage());
         }
@@ -202,7 +207,8 @@ public with sharing class PricingReviewController {
                    Account.Student_Count__c, Account.NumberOfEmployees, Account.Current_Budgeting_system__c,
                    Account.Recent_Budget_Trends__c,
                    Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
-                   EUNA_Solution__c, Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
+                   EUNA_Solution__c, Euna_Solutions_Lookup__r.Name, EUNA_Competitors__c,
+                   Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
                    NextStep, Description, LeadSource, Type
             FROM Opportunity WHERE Id = :opportunityId LIMIT 1
         ];
@@ -211,144 +217,31 @@ public with sharing class PricingReviewController {
     }
 
     private static String buildDraftPrompt(Opportunity o) {
-        String ctx = context(o);
+        String ctx = PricingReviewEvidence.build(o);
         String qs = '';
         for (Integer i = 0; i < QUESTIONS.size(); i++) qs += 'Q' + (i + 1) + ': ' + QUESTIONS[i] + '\n';
         return 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
             + 'for a government/public-sector software deal. Provide a useful draft answer (1-3 sentences) for '
             + 'EVERY one of the 24 questions \u2014 do not leave any blank.\n'
-            + 'Map the context sources to questions: use the ENTITY PROFILE (operating/total budget, student '
-            + 'count, employees, budget trends) for Q1 and Q7; the COMPARABLE CUSTOMERS list (their ARR) for Q6; '
-            + 'the QUOTED PRODUCTS & SALES OPTIONS for Q21 and to anchor Q24 pricing; and the Gong call brief and '
-            + 'transcript and recent activity for Q4 (engagement), Q5/Q17 (competition & differentiation), Q9 '
-            + '(prior pricing/ballpark), Q13/Q19 (timing), and Q16 (decision drivers). Read the Gong transcript '
-            + 'and budget-trends narrative carefully and extract concrete figures, competitors, timelines, and '
-            + 'stakeholders rather than generalizing.\n'
+            + 'For EVERY question, search the whole evidence pack: quote (line items, modules, amounts), '
+            + 'opportunity, account, contacts, all activity, emails, calls, and Gong transcripts + briefs '
+            + '(Unknown scope included). Prefer the newest dated evidence over older notes.\n'
+            + 'Map sources: ENTITY PROFILE for Q1 and Q7; COMPARABLE CUSTOMERS for Q6 (only those matching '
+            + 'vertical + product type + annual-budget order of magnitude \u2014 always name the product and include '
+            + 'the Account URL); QUOTES / modules for Q21 and to anchor Q24; Gong + emails + activity for Q4, '
+            + 'Q5/Q17, Q9, Q13/Q19, Q16; contacts for stakeholders; existing relationships for Q3.\n'
             + 'For each question follow this order:\n'
-            + '1) If the context has direct evidence, answer from it.\n'
-            + '2) If not directly stated but reasonably inferable from the context (the entity type and size, '
-            + 'US public-sector procurement/RFP norms, the deal stage and solution, typical competitors and TCO '
-            + 'horizons for this kind of buyer), give your best inference and PREFIX it with "INFERRED: ".\n'
-            + '3) "[No data in Salesforce \u2014 AE to complete]" is almost never acceptable \u2014 for a standard '
-            + 'public-sector pricing checklist you can always reason a qualitative INFERRED answer (e.g. likely '
-            + 'entity size, typical user counts, comparable buyers, common evaluation horizon, sensible pricing/'
-            + 'term recommendation). Use it only if a question is truly impossible to infer.\n'
-            + 'Answer ALL 24 \u2014 aim for zero "[No data]" responses. Every inferred answer MUST start with '
-            + '"INFERRED: " so the AE knows to verify it. Do not fabricate specific figures, quotes, or names that '
-            + 'are not in the context; inferences should be qualitative ranges or clearly hypothetical.\n'
+            + '1) If Salesforce or Gong has direct evidence, answer from the newest of it.\n'
+            + '2) If Salesforce + Gong still do not answer, search the web and cite the source URL. Do not '
+            + 'guess silently.\n'
+            + '3) If you must reason from entity type, size, or public-sector norms (no direct or web fact), '
+            + 'PREFIX the answer with "INFERRED: ".\n'
+            + '4) "[No data in Salesforce \u2014 AE to complete]" is almost never acceptable.\n'
+            + 'Answer ALL 24. Every inferred answer MUST start with "INFERRED: ". Do not fabricate specific '
+            + 'figures, quotes, or names that are not in the evidence or a cited web source.\n'
             + 'Keep every answer to 1-2 sentences (about 35 words max) so all 24 fit.\n'
             + 'Return ONLY a JSON object whose keys are Q1 through Q24 and whose values are strings. '
             + 'No markdown, no code fences, no commentary.\n\nQUESTIONS:\n' + qs + '\nCONTEXT:\n' + ctx;
-    }
-
-    /** Assembles the deal context from opp fields, existing relationships, activity and Gong calls. */
-    private static String context(Opportunity o) {
-        String acct = (o.Account != null) ? o.Account.Name : o.Name;
-        String s = 'Opportunity: ' + o.Name + '\nAccount: ' + acct
-            + '\nLocation: ' + join(new List<String>{ safe(o.Account != null ? o.Account.BillingCity : null), safe(o.Account != null ? o.Account.BillingState : null) }, ', ')
-            + '\nOwner (AE): ' + (o.Owner != null ? o.Owner.Name : '')
-            + '\nSales Director: ' + safe(o.Sales_Director__c)
-            + '\nStage: ' + safe(o.StageName) + '\nType: ' + safe(o.Type)
-            + '\nForecast Category: ' + safe(o.ForecastCategoryName)
-            + '\nClose Date: ' + (o.CloseDate != null ? o.CloseDate.format() : '')
-            + '\nAmount: ' + (o.Amount != null ? String.valueOf(o.Amount) : '')
-            + '\nARR (USD): ' + (o.ARR_Opportunity_Amount_USD_Num__c != null ? String.valueOf(o.ARR_Opportunity_Amount_USD_Num__c) : '')
-            + '\nEuna Solution: ' + safe(o.EUNA_Solution__c) + '\nSales Segment: ' + safe(o.Sales_Segment__c)
-            + '\nLead Source: ' + safe(o.LeadSource) + '\nNext Step: ' + safe(o.NextStep)
-            + '\nDescription: ' + clip(safe(o.Description), 1500) + '\n';
-
-        // Entity profile from the Account (Q1: budget, size, student/employee counts)
-        if (o.Account != null) {
-            s += '\nEntity profile (from the Account record \u2014 authoritative for Q1):\n'
-              + '  Vertical / Sub-Vertical: ' + safe(o.Account.Industry) + ' / ' + safe(o.Account.Sub_Vertical__c) + '\n'
-              + '  Latest Operating Budget: ' + fmtCur(o.Account.AnnualRevenue) + '\n'
-              + '  Total Budget: ' + fmtCur(o.Account.Total_Budget_bf__c) + '\n'
-              + '  Operating Budget Year: ' + num(o.Account.Operating_Budget_Year__c) + '\n'
-              + '  Fiscal Year Start Month: ' + safe(o.Account.Fiscal_Year_Start_Month__c) + '\n'
-              + '  Student Count: ' + num(o.Account.Student_Count__c) + '\n'
-              + '  Population Served: ' + num(o.Account.Total_Population_bf__c) + '\n'
-              + '  Employees: ' + num(o.Account.NumberOfEmployees) + '\n'
-              + '  Current Budgeting System: ' + safe(o.Account.Current_Budgeting_system__c) + '\n'
-              + '  Recent Budget Trends: ' + clip(safe(o.Account.Recent_Budget_Trends__c), 1400) + '\n';
-        }
-
-        // Comparable Euna customers by vertical for pricing anchors (Q6)
-        if (o.Account != null && String.isNotBlank(o.Account.Industry)) {
-            s += '\nComparable Euna customers (same vertical, active contracts \u2014 pricing anchors for Q6):\n';
-            List<Contract> comps = [
-                SELECT Account.Name, Account.Student_Count__c, ARR_Rollup__c, EUNA_Solution_Name_Formula__c
-                FROM Contract
-                WHERE Status = 'Activated' AND ARR_Rollup__c > 0
-                  AND Account.Industry = :o.Account.Industry AND AccountId != :o.AccountId
-                ORDER BY ARR_Rollup__c DESC LIMIT 8
-            ];
-            if (comps.isEmpty()) s += '  (none found)\n';
-            for (Contract c : comps) {
-                s += '  - ' + safe(c.Account != null ? c.Account.Name : '') + ' | students=' + num(c.Account != null ? c.Account.Student_Count__c : null)
-                   + ' | ARR=' + fmtCur(c.ARR_Rollup__c) + ' | ' + safe(c.EUNA_Solution_Name_Formula__c) + '\n';
-            }
-        }
-
-        // Quoted products / sales options (Q21)
-        s += '\nQuoted products & sales options (from the opportunity\u2019s Quotes \u2014 authoritative for Q21):\n';
-        Set<String> seenLines = new Set<String>();
-        for (QuoteLineItem q : [
-            SELECT Product2.Name, Quantity, UnitPrice, TotalPrice
-            FROM QuoteLineItem WHERE Quote.OpportunityId = :o.Id
-            ORDER BY Quote.CreatedDate DESC, TotalPrice DESC LIMIT 40
-        ]) {
-            Decimal qty = (q.Quantity == null) ? null : Decimal.valueOf(String.valueOf(q.Quantity));
-            Decimal unit = (q.UnitPrice == null) ? null : Decimal.valueOf(String.valueOf(q.UnitPrice));
-            Decimal tot = (q.TotalPrice == null) ? null : Decimal.valueOf(String.valueOf(q.TotalPrice));
-            String line = safe(q.Product2 != null ? q.Product2.Name : '') + ' | qty=' + num(qty)
-                        + ' | unit=' + fmtCur(unit) + ' | total=' + fmtCur(tot);
-            if (seenLines.add(line)) s += '  - ' + line + '\n';
-        }
-        if (seenLines.isEmpty()) s += '  (no quote lines)\n';
-
-        // Existing Euna relationships (Q3)
-        List<String> rels = new List<String>();
-        for (Account_Solution_Relationship__c r : [
-            SELECT Euna_Solution__c, Status__c FROM Account_Solution_Relationship__c
-            WHERE Account__c = :o.AccountId AND Status__c IN ('Customer', 'Customer - Child') LIMIT 10
-        ]) { rels.add(safe(r.Euna_Solution__c) + ' (' + safe(r.Status__c) + ')'); }
-        s += '\nExisting Euna relationships: ' + (rels.isEmpty() ? 'none found' : String.join(rels, '; ')) + '\n';
-
-        // Recent activity (Q9, Q16)
-        s += '\nRecent activity:\n';
-        List<Task> tasks = [
-            SELECT Subject, Description, ActivityDate, Type, CreatedDate
-            FROM Task WHERE WhatId = :o.Id ORDER BY CreatedDate DESC LIMIT 15
-        ];
-        if (tasks.isEmpty()) s += '  (none)\n';
-        for (Task t : tasks) {
-            s += '  - ' + (t.CreatedDate != null ? t.CreatedDate.date().format() : '') + ' [' + safe(t.Type) + '] '
-               + safe(t.Subject) + ' \u2014 ' + clip(safe(t.Description), 220) + '\n';
-        }
-
-        // Gong calls incl. transcript/brief (Q4, Q9, Q17). Scope is often 'Unknown'
-        // in this org, so we include everything non-private rather than External-only.
-        s += '\nGong calls:\n';
-        List<Gong__Gong_Call__c> calls = [
-            SELECT Gong__Title__c, Gong__Call_Start__c, Gong__Call_Brief__c, Gong__Pricing_Duration__c,
-                   Gong__Talk_Time_Them__c, Gong_Transcript__c
-            FROM Gong__Gong_Call__c
-            WHERE Gong__Primary_Opportunity__c = :o.Id AND Gong__Is_Private__c = false
-              AND Gong__Scope__c != 'Internal'
-            ORDER BY Gong__Call_Start__c DESC LIMIT 3
-        ];
-        if (calls.isEmpty()) s += '  (none)\n';
-        for (Gong__Gong_Call__c c : calls) {
-            String body = '';
-            if (String.isNotBlank(c.Gong__Call_Brief__c)) body += 'Brief: ' + clip(safe(c.Gong__Call_Brief__c), 900) + '\n    ';
-            if (String.isNotBlank(c.Gong_Transcript__c)) body += 'Transcript: ' + clip(c.Gong_Transcript__c, 4200);
-            if (String.isBlank(body)) body = '(no brief or transcript synced yet)';
-            String talk = (c.Gong__Talk_Time_Them__c != null) ? ' prospect-talk-time=' + c.Gong__Talk_Time_Them__c : '';
-            s += '  - ' + (c.Gong__Call_Start__c != null ? c.Gong__Call_Start__c.date().format() : '') + ' '
-               + safe(c.Gong__Title__c) + (c.Gong__Pricing_Duration__c != null && c.Gong__Pricing_Duration__c > 0 ? ' [pricing discussed]' : '') + talk
-               + '\n    ' + body + '\n';
-        }
-        return clip(s, 34000);
     }
 
     /** Builds and attaches the branded Euna Pricing Review Checklist and persists the answers. */
