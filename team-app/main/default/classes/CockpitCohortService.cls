@@ -495,7 +495,19 @@ public with sharing class CockpitCohortService {
             'Created is new-business opportunities opened in the quarter (CreatedDate). '
             + 'Qualified is the same book after an SQL datestamp — that is the cohort the win rates use.'
         );
-        if (h != null && h.matureCreated > 0) {
+        Integer neverN = 0;
+        Integer ghostN = 0;
+        Integer createdN = 0;
+        Integer qualN = 0;
+        if (page.rows != null) {
+            for (CohortRow r : page.rows) {
+                createdN += r.created;
+                qualN += r.qualified;
+                neverN += r.neverReal;
+                ghostN += r.ghosted;
+            }
+        }
+        if (h != null && h.matureQualified > 0) {
             bits.add(
                 'On mature vintages this scope opened ' + h.matureCreated
                 + ' and qualified ' + h.matureQualified
@@ -511,12 +523,6 @@ public with sharing class CockpitCohortService {
                 + ' — ' + h.matureWon + ' wins against ' + h.matureWorked
                 + ' worked losses. Use this to judge selling ability on real contests.'
             );
-            bits.add(
-                'Never-real is ' + h.matureNeverReal
-                + ' (blank reason, not qualified, duplicate, insufficient data). Ghosted is '
-                + h.matureGhosted + '. Ghosted is not never-real and is not in the contested denominator. '
-                + 'You need both numbers.'
-            );
             if (h.distortion != null) {
                 bits.add(
                     'Distortion is contested minus won/(won+lost): '
@@ -525,10 +531,16 @@ public with sharing class CockpitCohortService {
             }
         } else {
             bits.add(
-                'No mature, thick-enough SQL vintage is in headlines yet. '
-                + 'Read the table; grey rows are still cooking.'
+                'This filter opened ' + createdN + ' and qualified ' + qualN
+                + '. No mature, thick-enough SQL vintage is in headlines yet — read the table; grey rows are still cooking.'
             );
         }
+        bits.add(
+            'Never-real in this filter is ' + neverN
+            + ' (blank reason, not qualified, duplicate, insufficient data). Ghosted is '
+            + ghostN + '. Ghosted is not never-real and is not in the contested denominator. '
+            + 'You need both numbers.'
+        );
         bits.add(
             'Immature vintages stay on the table. Headlines wait until the quarter-end is past the typical SQL→close cycle '
             + '(median ' + String.valueOf(page.p50Days) + ' days, three-quarters done by '
