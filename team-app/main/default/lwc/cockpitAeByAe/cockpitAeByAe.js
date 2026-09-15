@@ -6,14 +6,14 @@ export default class CockpitAeByAe extends LightningElement {
     error;
     payload;
     directorId;
-    teamMode = 'mine';
+    teamMode = 'my';
     productType = 'ALL';
     sizeBand = 'ALL';
 
     handleScope(e) {
         const d = e.detail || {};
         this.directorId = d.directorId;
-        this.teamMode = d.teamMode || 'mine';
+        this.teamMode = d.teamMode || 'my';
         this.productType = d.productType || 'ALL';
         this.sizeBand = d.sizeBand || 'ALL';
         this.refresh();

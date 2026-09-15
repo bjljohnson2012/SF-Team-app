@@ -31,7 +31,9 @@ private class CockpitRosterServiceTest {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User lone = mk(p.Id, null, 'Director');
         insert lone;
-        System.assert(CockpitRosterService.teamIds(lone.Id).isEmpty(), 'no reports -> empty');
+        Set<Id> ids = CockpitRosterService.teamIds(lone.Id);
+        System.assertEquals(1, ids.size(), 'director with no AE reports is still a valid self scope');
+        System.assert(ids.contains(lone.Id), 'self is the only member');
     }
 
     @isTest
@@ -40,9 +42,8 @@ private class CockpitRosterServiceTest {
         User ae = mk(p.Id, null, 'Account Executive');
         insert ae;
         System.runAs(ae) {
-            CockpitRosterService.Scope s = CockpitRosterService.resolve(null, 'mine');
-            System.assertEquals(true, s.selfScoped, 'AE without reports is a valid viewer of their row');
-            System.assertEquals(1, s.members.size(), 'self row only');
+            CockpitRosterService.ScopeResult s = CockpitRosterService.resolveScope(null, CockpitConstants.TEAM_MODE_MY);
+            System.assertEquals(1, s.members.size(), 'AE without reports is a valid viewer of their row');
             System.assertEquals(ae.Id, s.members[0].userId, 'running AE');
         }
     }

@@ -88,7 +88,7 @@ public with sharing class CockpitAeCompositionService {
 
     public static Payload compute(ScopeRequest req) {
         Date today = Date.today();
-        CockpitRosterService.Scope scope = CockpitRosterService.resolve(
+        CockpitRosterService.ScopeResult scope = CockpitRosterService.resolveScope(
             req == null ? null : req.directorId,
             req == null ? null : req.teamMode);
         String productType = (req == null || String.isBlank(req.productType))
@@ -98,17 +98,19 @@ public with sharing class CockpitAeCompositionService {
 
         Payload empty = new Payload();
         empty.directorName = scope.directorName;
-        empty.selfScoped = scope.selfScoped;
+        empty.selfScoped = isSelf(scope);
         empty.weightHighPct = CockpitConstants.WEIGHT_HIGH_PCT;
         empty.weightMedPct = CockpitConstants.WEIGHT_MED_PCT;
         empty.rows = new List<AeRow>();
         empty.scopeCaption = caption(scope.directorName, productType, sizeBand);
         stampQuarterLabels(empty, today);
 
-        Set<Id> owners = scope.ids();
+        Set<Id> owners = scope.ownerIds();
         if (owners.isEmpty()) {
-            empty.emptyReason = 'This scope has no account executives. '
-                + 'If you are an AE you should see your own row — try My team.';
+            empty.emptyReason = String.isBlank(scope.emptyMessage)
+                ? 'This scope has no account executives. '
+                    + 'If you are an AE you should see your own row — try My team.'
+                : scope.emptyMessage;
             return empty;
         }
 
@@ -138,7 +140,7 @@ public with sharing class CockpitAeCompositionService {
 
     @TestVisible
     static Payload computeFrom(
-        CockpitRosterService.Scope scope,
+        CockpitRosterService.ScopeResult scope,
         List<Opportunity> opps,
         Map<Id, Booked> booked,
         Date today,
@@ -151,7 +153,7 @@ public with sharing class CockpitAeCompositionService {
     ) {
         Payload p = new Payload();
         p.directorName = scope.directorName;
-        p.selfScoped = scope.selfScoped == true;
+        p.selfScoped = isSelf(scope);
         p.weightHighPct = CockpitConstants.WEIGHT_HIGH_PCT;
         p.weightMedPct = CockpitConstants.WEIGHT_MED_PCT;
         p.rows = new List<AeRow>();
@@ -498,6 +500,13 @@ public with sharing class CockpitAeCompositionService {
         if (sizeBand == CockpitConstants.SIZE_50_150K) return '$50–150k';
         if (sizeBand == CockpitConstants.SIZE_OVER_150K) return '$150k+';
         return 'All sizes';
+    }
+
+    private static Boolean isSelf(CockpitRosterService.ScopeResult scope) {
+        return scope != null
+            && scope.members != null
+            && scope.members.size() == 1
+            && scope.members[0].userId == scope.directorId;
     }
 
     private static String openFieldList() {

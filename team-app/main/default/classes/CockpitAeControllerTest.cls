@@ -27,12 +27,12 @@ private class CockpitAeControllerTest {
 
         System.runAs(ae) {
             Test.startTest();
-            CockpitRosterService.Scope scoped = CockpitRosterService.resolve(null, CockpitConstants.TEAM_MODE_MINE);
+            CockpitRosterService.ScopeResult scoped = CockpitRosterService.resolveScope(null, CockpitConstants.TEAM_MODE_MY);
             CockpitAeCompositionService.Payload pay;
             try {
                 CockpitAeCompositionService.ScopeRequest req =
                     new CockpitAeCompositionService.ScopeRequest();
-                req.teamMode = CockpitConstants.TEAM_MODE_MINE;
+                req.teamMode = CockpitConstants.TEAM_MODE_MY;
                 req.productType = CockpitConstants.PRODUCT_ALL;
                 req.sizeBand = CockpitConstants.SIZE_ALL;
                 pay = CockpitAeCompositionService.compute(req);
@@ -40,12 +40,13 @@ private class CockpitAeControllerTest {
                 System.assert(false, e.getTypeName() + ': ' + e.getMessage() + ' @ ' + e.getStackTraceString());
             }
             Test.stopTest();
-            System.assertEquals(true, scoped.selfScoped, 'self-scope is explicit, not a director-only error');
+            System.assertEquals(1, scoped.members.size(), 'self-scope is explicit, not a director-only error');
+            System.assertEquals(ae.Id, scoped.members[0].userId, 'running AE is the only member');
             System.assertEquals(1, pay.rows.size(), 'an AE with no reports still sees their own row');
             System.assertEquals(ae.Id, pay.rows[0].ownerId, 'the row is the running AE');
 
             CockpitAeCompositionService.Payload viaCtrl = CockpitAeController.loadComposition(
-                null, CockpitConstants.TEAM_MODE_MINE,
+                null, CockpitConstants.TEAM_MODE_MY,
                 CockpitConstants.PRODUCT_ALL, CockpitConstants.SIZE_ALL);
             System.assertEquals(1, viaCtrl.rows.size(), 'controller path returns the same self row');
             System.assertEquals(ae.Id, viaCtrl.rows[0].ownerId, 'controller row is the running AE');
@@ -61,14 +62,14 @@ private class CockpitAeControllerTest {
         insert ae;
 
         Test.startTest();
-        CockpitRosterService.Scope mine;
+        CockpitRosterService.ScopeResult mine;
         System.runAs(dir) {
-            mine = CockpitRosterService.resolve(null, CockpitConstants.TEAM_MODE_MINE);
+            mine = CockpitRosterService.resolveScope(null, CockpitConstants.TEAM_MODE_MY);
         }
         List<CockpitRosterService.Member> directors = CockpitRosterService.listDirectors();
         Test.stopTest();
 
-        System.assert(mine.ids().contains(ae.Id), 'default scope is the running director\'s team');
+        System.assert(mine.ownerIds().contains(ae.Id), 'default scope is the running director\'s team');
         Boolean listed = false;
         for (CockpitRosterService.Member m : directors) {
             if (m.userId == dir.Id) listed = true;

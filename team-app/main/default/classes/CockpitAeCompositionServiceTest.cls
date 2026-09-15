@@ -25,11 +25,11 @@ private class CockpitAeCompositionServiceTest {
         return (Id) ('005000000000' + String.valueOf(100 + n).right(3));
     }
 
-    static CockpitRosterService.Scope oneAe(Id userId, String name) {
-        CockpitRosterService.Scope s = new CockpitRosterService.Scope();
+    static CockpitRosterService.ScopeResult oneAe(Id userId, String name) {
+        CockpitRosterService.ScopeResult s = new CockpitRosterService.ScopeResult();
         s.directorId = userId;
         s.directorName = name;
-        s.selfScoped = false;
+        s.teamMode = CockpitConstants.TEAM_MODE_MY;
         s.members = new List<CockpitRosterService.Member>{
             new CockpitRosterService.Member(userId, name)
         };
@@ -37,7 +37,7 @@ private class CockpitAeCompositionServiceTest {
     }
 
     static CockpitAeCompositionService.Payload run(
-        CockpitRosterService.Scope scope,
+        CockpitRosterService.ScopeResult scope,
         List<Opportunity> opps,
         Map<Id, CockpitAeCompositionService.Booked> booked
     ) {

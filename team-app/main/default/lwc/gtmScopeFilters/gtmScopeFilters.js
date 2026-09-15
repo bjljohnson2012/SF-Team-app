@@ -1,138 +1,115 @@
-import { LightningElement, api, wire } from 'lwc';
-import getScopeOptions from '@salesforce/apex/CockpitAeController.getScopeOptions';
+import { LightningElement } from 'lwc';
+import getFilterOptions from '@salesforce/apex/CockpitWinRateController.getFilterOptions';
 
-const STORE_KEY = 'gtmScopeFilters';
-const TEAM_MINE = 'mine';
-const TEAM_DIRECTOR = 'director';
+const STORE = 'gtmScopeFilters';
 
 export default class GtmScopeFilters extends LightningElement {
-    @api directorId;
-    @api teamMode = TEAM_MINE;
-    @api productType = 'ALL';
-    @api sizeBand = 'ALL';
-
-    runningUserId;
-    runningUserName;
-    directorOptions = [];
-    productOptions = [{ label: 'All products', value: 'ALL' }];
-    sizeOptions = [
-        { label: 'All sizes', value: 'ALL' },
-        { label: 'Under $50k', value: 'UNDER_50K' },
-        { label: '$50–150k', value: 'BAND_50_150K' },
-        { label: '$150k+', value: 'OVER_150K' }
-    ];
-    directorName = '';
+    directorId = '';
+    teamMode = 'my';
+    productType = 'ALL';
+    sizeBand = 'ALL';
+    directors = [];
+    productTypes = [];
+    sizeBands = [];
+    defaultDirectorName = '';
     ready = false;
+    error;
 
-    @wire(getScopeOptions)
-    wiredOptions({ data, error }) {
-        if (data) {
-            this.runningUserId = data.runningUserId;
-            this.runningUserName = data.runningUserName;
-            this.directorOptions = [
-                { label: 'My team', value: TEAM_MINE }
-            ].concat((data.directors || []).map((d) => ({ label: d.name, value: d.userId })));
-            this.productOptions = [{ label: 'All products', value: 'ALL' }].concat(
-                (data.productTypes || []).map((v) => ({ label: v, value: v }))
-            );
-            this.restore();
-            this.ready = true;
-            this.emit(false);
-        } else if (error) {
-            this.ready = true;
-        }
+    connectedCallback() {
+        const saved = this.readStore();
+        getFilterOptions()
+            .then((o) => {
+                this.directors = this.withKeys(o.directors || []);
+                this.productTypes = this.withKeys(o.productTypes || []);
+                this.sizeBands = this.withKeys(o.sizeBands || []);
+                this.defaultDirectorName = o.defaultDirectorName;
+                if (saved) {
+                    this.directorId = saved.directorId || '';
+                    this.teamMode = saved.teamMode || 'my';
+                    this.productType = saved.productType || 'ALL';
+                    this.sizeBand = saved.sizeBand || 'ALL';
+                }
+                this.ready = true;
+                this.emit();
+            })
+            .catch((e) => {
+                this.error = (e && e.body && e.body.message) || e.message || 'Could not load filters.';
+            });
     }
 
-    get teamValue() {
-        return this.teamMode === TEAM_DIRECTOR && this.directorId ? this.directorId : TEAM_MINE;
+    get scopeCaption() {
+        const dir = this.teamMode === 'my' || !this.directorId
+            ? (this.defaultDirectorName || 'My team')
+            : this.directorLabel(this.directorId);
+        return `Team of ${dir} · ${this.productLabel(this.productType)} · ${this.sizeLabel(this.sizeBand)}`;
     }
 
-    get caption() {
-        const who = this.teamMode === TEAM_DIRECTOR && this.directorName
-            ? this.directorName
-            : (this.runningUserName || 'your team');
-        const product = this.productType && this.productType !== 'ALL' ? this.productType : 'All products';
-        const size = this.sizeLabel(this.sizeBand);
-        return 'Team of ' + who + ' · ' + product + ' · ' + size;
-    }
-
-    handleTeam(e) {
-        const v = e.detail.value;
-        if (v === TEAM_MINE) {
-            this.teamMode = TEAM_MINE;
-            this.directorId = this.runningUserId;
-            this.directorName = this.runningUserName;
-        } else {
-            this.teamMode = TEAM_DIRECTOR;
-            this.directorId = v;
-            const hit = this.directorOptions.find((o) => o.value === v);
-            this.directorName = hit ? hit.label : '';
-        }
+    handleDirector(e) {
+        this.directorId = e.target.value;
+        this.teamMode = this.directorId ? 'director' : 'my';
         this.persistAndEmit();
     }
-
     handleProduct(e) {
-        this.productType = e.detail.value;
+        this.productType = e.target.value;
         this.persistAndEmit();
     }
-
     handleSize(e) {
-        this.sizeBand = e.detail.value;
+        this.sizeBand = e.target.value;
         this.persistAndEmit();
     }
 
     persistAndEmit() {
-        this.persist();
-        this.emit(true);
+        this.writeStore();
+        this.emit();
     }
 
-    emit(userChanged) {
+    emit() {
         const detail = {
-            directorId: this.teamMode === TEAM_DIRECTOR ? this.directorId : this.runningUserId,
-            teamMode: this.teamMode || TEAM_MINE,
-            productType: this.productType || 'ALL',
-            sizeBand: this.sizeBand || 'ALL',
-            userChanged
+            directorId: this.directorId || null,
+            teamMode: this.teamMode,
+            productType: this.productType,
+            sizeBand: this.sizeBand
         };
         this.dispatchEvent(new CustomEvent('scopechange', { detail }));
     }
 
-    persist() {
+    withKeys(rows) {
+        return (rows || []).map((r) => ({
+            value: r.value,
+            label: r.label,
+            key: r.value ? r.value : 'my'
+        }));
+    }
+
+    directorLabel(id) {
+        const hit = (this.directors || []).find((d) => d.value === id);
+        return hit ? hit.label : 'Selected director';
+    }
+    productLabel(v) {
+        const hit = (this.productTypes || []).find((d) => d.value === v);
+        return hit ? hit.label : 'All products';
+    }
+    sizeLabel(v) {
+        const hit = (this.sizeBands || []).find((d) => d.value === v);
+        return hit ? hit.label : 'All sizes';
+    }
+
+    readStore() {
         try {
-            sessionStorage.setItem(STORE_KEY, JSON.stringify({
+            const raw = sessionStorage.getItem(STORE);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+    writeStore() {
+        try {
+            sessionStorage.setItem(STORE, JSON.stringify({
                 directorId: this.directorId,
                 teamMode: this.teamMode,
                 productType: this.productType,
-                sizeBand: this.sizeBand,
-                directorName: this.directorName
+                sizeBand: this.sizeBand
             }));
-        } catch (e) { /* session storage may be blocked */ }
-    }
-
-    restore() {
-        try {
-            const raw = sessionStorage.getItem(STORE_KEY);
-            if (!raw) {
-                this.teamMode = TEAM_MINE;
-                this.directorId = this.runningUserId;
-                this.directorName = this.runningUserName;
-                return;
-            }
-            const saved = JSON.parse(raw);
-            this.teamMode = saved.teamMode || TEAM_MINE;
-            this.directorId = saved.directorId || this.runningUserId;
-            this.productType = saved.productType || 'ALL';
-            this.sizeBand = saved.sizeBand || 'ALL';
-            this.directorName = saved.directorName || this.runningUserName;
-        } catch (e) {
-            this.teamMode = TEAM_MINE;
-            this.directorId = this.runningUserId;
-            this.directorName = this.runningUserName;
-        }
-    }
-
-    sizeLabel(band) {
-        const hit = this.sizeOptions.find((o) => o.value === band);
-        return hit ? hit.label : 'All sizes';
+        } catch (e) { /* private mode */ }
     }
 }

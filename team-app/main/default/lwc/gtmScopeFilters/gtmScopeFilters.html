@@ -1,41 +1,30 @@
 <template>
     <div class="bar">
-        <div class="field">
+        <div class="f">
             <label>Team / Director</label>
-            <lightning-combobox
-                name="director"
-                label="Team / Director"
-                value={teamValue}
-                options={directorOptions}
-                onchange={handleTeam}
-                variant="label-hidden"
-                dropdown-alignment="left">
-            </lightning-combobox>
+            <select value={directorId} onchange={handleDirector} disabled={error}>
+                <template for:each={directors} for:item="d">
+                    <option key={d.key} value={d.value}>{d.label}</option>
+                </template>
+            </select>
         </div>
-        <div class="field">
+        <div class="f">
             <label>Product type</label>
-            <lightning-combobox
-                name="product"
-                label="Product type"
-                value={productType}
-                options={productOptions}
-                onchange={handleProduct}
-                variant="label-hidden"
-                dropdown-alignment="left">
-            </lightning-combobox>
+            <select value={productType} onchange={handleProduct} disabled={error}>
+                <template for:each={productTypes} for:item="d">
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                </template>
+            </select>
         </div>
-        <div class="field">
-            <label>Size</label>
-            <lightning-combobox
-                name="size"
-                label="Size"
-                value={sizeBand}
-                options={sizeOptions}
-                onchange={handleSize}
-                variant="label-hidden"
-                dropdown-alignment="left">
-            </lightning-combobox>
+        <div class="f">
+            <label>ARR size</label>
+            <select value={sizeBand} onchange={handleSize} disabled={error}>
+                <template for:each={sizeBands} for:item="d">
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                </template>
+            </select>
         </div>
-        <p class="caption">{caption}</p>
+        <p class="cap" lwc:if={ready}>{scopeCaption}</p>
+        <p class="err" lwc:if={error}>{error}</p>
     </div>
 </template>
