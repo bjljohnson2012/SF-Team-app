@@ -4,7 +4,7 @@ Living reference for the in-platform GTM/Sales tooling built on the `euna` **pro
 (`00D1I000001VBDGUA4`, user `benjamin.johnson@eunasolutions.com`). Read this first to pick up
 where the last session left off.
 
-Last updated: 2026-09-15.
+Last updated: 2026-09-15 (retrieval deploy).
 
 ---
 
@@ -79,6 +79,7 @@ All recorded in `docs/EXCEPTIONS.md` on branch `cursor/record-deploy-exception-9
 
 | Date | What | Quick-deploy job |
 |---|---|---|
+| 2026-09-15 | Pricing Review newest-first retrieval + matched comparables + web-search fallback (owner-authorized after carve-out expiry; validate `0AfOL000003T0an0AC` → quick) | `0AfOL000003T0fd0AC` |
 | 2026-09-14 | Real `.docx` output + reference-intelligence context (Account budget, comparables, quotes) | `0AfOL000003SWEX0A4` |
 | 2026-09-14 | Fill all 24 with INFERRED marking + truncation-recovery | `0AfOL000003SU7t0AG` |
 | 2026-09-14 | Include Unknown-scope Gong calls (fix over-frequent "No data") | `0AfOL000003ST6z0AG` |
