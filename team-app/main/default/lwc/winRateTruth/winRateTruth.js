@@ -10,6 +10,7 @@ export default class WinRateTruth extends LightningElement {
     productType = 'ALL';
     sizeBand = 'ALL';
     loadedOnce = false;
+    showMeaning = false;
 
     handleScope(e) {
         const d = e.detail || {};
@@ -17,7 +18,12 @@ export default class WinRateTruth extends LightningElement {
         this.teamMode = d.teamMode || 'my';
         this.productType = d.productType || 'ALL';
         this.sizeBand = d.sizeBand || 'ALL';
+        this.showMeaning = false;
         this.refresh();
+    }
+
+    toggleMeaning() {
+        this.showMeaning = !this.showMeaning;
     }
 
     refresh() {
@@ -44,12 +50,17 @@ export default class WinRateTruth extends LightningElement {
     get captions() { return (this.page && this.page.captions) || []; }
     get ghostedConvention() { return this.page && this.page.ghostedConvention; }
     get scopeCaption() { return this.page && this.page.scopeCaption; }
+    get meaning() { return this.page && this.page.meaning; }
     get snapshotAsOf() {
         return this.page && this.page.snapshotAsOf
             ? `Latest nightly snapshot for this director: ${this.page.snapshotAsOf}`
             : 'No nightly snapshot yet for this director (live compute).';
     }
-    get p75() { return this.page && this.page.p75Days != null ? this.page.p75Days : '—'; }
+    get cycleCaption() {
+        const p50 = this.page && this.page.p50Days != null ? this.page.p50Days : '—';
+        const p75 = this.page && this.page.p75Days != null ? this.page.p75Days : '—';
+        return `SQL→close cycle on resolved deals: median ${p50} days, three-quarters done by ${p75} days. Immature vintages stay listed; headlines wait until quarter-end is past that cycle and skip samples under 15 qualified deals.`;
+    }
     get purgeSilent() { return this.page ? this.page.purgeSilentCount : 0; }
     get purgeDump() { return this.page ? this.page.purgeDumpCount : 0; }
     get unmapped() { return (this.page && this.page.unmappedReasons) || []; }
@@ -59,10 +70,10 @@ export default class WinRateTruth extends LightningElement {
         const h = this.page && this.page.headlines;
         if (!h) return [];
         return [
-            { key: 'cwr', lab: 'Contested win rate', val: this.pct(h.contestedWR), note: 'Selling ability on real contests', cls: 'card hero' },
-            { key: 'qy', lab: 'Qualification yield', val: this.pct(h.qualYield), note: 'Entry gate, not selling ability', cls: 'card' },
-            { key: 'cb', lab: 'Closure-based (reports)', val: this.pct(h.closureBased), note: 'Do not use this to judge the team', cls: 'card' },
-            { key: 'di', lab: 'Distortion', val: this.pp(h.distortion), note: 'Contested minus closure-based', cls: 'card warn' }
+            { key: 'cb', lab: 'Won / (won + lost)', val: this.pct(h.closureBased), note: 'What reports quote — close-date, not conversion', cls: 'card' },
+            { key: 'cwr', lab: 'Contested win rate', val: this.pct(h.contestedWR), note: 'Won / (won + worked) — selling ability', cls: 'card hero' },
+            { key: 'qy', lab: 'Qualified / created', val: this.pct(h.qualYield), note: 'Opened this quarter that reached SQL', cls: 'card' },
+            { key: 'di', lab: 'Distortion', val: this.pp(h.distortion), note: 'Contested minus won/(won+lost)', cls: 'card warn' }
         ];
     }
 
@@ -71,14 +82,14 @@ export default class WinRateTruth extends LightningElement {
             key: r.cohortKey,
             label: r.label,
             created: r.created,
+            qualified: r.qualified,
             won: r.won,
             worked: r.worked,
             neverReal: r.neverReal,
+            ghosted: r.ghosted,
             stillOpen: r.stillOpen,
-            cohortConversion: this.pct(r.cohortConversion),
-            resolvedWR: this.pct(r.resolvedWR),
-            contestedWR: this.pct(r.contestedWR),
             qualYield: this.pct(r.qualYield),
+            contestedWR: this.pct(r.contestedWR),
             closureBased: this.pct(r.closureBased),
             distortion: this.pp(r.distortion),
             rowClass: this.rowClass(r),

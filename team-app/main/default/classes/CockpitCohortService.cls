@@ -1,7 +1,6 @@
 /**
- * SQL-cohort win rates and purge detectors for Win Rate Truth. Cohorts on
- * SQL_Datestamp_bf__c, never CreatedDate. Ghosted follows Euna canon unless
- * winrate.exclude.ghosted says otherwise.
+ * Win Rate Truth: created vs qualified, then won / worked / never-real /
+ * ghosted. Win-rate math is SQL-cohort. Ghosted is its own bucket.
  */
 public with sharing class CockpitCohortService {
 
@@ -18,9 +17,11 @@ public with sharing class CockpitCohortService {
         @AuraEnabled public Date cohortStart;
         @AuraEnabled public Date cohortEnd;
         @AuraEnabled public Integer created = 0;
+        @AuraEnabled public Integer qualified = 0;
         @AuraEnabled public Integer won = 0;
         @AuraEnabled public Integer worked = 0;
         @AuraEnabled public Integer neverReal = 0;
+        @AuraEnabled public Integer ghosted = 0;
         @AuraEnabled public Integer stillOpen = 0;
         @AuraEnabled public Integer closureWon = 0;
         @AuraEnabled public Integer closureLost = 0;
@@ -43,8 +44,13 @@ public with sharing class CockpitCohortService {
         @AuraEnabled public Decimal closureBased;
         @AuraEnabled public Decimal distortion;
         @AuraEnabled public Integer matureCreated = 0;
+        @AuraEnabled public Integer matureQualified = 0;
         @AuraEnabled public Integer matureWon = 0;
         @AuraEnabled public Integer matureWorked = 0;
+        @AuraEnabled public Integer matureNeverReal = 0;
+        @AuraEnabled public Integer matureGhosted = 0;
+        @AuraEnabled public Integer matureClosureWon = 0;
+        @AuraEnabled public Integer matureClosureLost = 0;
     }
 
     public class UnmappedReason {
@@ -61,7 +67,9 @@ public with sharing class CockpitCohortService {
         @AuraEnabled public String emptyMessage;
         @AuraEnabled public String directorName;
         @AuraEnabled public Date snapshotAsOf;
+        @AuraEnabled public Integer p50Days;
         @AuraEnabled public Integer p75Days;
+        @AuraEnabled public String meaning;
         @AuraEnabled public Integer purgeSilentCount = 0;
         @AuraEnabled public Integer purgeDumpCount = 0;
         @AuraEnabled public List<UnmappedReason> unmappedReasons;
@@ -134,7 +142,7 @@ public with sharing class CockpitCohortService {
         WinRatePage page = new WinRatePage();
         page.directorName = scope.directorName;
         page.scopeCaption = 'Team of ' + scope.directorName
-            + ' · ' + productLabel(productType)
+            + ' · ' + CockpitConstants.productGroupLabel(productType)
             + ' · ' + sizeLabel(sizeBand);
         page.emptyMessage = scope.emptyMessage;
         page.rows = new List<CohortRow>();
@@ -142,16 +150,17 @@ public with sharing class CockpitCohortService {
         page.captions = new List<String>();
         page.headlines = new Headline();
         Settings cfg = settings();
-        page.excludeGhosted = cfg.excludeGhosted;
-        page.ghostedConvention = cfg.excludeGhosted
-            ? 'Euna canon: Ghosted is never-real and excluded from contested win rate (winrate.exclude.ghosted).'
-            : 'Ghosted is kept in the contested denominator (winrate.exclude.ghosted is off).';
+        page.excludeGhosted = true;
+        page.ghostedConvention =
+            'Ghosted is its own bucket — not never-real, and not in contested win rate. '
+            + 'Never-real is blank reason, not qualified, duplicate, or insufficient data. '
+            + 'Both counts are on the page.';
 
         Set<Id> owners = scope.ownerIds();
         if (owners.isEmpty()) return page;
 
-        Date sqlFloor = Date.newInstance(2023, 1, 1);
-        List<Opportunity> opps = queryCohort(owners, sqlFloor, productType);
+        Date floor = Date.newInstance(2023, 1, 1);
+        List<Opportunity> opps = queryCohort(owners, floor, productType);
         opps = applySize(opps, sizeBand, cfg);
 
         Map<String, Integer> unmapped = new Map<String, Integer>();
@@ -191,43 +200,46 @@ public with sharing class CockpitCohortService {
             }
         }
 
-        Integer p75 = percentile75(cycles);
+        Integer p50 = percentileAt(cycles, 0.50);
+        Integer p75 = percentileAt(cycles, 0.75);
+        page.p50Days = p50;
         page.p75Days = p75;
         Date today = Date.today();
 
         Map<String, CohortRow> byKey = new Map<String, CohortRow>();
         for (Opportunity o : opps) {
-            Date sql = o.SQL_Datestamp_bf__c;
-            String key = cohortKeyOf(sql);
-            CohortRow row = byKey.get(key);
-            if (row == null) {
-                row = newRow(sql);
-                byKey.put(key, row);
-            }
             Decimal arr = o.ARR_Opportunity_Amount_USD_Num__c == null
                 ? 0 : o.ARR_Opportunity_Amount_USD_Num__c;
-            row.created++;
-            row.arrCreated += arr;
 
-            String bucket = classify(o, cfg, unmapped);
-            if (bucket == 'OPEN') {
-                row.stillOpen++;
-            } else if (bucket == 'WON') {
-                row.won++;
-                row.arrWon += arr;
-            } else if (bucket == 'NEVER') {
-                row.neverReal++;
-            } else {
-                row.worked++;
+            if (o.CreatedDate != null) {
+                Date createdOn = o.CreatedDate.date();
+                if (createdOn >= floor) {
+                    CohortRow opened = rowFor(byKey, createdOn);
+                    opened.created++;
+                }
+            }
+
+            if (o.SQL_Datestamp_bf__c != null && o.SQL_Datestamp_bf__c >= floor) {
+                CohortRow row = rowFor(byKey, o.SQL_Datestamp_bf__c);
+                row.qualified++;
+                row.arrCreated += arr;
+                String bucket = classify(o, cfg, unmapped);
+                if (bucket == 'OPEN') {
+                    row.stillOpen++;
+                } else if (bucket == 'WON') {
+                    row.won++;
+                    row.arrWon += arr;
+                } else if (bucket == 'NEVER') {
+                    row.neverReal++;
+                } else if (bucket == 'GHOSTED') {
+                    row.ghosted++;
+                } else {
+                    row.worked++;
+                }
             }
 
             if (o.IsClosed && o.CloseDate != null) {
-                String closeKey = cohortKeyOf(o.CloseDate);
-                CohortRow closeRow = byKey.get(closeKey);
-                if (closeRow == null) {
-                    closeRow = newRow(o.CloseDate);
-                    byKey.put(closeKey, closeRow);
-                }
+                CohortRow closeRow = rowFor(byKey, o.CloseDate);
                 if (o.IsWon) closeRow.closureWon++;
                 else closeRow.closureLost++;
             }
@@ -239,24 +251,33 @@ public with sharing class CockpitCohortService {
         for (Integer i = keys.size() - 1; i >= 0; i--) {
             CohortRow row = byKey.get(keys[i]);
             finishRow(row, p75, today, cfg);
-            if (row.created == 0 && row.closureWon == 0 && row.closureLost == 0) continue;
-            row.headline = row.mature && !row.thinSample && row.created > 0;
+            if (row.created == 0 && row.qualified == 0
+                    && row.closureWon == 0 && row.closureLost == 0) continue;
+            row.headline = row.mature && !row.thinSample && row.qualified > 0;
             page.rows.add(row);
         }
-        Integer hc = 0, hw = 0, hwk = 0, hcw = 0, hcl = 0;
+        Integer hc = 0, hq = 0, hw = 0, hwk = 0, hn = 0, hg = 0, hcw = 0, hcl = 0;
         for (CohortRow row : page.rows) {
-            if (!row.mature || row.thinSample || row.created == 0) continue;
+            if (!row.mature || row.thinSample || row.qualified == 0) continue;
             hc += row.created;
+            hq += row.qualified;
             hw += row.won;
             hwk += row.worked;
+            hn += row.neverReal;
+            hg += row.ghosted;
             hcw += row.closureWon;
             hcl += row.closureLost;
         }
         h.matureCreated = hc;
+        h.matureQualified = hq;
         h.matureWon = hw;
         h.matureWorked = hwk;
+        h.matureNeverReal = hn;
+        h.matureGhosted = hg;
+        h.matureClosureWon = hcw;
+        h.matureClosureLost = hcl;
         h.contestedWR = rate(hw, hw + hwk);
-        h.qualYield = rate(hw + hwk, hc);
+        h.qualYield = rate(hq, hc);
         h.closureBased = rate(hcw, hcw + hcl);
         h.distortion = (h.contestedWR == null || h.closureBased == null)
             ? null : h.contestedWR - h.closureBased;
@@ -280,6 +301,7 @@ public with sharing class CockpitCohortService {
             page.captions.add('Pre-2024 SQL datestamps are noisy; those vintages stay visible but are not headlines.');
         }
         page.snapshotAsOf = latestSnapshotDate(scope.directorId);
+        page.meaning = meaningOf(page);
         return page;
     }
 
@@ -288,7 +310,8 @@ public with sharing class CockpitCohortService {
         if (page == null || page.rows == null) return rows;
         Settings cfg = settings();
         for (CohortRow r : page.rows) {
-            if (r.created == 0 && r.closureWon == 0 && r.closureLost == 0) continue;
+            if (r.created == 0 && r.qualified == 0
+                    && r.closureWon == 0 && r.closureLost == 0) continue;
             Cockpit_Cohort_Snapshot__c s = new Cockpit_Cohort_Snapshot__c();
             s.External_Id__c = String.valueOf(directorId) + '_' + r.cohortKey + '_' + String.valueOf(asOf);
             s.Snapshot_Date__c = asOf;
@@ -297,9 +320,11 @@ public with sharing class CockpitCohortService {
             s.Cohort_Start__c = r.cohortStart;
             s.Cohort_End__c = r.cohortEnd;
             s.Created_Count__c = r.created;
+            s.Qualified_Count__c = r.qualified;
             s.Won_Count__c = r.won;
             s.Worked_Loss_Count__c = r.worked;
             s.Never_Real_Count__c = r.neverReal;
+            s.Ghosted_Count__c = r.ghosted;
             s.Still_Open_Count__c = r.stillOpen;
             s.Closure_Won_Count__c = r.closureWon;
             s.Closure_Lost_Count__c = r.closureLost;
@@ -342,25 +367,11 @@ public with sharing class CockpitCohortService {
         return o.LastActivityDate.daysBetween(o.CloseDate) > cfg.purgeSilentDays;
     }
 
-    private static List<Opportunity> queryCohort(Set<Id> owners, Date sqlFloor, String productType) {
-        if (productType != CockpitConstants.PRODUCT_ALL) {
-            return [
-                SELECT Id, OwnerId, SQL_Datestamp_bf__c, CloseDate, LastActivityDate,
-                       IsClosed, IsWon, Lost_Reason__c, ARR_Opportunity_Amount_USD_Num__c,
-                       EUNA_Solution__c, StageName, Type
-                FROM Opportunity
-                WHERE OwnerId IN :owners
-                  AND RecordType.DeveloperName = :CockpitConstants.SALE_RECORDTYPE
-                  AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
-                  AND StageName NOT IN :CockpitConstants.MIGRATION_STAGES
-                  AND SQL_Datestamp_bf__c != null
-                  AND SQL_Datestamp_bf__c >= :sqlFloor
-                  AND EUNA_Solution__c = :productType
-                WITH USER_MODE
-            ];
-        }
+    private static List<Opportunity> queryCohort(Set<Id> owners, Date floor, String productType) {
+        Set<String> solutions = CockpitConstants.solutionsInProductFilter(productType);
+        Datetime createdFloor = Datetime.newInstance(floor, Time.newInstance(0, 0, 0, 0));
         return [
-            SELECT Id, OwnerId, SQL_Datestamp_bf__c, CloseDate, LastActivityDate,
+            SELECT Id, OwnerId, CreatedDate, SQL_Datestamp_bf__c, CloseDate, LastActivityDate,
                    IsClosed, IsWon, Lost_Reason__c, ARR_Opportunity_Amount_USD_Num__c,
                    EUNA_Solution__c, StageName, Type
             FROM Opportunity
@@ -368,8 +379,8 @@ public with sharing class CockpitCohortService {
               AND RecordType.DeveloperName = :CockpitConstants.SALE_RECORDTYPE
               AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
               AND StageName NOT IN :CockpitConstants.MIGRATION_STAGES
-              AND SQL_Datestamp_bf__c != null
-              AND SQL_Datestamp_bf__c >= :sqlFloor
+              AND EUNA_Solution__c IN :solutions
+              AND (CreatedDate >= :createdFloor OR SQL_Datestamp_bf__c >= :floor)
             WITH USER_MODE
         ];
     }
@@ -391,6 +402,7 @@ public with sharing class CockpitCohortService {
     private static String classify(Opportunity o, Settings cfg, Map<String, Integer> unmapped) {
         if (!o.IsClosed) return 'OPEN';
         if (o.IsWon) return 'WON';
+        if (o.Lost_Reason__c == 'Ghosted') return 'GHOSTED';
         if (String.isBlank(o.Lost_Reason__c)) return 'NEVER';
         LossMap m = lossOf(o.Lost_Reason__c);
         if (!m.mapped) {
@@ -398,7 +410,6 @@ public with sharing class CockpitCohortService {
             unmapped.put(o.Lost_Reason__c, n + 1);
             return 'WORKED';
         }
-        if (o.Lost_Reason__c == 'Ghosted' && !cfg.excludeGhosted) return 'WORKED';
         return m.classification == 'Never_Real' ? 'NEVER' : 'WORKED';
     }
 
@@ -429,6 +440,16 @@ public with sharing class CockpitCohortService {
         return cachedLoss;
     }
 
+    private static CohortRow rowFor(Map<String, CohortRow> byKey, Date d) {
+        String key = cohortKeyOf(d);
+        CohortRow row = byKey.get(key);
+        if (row == null) {
+            row = newRow(d);
+            byKey.put(key, row);
+        }
+        return row;
+    }
+
     private static CohortRow newRow(Date d) {
         CohortRow r = new CohortRow();
         Integer y = d.year();
@@ -441,27 +462,90 @@ public with sharing class CockpitCohortService {
     }
 
     private static void finishRow(CohortRow r, Integer p75, Date today, Settings cfg) {
-        Integer resolved = r.won + r.worked + r.neverReal;
+        Integer resolved = r.won + r.worked + r.neverReal + r.ghosted;
         Integer contested = r.won + r.worked;
-        r.cohortConversion = rate(r.won, r.created);
+        r.cohortConversion = rate(r.won, r.qualified);
         r.resolvedWR = rate(r.won, resolved);
         r.contestedWR = rate(r.won, contested);
-        r.qualYield = rate(contested, r.created);
+        r.qualYield = rate(r.qualified, r.created);
         r.closureBased = rate(r.closureWon, r.closureWon + r.closureLost);
         r.distortion = (r.contestedWR == null || r.closureBased == null)
             ? null : r.contestedWR - r.closureBased;
         Integer lag = p75 == null ? 0 : p75;
         r.mature = r.cohortEnd != null && r.cohortEnd.addDays(lag) < today;
-        r.thinSample = r.created < cfg.thinSample;
+        r.thinSample = r.qualified < cfg.thinSample;
     }
 
-    private static Integer percentile75(List<Integer> values) {
+    private static Integer percentileAt(List<Integer> values, Decimal fraction) {
         if (values == null || values.isEmpty()) return 90;
         values.sort();
-        Integer idx = (Integer) Math.ceil(values.size() * 0.75) - 1;
+        Integer idx = (Integer) Math.ceil(values.size() * fraction) - 1;
         if (idx < 0) idx = 0;
         if (idx >= values.size()) idx = values.size() - 1;
         return values[idx];
+    }
+
+    @TestVisible
+    static String meaningOf(WinRatePage page) {
+        if (page == null) return '';
+        Headline h = page.headlines;
+        List<String> bits = new List<String>();
+        bits.add('This read is for ' + page.scopeCaption + '.');
+        bits.add(
+            'Created is new-business opportunities opened in the quarter (CreatedDate). '
+            + 'Qualified is the same book after an SQL datestamp — that is the cohort the win rates use.'
+        );
+        if (h != null && h.matureCreated > 0) {
+            bits.add(
+                'On mature vintages this scope opened ' + h.matureCreated
+                + ' and qualified ' + h.matureQualified
+                + ' (' + pctText(h.qualYield) + ' qualified / created).'
+            );
+            bits.add(
+                'Reports quote won / (won + lost) among deals that closed in the window: '
+                + pctText(h.closureBased) + ' (' + h.matureClosureWon + ' won, '
+                + h.matureClosureLost + ' lost). That is a close-date rate, not a conversion rate.'
+            );
+            bits.add(
+                'Contested win rate is won / (won + worked) = ' + pctText(h.contestedWR)
+                + ' — ' + h.matureWon + ' wins against ' + h.matureWorked
+                + ' worked losses. Use this to judge selling ability on real contests.'
+            );
+            bits.add(
+                'Never-real is ' + h.matureNeverReal
+                + ' (blank reason, not qualified, duplicate, insufficient data). Ghosted is '
+                + h.matureGhosted + '. Ghosted is not never-real and is not in the contested denominator. '
+                + 'You need both numbers.'
+            );
+            if (h.distortion != null) {
+                bits.add(
+                    'Distortion is contested minus won/(won+lost): '
+                    + ppText(h.distortion) + '.'
+                );
+            }
+        } else {
+            bits.add(
+                'No mature, thick-enough SQL vintage is in headlines yet. '
+                + 'Read the table; grey rows are still cooking.'
+            );
+        }
+        bits.add(
+            'Immature vintages stay on the table. Headlines wait until the quarter-end is past the typical SQL→close cycle '
+            + '(median ' + String.valueOf(page.p50Days) + ' days, three-quarters done by '
+            + String.valueOf(page.p75Days) + ' days) and skip samples under 15 qualified deals. '
+            + 'A single cycle-time number is not the story.'
+        );
+        return String.join(bits, ' ');
+    }
+
+    private static String pctText(Decimal n) {
+        if (n == null) return '—';
+        return String.valueOf((n * 100).setScale(1)) + '%';
+    }
+    private static String ppText(Decimal n) {
+        if (n == null) return '—';
+        Decimal pts = (n * 100).setScale(1);
+        return (n > 0 ? '+' : '') + String.valueOf(pts) + ' pts';
     }
 
     private static Date latestSnapshotDate(Id directorId) {
@@ -484,10 +568,6 @@ public with sharing class CockpitCohortService {
         List<String> bits = new List<String>();
         for (UnmappedReason u : rows) bits.add(u.reason + ' (' + u.count + ')');
         return String.join(bits, '; ').left(2000);
-    }
-
-    private static String productLabel(String productType) {
-        return productType == CockpitConstants.PRODUCT_ALL ? 'All products' : productType;
     }
 
     public static String sizeLabel(String sizeBand) {

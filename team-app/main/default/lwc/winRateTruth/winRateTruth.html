@@ -2,13 +2,14 @@
     <div class="wrap">
         <h2>Win rate truth</h2>
         <p class="lede">
-            Of the deals this team actually started (SQL quarter, not CreatedDate), how many did it win —
-            and how much of what looks like losing is a data artifact. Pair
-            <strong>contested win rate</strong> with <strong>qualification yield</strong>.
-            Native Insights will disagree on purpose: that tool is closure-based.
+            Two different questions. <strong>Created</strong> is opportunities opened this quarter.
+            <strong>Qualified</strong> is those that received an SQL datestamp — that is the cohort.
+            Worked and never-real stay visible. Ghosted is a third bucket, not never-real.
+            Compare <strong>contested</strong> (won / worked contests) to
+            <strong>won / (won + lost)</strong>, the close-date number reports quote.
         </p>
 
-        <c-gtm-scope-filters onscopechange={handleScope}></c-gtm-scope-filters>
+        <c-gtm-scope-filters grouped-products onscopechange={handleScope}></c-gtm-scope-filters>
         <p class="scope" lwc:if={scopeCaption}>{scopeCaption}</p>
         <p class="ghost">{ghostedConvention}</p>
         <p class="snap">{snapshotAsOf}</p>
@@ -32,23 +33,33 @@
                     </div>
                 </template>
             </div>
-            <p class="meta">Maturity uses p75 SQL→close of {p75} days. Immature vintages stay visible and are excluded from headlines.</p>
+            <p class="meta">{cycleCaption}</p>
+
+            <div class="actions">
+                <button type="button" class="explain" onclick={toggleMeaning}>
+                    Tell me what this data means
+                </button>
+            </div>
+            <div class="box meaning" lwc:if={showMeaning}>
+                <h3>What this filter is saying</h3>
+                <p>{meaning}</p>
+            </div>
 
             <div class="tw">
                 <table>
                     <thead>
                         <tr>
-                            <th>SQL cohort</th>
+                            <th>Quarter</th>
                             <th class="num">Created</th>
+                            <th class="num">Qualified</th>
                             <th class="num">Won</th>
                             <th class="num">Worked</th>
                             <th class="num">Never-real</th>
+                            <th class="num">Ghosted</th>
                             <th class="num">Open</th>
-                            <th class="num">Cohort</th>
-                            <th class="num">Resolved</th>
+                            <th class="num">Qualified / created</th>
                             <th class="num">Contested</th>
-                            <th class="num">Qual yield</th>
-                            <th class="num">Closure</th>
+                            <th class="num">Won / (won + lost)</th>
                             <th class="num">Distortion</th>
                             <th></th>
                         </tr>
@@ -58,14 +69,14 @@
                             <tr key={r.key} class={r.rowClass}>
                                 <td>{r.label}</td>
                                 <td class="num">{r.created}</td>
+                                <td class="num">{r.qualified}</td>
                                 <td class="num">{r.won}</td>
                                 <td class="num">{r.worked}</td>
                                 <td class="num">{r.neverReal}</td>
+                                <td class="num">{r.ghosted}</td>
                                 <td class="num">{r.stillOpen}</td>
-                                <td class="num">{r.cohortConversion}</td>
-                                <td class="num">{r.resolvedWR}</td>
-                                <td class="num">{r.contestedWR}</td>
                                 <td class="num">{r.qualYield}</td>
+                                <td class="num">{r.contestedWR}</td>
                                 <td class="num">{r.closureBased}</td>
                                 <td class="num">{r.distortion}</td>
                                 <td><span class="badge" lwc:if={r.badge}>{r.badge}</span></td>
@@ -107,7 +118,7 @@
             </template>
         </template>
         <template lwc:elseif={loadedOnce}>
-            <div class="box">No SQL-qualified new-business deals in this scope.</div>
+            <div class="box">No new-business deals in this product group and team.</div>
         </template>
 
         <ul class="caps">

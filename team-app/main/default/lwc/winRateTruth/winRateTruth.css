@@ -54,6 +54,20 @@ tr.headline { font-weight: 600; }
     padding: 2px 8px;
 }
 tr.immature .badge { color: #667085; }
+.actions { margin: 10px 0 12px; }
+.explain {
+    background: var(--indigo);
+    color: #fff;
+    border: 0;
+    border-radius: 7px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.explain:hover { background: #1d125c; }
+.box.meaning { border-left-color: var(--teal); max-width: 980px; }
+.box.meaning p { margin: 0; line-height: 1.55; color: #101828; }
 .caps { color: #667085; font-size: 12px; padding-left: 18px; margin: 14px 0 0; }
 .spin {
     display: inline-block; width: 12px; height: 12px;

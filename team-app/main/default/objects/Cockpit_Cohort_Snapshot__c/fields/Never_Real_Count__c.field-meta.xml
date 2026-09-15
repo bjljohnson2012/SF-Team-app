@@ -2,8 +2,8 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Never_Real_Count__c</fullName>
     <label>Never Real Count</label>
-    <description>Closed-lost deals that were never a real contest, including blank reason.</description>
-    <inlineHelpText>Closed-lost deals that were never a real contest, including blank reason.</inlineHelpText>
+    <description>Closed-lost never-real deals (blank, not qualified, duplicate, insufficient data). Ghosted is a separate field.</description>
+    <inlineHelpText>Never-real losses. Ghosted is not included.</inlineHelpText>
     <type>Number</type>
     <precision>18</precision>
     <scale>0</scale>

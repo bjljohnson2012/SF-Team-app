@@ -15,6 +15,7 @@ public with sharing class CockpitWinRateController {
         @AuraEnabled public String defaultDirectorName;
         @AuraEnabled public List<Pick> directors;
         @AuraEnabled public List<Pick> productTypes;
+        @AuraEnabled public List<Pick> productGroups;
         @AuraEnabled public List<Pick> sizeBands;
     }
 
@@ -32,6 +33,13 @@ public with sharing class CockpitWinRateController {
         for (Schema.PicklistEntry pe : d.getPicklistValues()) {
             if (pe.isActive()) o.productTypes.add(new Pick(pe.getValue(), pe.getLabel()));
         }
+        o.productGroups = new List<Pick>{
+            new Pick(CockpitConstants.PRODUCT_ALL, 'All grouped products'),
+            new Pick(CockpitConstants.PRODUCT_GROUP_BUDGET, 'Budget'),
+            new Pick(CockpitConstants.PRODUCT_GROUP_GRANTS, 'Grants'),
+            new Pick(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING, 'Procurement Sourcing (BF, IW)'),
+            new Pick(CockpitConstants.PRODUCT_GROUP_PROC_MARKET, 'Procurement Marketplace (EL)')
+        };
         o.sizeBands = new List<Pick>{
             new Pick(CockpitConstants.SIZE_ALL, 'All sizes'),
             new Pick(CockpitConstants.SIZE_UNDER_50K, 'Under $50k'),

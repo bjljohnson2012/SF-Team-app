@@ -12,8 +12,10 @@ private class CockpitWinRateControllerTest {
         System.assertEquals(UserInfo.getUserId(), o.defaultDirectorId,
             'default scope is the running user, not a hardcoded director');
         System.assertEquals('My team', o.directors[0].label, 'first pick is My team');
-        System.assertEquals(CockpitConstants.PRODUCT_ALL, o.productTypes[0].value, 'products start at All');
-        System.assert(o.productTypes.size() > 1, 'product types come from EUNA_Solution__c');
+        System.assertEquals(CockpitConstants.PRODUCT_ALL, o.productTypes[0].value, 'raw products start at All');
+        System.assert(o.productTypes.size() > 1, 'raw product types stay on the shared bar for AE');
+        System.assertEquals(5, o.productGroups.size(), 'All + four product families');
+        System.assertEquals('Budget', o.productGroups[1].label, 'Budget is a family, not a SKU');
         System.assertEquals(4, o.sizeBands.size(), 'All + three ARR bands');
     }
 
@@ -62,7 +64,8 @@ private class CockpitWinRateControllerTest {
             Name = 'Mine', AccountId = acc.Id, OwnerId = ae.Id, RecordTypeId = rt,
             Type = 'New Sale', StageName = 'Closed Won',
             CloseDate = Date.newInstance(2025, 3, 1),
-            SQL_Datestamp_bf__c = Date.newInstance(2025, 1, 15)
+            SQL_Datestamp_bf__c = Date.newInstance(2025, 1, 15),
+            EUNA_Solution__c = 'Budget Professional'
         );
 
         Test.startTest();

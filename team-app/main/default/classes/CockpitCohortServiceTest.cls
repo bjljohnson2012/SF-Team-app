@@ -34,9 +34,13 @@ private class CockpitCohortServiceTest {
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
         System.assertNotEquals(null, row, 'SQL Q1 2025 must be the cohort key');
-        System.assertEquals(null, rowOf(page, CockpitCohortService.cohortKeyOf(Date.today())),
-            'CreatedDate quarter must not receive the deal');
         System.assertEquals(1, row.won, 'the won deal lands in the SQL vintage');
+        System.assertEquals(1, row.qualified, 'SQL quarter is qualified, not merely created');
+        CockpitCohortService.CohortRow opened = rowOf(page, CockpitCohortService.cohortKeyOf(Date.today()));
+        if (opened != null && opened.cohortKey != '2025Q1') {
+            System.assertEquals(0, opened.won, 'CreatedDate quarter does not take the win');
+            System.assertEquals(1, opened.created, 'CreatedDate quarter takes the opened count');
+        }
     }
 
     @isTest
@@ -60,12 +64,14 @@ private class CockpitCohortServiceTest {
         Test.stopTest();
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
-        System.assertEquals(5, row.created, 'five SQL-cohort deals');
-        System.assertEquals(row.created, row.won + row.worked + row.neverReal + row.stillOpen,
-            'bucket sum equals created');
+        System.assertEquals(5, row.qualified, 'five SQL-qualified deals');
+        System.assertEquals(row.qualified,
+            row.won + row.worked + row.neverReal + row.ghosted + row.stillOpen,
+            'bucket sum equals qualified');
         System.assertEquals(1, row.won, 'one win');
         System.assertEquals(1, row.worked, 'ROI is a worked loss');
-        System.assertEquals(2, row.neverReal, 'Ghosted + blank are never-real');
+        System.assertEquals(1, row.neverReal, 'blank reason is never-real');
+        System.assertEquals(1, row.ghosted, 'Ghosted is its own bucket');
         System.assertEquals(1, row.stillOpen, 'one still open');
     }
 
@@ -87,12 +93,14 @@ private class CockpitCohortServiceTest {
         Test.stopTest();
 
         CockpitCohortService.CohortRow row = rowOf(page, '2025Q1');
-        System.assertEquals(1, row.neverReal, 'Ghosted is never-real under Euna canon');
+        System.assertEquals(1, row.ghosted, 'Ghosted is its own bucket');
+        System.assertEquals(0, row.neverReal, 'Ghosted is not never-real');
         System.assertEquals(0, row.worked, 'Ghosted is not a worked loss');
         System.assertEquals(1, row.contestedWR, 'contested is won/(won+worked) = 1/1');
-        System.assert(page.excludeGhosted, 'default setting excludes Ghosted');
-        System.assert(page.ghostedConvention.contains('never-real'),
-            'page prints the Ghosted convention');
+        System.assert(page.ghostedConvention.contains('own bucket'),
+            'page prints that Ghosted is separate from never-real');
+        System.assert(page.meaning.contains('Ghosted'),
+            'Tell me what this data means covers Ghosted');
     }
 
     @isTest
@@ -101,6 +109,10 @@ private class CockpitCohortServiceTest {
             '{"IsClosed":true,"IsWon":false}', Opportunity.class);
         System.assertEquals('NEVER', CockpitCohortService.classifyForTest(o),
             'blank loss reason is never-real');
+        Opportunity ghost = (Opportunity) JSON.deserialize(
+            '{"IsClosed":true,"IsWon":false,"Lost_Reason__c":"Ghosted"}', Opportunity.class);
+        System.assertEquals('GHOSTED', CockpitCohortService.classifyForTest(ghost),
+            'Ghosted is not never-real');
     }
 
     @isTest
@@ -186,6 +198,47 @@ private class CockpitCohortServiceTest {
     }
 
     @isTest
+    static void createdAndQualified_areDifferentCounts() {
+        User dir = dir();
+        User ae = aeOf(dir.Id);
+        Id rt = rtId();
+        Account a = new Account(Name = 'Created vs SQL');
+        insert a;
+        insert new List<Opportunity>{
+            closed(a.Id, ae.Id, rt, 'Old SQL', Date.newInstance(2025, 2, 1),
+                Date.newInstance(2025, 4, 1), 'Closed Won', null),
+            withSolution(closed(a.Id, ae.Id, rt, 'OpenBid', Date.newInstance(2025, 2, 2),
+                Date.newInstance(2025, 4, 2), 'Closed Won', null), 'Procurement (DemandStar)'),
+            withSolution(closed(a.Id, ae.Id, rt, 'ESN', Date.newInstance(2025, 2, 3),
+                Date.newInstance(2025, 4, 3), 'Closed Won', null), 'Procurement ESN')
+        };
+
+        Test.startTest();
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
+        Test.stopTest();
+
+        CockpitCohortService.CohortRow sqlQ = rowOf(page, '2025Q1');
+        CockpitCohortService.CohortRow opened = rowOf(page, CockpitCohortService.cohortKeyOf(Date.today()));
+        System.assertEquals(1, sqlQ.qualified, 'SQL quarter gets Budget only — OpenBid and ESN stay out');
+        System.assertEquals(1, opened.created, 'CreatedDate quarter gets the opened Budget count');
+        System.assertEquals(
+            CockpitConstants.SOLUTIONS_BUDGET,
+            CockpitConstants.solutionsInProductFilter(CockpitConstants.PRODUCT_GROUP_BUDGET),
+            'Budget group is Budget Pro + Ent only'
+        );
+        System.assert(
+            !CockpitConstants.solutionsInProductFilter(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING)
+                .contains('Procurement ESN'),
+            'ESN is not sourcing'
+        );
+        System.assert(
+            !CockpitConstants.solutionsInProductFilter(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING)
+                .contains('Procurement (DemandStar)'),
+            'OpenBid is not sourcing'
+        );
+    }
+
+    @isTest
     static void nullRate_notZero() {
         System.assertEquals(null, CockpitCohortService.rate(0, 0),
             'empty denominator is null so the UI can render an em dash');
@@ -212,7 +265,8 @@ private class CockpitCohortServiceTest {
         return new Opportunity(
             AccountId = accountId, OwnerId = ownerId, RecordTypeId = rt,
             Type = 'New Sale', StageName = 'Proposal',
-            CloseDate = Date.today().addDays(30)
+            CloseDate = Date.today().addDays(30),
+            EUNA_Solution__c = 'Budget Professional'
         );
     }
 
@@ -224,6 +278,11 @@ private class CockpitCohortServiceTest {
         o.CloseDate = closeDate;
         o.StageName = stage;
         o.Lost_Reason__c = reason;
+        return o;
+    }
+
+    static Opportunity withSolution(Opportunity o, String solution) {
+        o.EUNA_Solution__c = solution;
         return o;
     }
 

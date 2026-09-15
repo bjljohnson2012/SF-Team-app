@@ -17,7 +17,8 @@ private class CockpitCohortBatchTest {
             Name = 'Won', AccountId = a.Id, OwnerId = ae.Id, RecordTypeId = rt,
             Type = 'New Sale', StageName = 'Closed Won',
             CloseDate = Date.newInstance(2025, 3, 1),
-            SQL_Datestamp_bf__c = Date.newInstance(2025, 1, 15)
+            SQL_Datestamp_bf__c = Date.newInstance(2025, 1, 15),
+            EUNA_Solution__c = 'Budget Professional'
         );
 
         Test.startTest();
@@ -30,11 +31,14 @@ private class CockpitCohortBatchTest {
             FROM Cockpit_Cohort_Snapshot__c
             WHERE Director__c = :dir.Id
         ];
-        System.assertEquals(1, snaps.size(), 'one SQL cohort upserted');
-        System.assertEquals('2025Q1', snaps[0].Cohort_Key__c, 'snapshot keyed by SQL quarter');
-        System.assertEquals(1, snaps[0].Won_Count__c, 'won count stored');
-        System.assertEquals(Date.today(), snaps[0].Snapshot_Date__c, 'as-of is today');
-        System.assert(snaps[0].External_Id__c.contains(String.valueOf(dir.Id)),
+        Cockpit_Cohort_Snapshot__c sqlSnap;
+        for (Cockpit_Cohort_Snapshot__c s : snaps) {
+            if (s.Cohort_Key__c == '2025Q1') sqlSnap = s;
+        }
+        System.assertNotEquals(null, sqlSnap, 'SQL cohort upserted');
+        System.assertEquals(1, sqlSnap.Won_Count__c, 'won count stored');
+        System.assertEquals(Date.today(), sqlSnap.Snapshot_Date__c, 'as-of is today');
+        System.assert(sqlSnap.External_Id__c.contains(String.valueOf(dir.Id)),
             'external id is director-scoped, not UserInfo-only');
     }
 
