@@ -59,3 +59,18 @@ Owner reported `apex://CockpitWinRateController: No apex action available for Co
 - **Approved by:** org owner (benjamin.johnson), live-error follow-up to the authorized WRT deploy.
 - **Post-deploy verification:** Tooling `IsValid=true` on `CockpitWinRateController`, `CockpitCohortService`, `CockpitCohortBatch`, `CockpitAeController`, `CockpitAeCompositionService`, `CockpitConversionController`. Anonymous Apex `getFilterOptions` / `getPage` (Ben / My team / All / All): 12 director picks (My team + CSO leaders), 15 products, 15 cohort rows, contested 47.8%, closure-based 40.6%, caption `Team of Ben Johnson · All products · All sizes`. AE `getScopeOptions`: 11 directors, 14 products, 4 size bands.
 - **Rollback:** redeploy the 20:44 Conversion Metrics copies of `CockpitRosterService` / `CockpitConstants` (that would re-break WRT and AE).
+
+## 2026-09-15 — Win Rate Truth labels, Ghosted split, product families
+
+Owner asked to clean up the live tab: created vs qualified, won/(won+lost) beside contested, Ghosted not never-real, product families, and a “Tell me what this data means” readout. Same authorized WRT prod path.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`)
+- **Branch:** `cursor/win-rate-truth-4c8f` (PR #6)
+- **Components:** `CockpitCohortService` (+ test), `CockpitWinRateController` (+ test), `CockpitConstants`, `CockpitCohortBatchTest`, `winRateTruth`, `gtmScopeFilters` (`groupedProducts` opt-in so AE keeps raw SKUs), snapshot fields `Qualified_Count__c` / `Ghosted_Count__c`.
+- **Validated job id:** `0AfOL000003T1v30AC` — `RunSpecifiedTests` (WRT + batch + controller); 14 tests, 0 failures. Check-only. Earlier `0AfOL000003T1tR0AS` failed one meaning-text assert; fixed and re-validated.
+- **Quick-deploy job id:** `0AfOL000003T1wf0AC` — Succeeded.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Review verdict:** Manual diligence — **PASS**. Formal `/sf-review` NOT run.
+- **Approved by:** org owner (benjamin.johnson), live-tab cleanup follow-up.
+- **Post-deploy smoke (Ben / My team / grouped All / All):** created 1,326, qualified 1,007, won 256, worked 296, never-real 31, ghosted 180, won/(won+lost) 32.5%, contested 47.8%, qualified/created 77.0%, p50 171 / p75 311, meaning includes Ghosted. Budget 14 rows, Sourcing 15 rows.
+- **Rollback:** prior WRT LWC/Apex from `0AfOL000003T1Bt0AK`.
