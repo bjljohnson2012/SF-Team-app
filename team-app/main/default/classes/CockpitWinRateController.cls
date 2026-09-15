@@ -34,11 +34,10 @@ public with sharing class CockpitWinRateController {
             if (pe.isActive()) o.productTypes.add(new Pick(pe.getValue(), pe.getLabel()));
         }
         o.productGroups = new List<Pick>{
-            new Pick(CockpitConstants.PRODUCT_ALL, 'All grouped products'),
             new Pick(CockpitConstants.PRODUCT_GROUP_BUDGET, 'Budget'),
             new Pick(CockpitConstants.PRODUCT_GROUP_GRANTS, 'Grants'),
-            new Pick(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING, 'Procurement Sourcing (BF, IW)'),
-            new Pick(CockpitConstants.PRODUCT_GROUP_PROC_MARKET, 'Procurement Marketplace (EL)')
+            new Pick(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING, 'Procurement Sourcing'),
+            new Pick(CockpitConstants.PRODUCT_GROUP_PROC_MARKET, 'Procurement Marketplace')
         };
         o.sizeBands = new List<Pick>{
             new Pick(CockpitConstants.SIZE_ALL, 'All sizes'),

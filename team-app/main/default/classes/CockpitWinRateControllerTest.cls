@@ -14,8 +14,11 @@ private class CockpitWinRateControllerTest {
         System.assertEquals('My team', o.directors[0].label, 'first pick is My team');
         System.assertEquals(CockpitConstants.PRODUCT_ALL, o.productTypes[0].value, 'raw products start at All');
         System.assert(o.productTypes.size() > 1, 'raw product types stay on the shared bar for AE');
-        System.assertEquals(5, o.productGroups.size(), 'All + four product families');
-        System.assertEquals('Budget', o.productGroups[1].label, 'Budget is a family, not a SKU');
+        System.assertEquals(4, o.productGroups.size(), 'exactly four product families');
+        System.assertEquals('Budget', o.productGroups[0].label);
+        System.assertEquals('Grants', o.productGroups[1].label);
+        System.assertEquals('Procurement Sourcing', o.productGroups[2].label);
+        System.assertEquals('Procurement Marketplace', o.productGroups[3].label);
         System.assertEquals(4, o.sizeBands.size(), 'All + three ARR bands');
     }
 

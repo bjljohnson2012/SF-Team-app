@@ -135,10 +135,10 @@ public with sharing class CockpitConstants {
     public static String productGroupLabel(String productType) {
         if (productType == PRODUCT_GROUP_BUDGET) return 'Budget';
         if (productType == PRODUCT_GROUP_GRANTS) return 'Grants';
-        if (productType == PRODUCT_GROUP_PROC_SOURCING) return 'Procurement Sourcing (BF, IW)';
-        if (productType == PRODUCT_GROUP_PROC_MARKET) return 'Procurement Marketplace (EL)';
+        if (productType == PRODUCT_GROUP_PROC_SOURCING) return 'Procurement Sourcing';
+        if (productType == PRODUCT_GROUP_PROC_MARKET) return 'Procurement Marketplace';
         if (String.isBlank(productType) || productType == PRODUCT_ALL) {
-            return 'Budget, Grants, Sourcing, Marketplace';
+            return 'All families';
         }
         return productType;
     }

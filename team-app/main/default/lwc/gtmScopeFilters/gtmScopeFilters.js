@@ -31,10 +31,12 @@ export default class GtmScopeFilters extends LightningElement {
                 if (saved) {
                     this.directorId = saved.directorId || '';
                     this.teamMode = saved.teamMode || 'my';
-                    this.productType = saved.productType || 'ALL';
+                    this.productType = saved.productType || (this.groupedProducts ? this.defaultProduct() : 'ALL');
                     this.sizeBand = saved.sizeBand || 'ALL';
-                    const known = new Set((this.productTypes || []).map((p) => p.value));
-                    if (!known.has(this.productType)) this.productType = 'ALL';
+                }
+                const known = new Set((this.productTypes || []).map((p) => p.value));
+                if (this.groupedProducts && !known.has(this.productType)) {
+                    this.productType = this.defaultProduct();
                 }
                 this.ready = true;
                 this.emit();
@@ -96,9 +98,15 @@ export default class GtmScopeFilters extends LightningElement {
         return this.groupedProducts ? STORE_GROUPED : STORE;
     }
 
+    defaultProduct() {
+        if (!this.groupedProducts) return 'ALL';
+        const first = (this.productTypes || [])[0];
+        return first && first.value ? first.value : 'BUDGET';
+    }
+
     productLabel(v) {
         const hit = (this.productTypes || []).find((d) => d.value === v);
-        return hit ? hit.label : (this.groupedProducts ? 'All grouped products' : 'All products');
+        return hit ? hit.label : (this.groupedProducts ? 'Budget' : 'All products');
     }
     sizeLabel(v) {
         const hit = (this.sizeBands || []).find((d) => d.value === v);

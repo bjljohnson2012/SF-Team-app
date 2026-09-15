@@ -7,7 +7,7 @@ export default class WinRateTruth extends LightningElement {
     page;
     directorId = null;
     teamMode = 'my';
-    productType = 'ALL';
+    productType = 'BUDGET';
     sizeBand = 'ALL';
     loadedOnce = false;
     showMeaning = false;
@@ -16,7 +16,7 @@ export default class WinRateTruth extends LightningElement {
         const d = e.detail || {};
         this.directorId = d.directorId || null;
         this.teamMode = d.teamMode || 'my';
-        this.productType = d.productType || 'ALL';
+        this.productType = d.productType || 'BUDGET';
         this.sizeBand = d.sizeBand || 'ALL';
         this.showMeaning = false;
         this.refresh();
