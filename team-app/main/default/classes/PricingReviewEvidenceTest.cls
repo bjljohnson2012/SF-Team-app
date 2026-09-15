@@ -84,15 +84,15 @@ private class PricingReviewEvidenceTest {
             Description = 'Walked modules and TCO');
 
         insert new EmailMessage(
-            Subject = 'Re: District RFP', RelatedToId = o.Id, Incoming = true, Status = '3',
-            FromAddress = 'pat.buyer@example.com', ToAddress = 'ae@example.com',
-            TextBody = 'We already received a ballpark of 160k ARR.',
-            MessageDate = Datetime.now());
-        insert new EmailMessage(
             Subject = 'Older intro', RelatedToId = o.Id, Incoming = false, Status = '3',
             FromAddress = 'ae@example.com', ToAddress = 'pat.buyer@example.com',
             TextBody = 'Introducing Euna Budget Professional.',
             MessageDate = Datetime.now().addDays(-20));
+        insert new EmailMessage(
+            Subject = 'Re: District RFP', RelatedToId = o.Id, Incoming = true, Status = '3',
+            FromAddress = 'pat.buyer@example.com', ToAddress = 'ae@example.com',
+            TextBody = 'We already received a ballpark of 160k ARR.',
+            MessageDate = Datetime.now());
 
         insertGong(o.Id, a.Id, 'Unknown', 'Call with District', 'Prospect is partial to OpenBook', true);
         insertGong(o.Id, a.Id, 'Internal', 'Internal huddle', 'Do not use this brief', true);
