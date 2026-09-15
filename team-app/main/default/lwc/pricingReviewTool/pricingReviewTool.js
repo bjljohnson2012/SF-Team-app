@@ -73,7 +73,8 @@ export default class PricingReviewTool extends LightningElement {
         if (result.data) {
             this.isDirector = result.data.isDirector;
             this.rows = (result.data.deals || []).map((d) => ({
-                id: d.id, account: d.account, ae: d.ae, stage: d.stage, leadSource: d.leadSource,
+                id: d.id, account: d.account, ae: d.ae, stage: d.stage, productInterest: d.productInterest,
+                leadSource: d.leadSource,
                 recordUrl: '/lightning/r/Opportunity/' + d.id + '/view',
                 arr: d.arr, arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
                 statusPill: 'pill ' + (d.reviewDone ? 'p-hi' : 'p-ex'),
@@ -95,7 +96,7 @@ export default class PricingReviewTool extends LightningElement {
         const t = (this.searchTerm || '').trim().toLowerCase();
         if (!t) return this.rows;
         return this.rows.filter((r) =>
-            [r.account, r.ae, r.stage].some((v) => (v || '').toLowerCase().includes(t)));
+            [r.account, r.ae, r.stage, r.productInterest].some((v) => (v || '').toLowerCase().includes(t)));
     }
     // sorting by size (ARR), close date, review status, or stage
     get sortedRows() {
@@ -120,6 +121,7 @@ export default class PricingReviewTool extends LightningElement {
     get sClose() { return this.arrow('closeDate'); }
     get sDone() { return this.arrow('done'); }
     get sStage() { return this.arrow('stage'); }
+    get sProduct() { return this.arrow('productInterest'); }
 
     get hasFiltered() { return this.filteredRows.length > 0; }
     get scopeLabel() { return this.scope === 'team' ? 'Showing your team\u2019s deals' : 'Showing your deals'; }
