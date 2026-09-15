@@ -73,10 +73,11 @@ private class AnthropicServiceTest {
         }
     }
 
+    static String capturedBody;
+
     private class CaptureMock implements HttpCalloutMock {
-        public static String lastBody;
         public HttpResponse respond(HttpRequest req) {
-            lastBody = req.getBody();
+            capturedBody = req.getBody();
             HttpResponse res = new HttpResponse();
             res.setStatusCode(200);
             res.setBody('{"content":[{"type":"text","text":"ok"}]}');
@@ -102,14 +103,14 @@ private class AnthropicServiceTest {
 
     @isTest
     static void complete_withWebSearch_sendsTool() {
-        CaptureMock.lastBody = null;
+        capturedBody = null;
         Test.setMock(HttpCalloutMock.class, new CaptureMock());
         Test.startTest();
         String out = AnthropicService.complete('Need a cite', 'claude-sonnet-5', 256, true);
         Test.stopTest();
         System.assertEquals('ok', out, 'text is returned');
-        System.assert(CaptureMock.lastBody != null && CaptureMock.lastBody.contains('web_search'),
-            'request enables Anthropic web_search: ' + CaptureMock.lastBody);
+        System.assert(capturedBody != null && capturedBody.contains('web_search'),
+            'request enables Anthropic web_search: ' + capturedBody);
     }
 
     @isTest

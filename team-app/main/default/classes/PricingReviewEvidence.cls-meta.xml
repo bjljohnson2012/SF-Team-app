@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>62.0</apiVersion>
-    <description>Newest-first Pricing Review evidence pack: quote, opportunity, account, contacts, activity, emails, calls, and Gong transcripts/briefs (Unknown scope included), plus vertical+product+budget comparables.</description>
     <packageVersions>
         <majorNumber>3</majorNumber>
         <minorNumber>0</minorNumber>

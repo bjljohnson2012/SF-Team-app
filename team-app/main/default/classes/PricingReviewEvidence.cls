@@ -305,11 +305,11 @@ public with sharing class PricingReviewEvidence {
         ];
         if (evs.isEmpty()) s += '  (none)\n';
         for (Event e : evs) {
-            Datetime when = e.StartDateTime != null ? e.StartDateTime : e.CreatedDate;
-            String line = dt(when) + ' [' + safe(e.Type) + '] ' + safe(e.Subject)
+            Datetime whenAt = e.StartDateTime != null ? e.StartDateTime : e.CreatedDate;
+            String line = dt(whenAt) + ' [' + safe(e.Type) + '] ' + safe(e.Subject)
                 + ' \u2014 ' + clip(safe(e.Description), 220);
             s += '  - ' + line + '\n';
-            newest.add(new DatedLine(when, 'Event ' + line));
+            newest.add(new DatedLine(whenAt, 'Event ' + line));
         }
         return s;
     }
@@ -326,13 +326,13 @@ public with sharing class PricingReviewEvidence {
         ];
         if (msgs.isEmpty()) return s + '  (none)\n';
         for (EmailMessage m : msgs) {
-            Datetime when = m.MessageDate != null ? m.MessageDate : m.CreatedDate;
+            Datetime whenAt = m.MessageDate != null ? m.MessageDate : m.CreatedDate;
             String dir = m.Incoming ? 'IN' : 'OUT';
-            String line = dt(when) + ' [' + dir + '] ' + safe(m.Subject)
+            String line = dt(whenAt) + ' [' + dir + '] ' + safe(m.Subject)
                 + ' from=' + safe(m.FromAddress) + ' to=' + clip(safe(m.ToAddress), 80)
                 + ' \u2014 ' + clip(safe(m.TextBody), 400);
             s += '  - ' + line + '\n';
-            newest.add(new DatedLine(when, 'Email ' + line));
+            newest.add(new DatedLine(whenAt, 'Email ' + line));
         }
         return s;
     }
@@ -361,11 +361,11 @@ public with sharing class PricingReviewEvidence {
             ORDER BY StartDateTime DESC NULLS LAST
             LIMIT 10
         ]) {
-            Datetime when = e.StartDateTime != null ? e.StartDateTime : e.CreatedDate;
-            String line = dt(when) + ' [' + safe(e.Type) + '] ' + safe(e.Subject)
+            Datetime whenAt = e.StartDateTime != null ? e.StartDateTime : e.CreatedDate;
+            String line = dt(whenAt) + ' [' + safe(e.Type) + '] ' + safe(e.Subject)
                 + ' \u2014 ' + clip(safe(e.Description), 220);
             s += '  - ' + line + '\n';
-            newest.add(new DatedLine(when, 'Call/Meeting ' + line));
+            newest.add(new DatedLine(whenAt, 'Call/Meeting ' + line));
             n++;
         }
         if (n == 0) s += '  (none)\n';
