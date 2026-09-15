@@ -240,11 +240,13 @@ public with sharing class PricingReviewEvidence {
             Decimal unit = (qli.UnitPrice == null) ? null : Decimal.valueOf(String.valueOf(qli.UnitPrice));
             Decimal tot = (qli.TotalPrice == null) ? null : Decimal.valueOf(String.valueOf(qli.TotalPrice));
             String prod = qli.Product2 != null ? qli.Product2.Name : qli.Product_Name__c;
-            String line = dt(qli.Quote != null ? qli.Quote.CreatedDate : null) + ' ' + safe(prod)
-                + ' | family=' + safe(qli.Product_Family__c)
-                + ' | module/phase=' + safe(qli.Quote_Phase__r != null ? qli.Quote_Phase__r.Name : '')
-                + ' | qty=' + num(qty) + ' | unit=' + fmtCur(unit) + ' | total=' + fmtCur(tot)
-                + ' | quote=' + safe(qli.Quote != null ? qli.Quote.Name : '');
+            String line = formatQli(
+                dt(qli.Quote != null ? qli.Quote.CreatedDate : null),
+                prod,
+                qli.Product_Family__c,
+                qli.Quote_Phase__r != null ? qli.Quote_Phase__r.Name : '',
+                qty, unit, tot,
+                qli.Quote != null ? qli.Quote.Name : '');
             if (seen.add(line)) s += '  - ' + line + '\n';
         }
         if (seen.isEmpty()) s += '  (no quote lines)\n';
@@ -414,6 +416,16 @@ public with sharing class PricingReviewEvidence {
             idx++;
         }
         return s;
+    }
+
+    @TestVisible
+    static String formatQli(String created, String prod, String family, String phase,
+            Decimal qty, Decimal unit, Decimal tot, String quoteName) {
+        return created + ' ' + safe(prod)
+            + ' | family=' + safe(family)
+            + ' | module/phase=' + safe(phase)
+            + ' | qty=' + num(qty) + ' | unit=' + fmtCur(unit) + ' | total=' + fmtCur(tot)
+            + ' | quote=' + safe(quoteName);
     }
 
     @TestVisible

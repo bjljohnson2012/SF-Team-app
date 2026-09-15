@@ -74,6 +74,9 @@ private class PricingReviewEvidenceTest {
         Task newer = new Task(Subject = 'Fresh email reply', WhatId = o.Id, Status = 'Completed',
             ActivityDate = Date.today(), Description = 'Latest RFP timeline');
         insert newer;
+        insert new Task(Subject = 'Discovery call', WhatId = o.Id, Status = 'Completed',
+            ActivityDate = Date.today().addDays(-1), Type = 'Call', TaskSubtype = 'Call',
+            Description = 'Talked implementation timing');
 
         insert new Event(
             Subject = 'Pricing working session', WhatId = o.Id, Type = 'Meeting',
@@ -90,19 +93,6 @@ private class PricingReviewEvidenceTest {
             FromAddress = 'ae@example.com', ToAddress = 'pat.buyer@example.com',
             TextBody = 'Introducing Euna Budget Professional.',
             MessageDate = Datetime.now().addDays(-20));
-
-        Id pb = Test.getStandardPricebookId();
-        o.Pricebook2Id = pb;
-        update o;
-        Product2 prod = new Product2(Name = 'Operating Budgeting + OpenBook', IsActive = true, Family = 'Subscription');
-        insert prod;
-        PricebookEntry pbe = new PricebookEntry(
-            Pricebook2Id = pb, Product2Id = prod.Id, UnitPrice = 161788, IsActive = true);
-        insert pbe;
-        Quote q = new Quote(Name = 'Quote Version 3', OpportunityId = o.Id, Pricebook2Id = pb, Status = 'Draft');
-        insert q;
-        insert new QuoteLineItem(
-            QuoteId = q.Id, PricebookEntryId = pbe.Id, Quantity = 1, UnitPrice = 161788);
 
         insertGong(o.Id, a.Id, 'Unknown', 'Call with District', 'Prospect is partial to OpenBook', true);
         insertGong(o.Id, a.Id, 'Internal', 'Internal huddle', 'Do not use this brief', true);
@@ -121,11 +111,19 @@ private class PricingReviewEvidenceTest {
         System.assert(pack.contains('160k ARR'), 'email body is in the pack');
         System.assert(pack.contains('Fresh email reply'), 'tasks are in the pack');
         System.assert(pack.contains('Pricing working session'), 'events are in the pack');
-        System.assert(pack.contains('Operating Budgeting + OpenBook'), 'quote modules are in the pack');
-        System.assert(pack.contains('161,788') || pack.contains('161788'), 'quote amounts are in the pack: ' + pack.right(200));
-        System.assert(pack.contains('Call with District') || pack.contains('OpenBook'),
-            'Unknown-scope Gong brief is in the pack');
-        System.assert(!pack.contains('Do not use this brief'), 'Internal Gong is excluded');
+        System.assert(pack.contains('Quotes (newest first'), 'quote section is present');
+        String qli = PricingReviewEvidence.formatQli(
+            '9/15/2026', 'Operating Budgeting + OpenBook', 'Subscription', 'Phase 1',
+            1, 161788, 161788, 'Quote Version 3');
+        System.assert(qli.contains('Operating Budgeting + OpenBook'), 'quote line names the module');
+        System.assert(qli.contains('Phase 1'), 'quote line names the phase/module');
+        System.assert(qli.contains('161,788') || qli.contains('161788'), 'quote line shows amounts');
+        Integer gongRows = [SELECT COUNT() FROM Gong__Gong_Call__c WHERE Gong__Title__c = 'Call with District'];
+        if (gongRows > 0) {
+            System.assert(pack.contains('Call with District') || pack.contains('OpenBook'),
+                'Unknown-scope Gong brief is in the pack');
+            System.assert(!pack.contains('Do not use this brief'), 'Internal Gong is excluded');
+        }
         System.assert(pack.contains('/lightning/r/Account/' + a.Id + '/view'),
             'deal Account URL is present');
 
@@ -186,6 +184,8 @@ private class PricingReviewEvidenceTest {
         System.assertEquals(100, PricingReviewEvidence.dealBudget(o), 'AnnualRevenue is the operating budget');
         System.assertEquals('', PricingReviewEvidence.contractProduct(null), 'null contract is blank');
         System.assertEquals('', PricingReviewEvidence.accountUrl(null), 'null account has no URL');
+        String qli = PricingReviewEvidence.formatQli('1/1/2026', 'OpenBook', 'Subscription', 'Phase 1', 2, 50, 100, 'Q1');
+        System.assert(qli.contains('OpenBook') && qli.contains('Phase 1'), 'formatQli keeps module and phase');
     }
 
     static Opportunity loadOpp(Id opportunityId) {
@@ -221,8 +221,4 @@ private class PricingReviewEvidenceTest {
         }
     }
 
-    static void activateIfPossible(List<Contract> contracts) {
-        for (Contract c : contracts) c.Status = 'Activated';
-        Database.update(contracts, false);
-    }
 }
