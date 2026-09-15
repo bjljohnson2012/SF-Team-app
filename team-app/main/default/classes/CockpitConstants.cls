@@ -33,6 +33,15 @@ public with sharing class CockpitConstants {
         'SOLUTIONS ENGINEER', 'SALES ENGINEER'
     };
 
+    // Apex of the sales role tree. Resolved at runtime via UserRole; not a person.
+    public static final String CSO_ROLE_DEVELOPER_NAME = 'Chief_Sales_Officer';
+    public static final String CSO_ROLE_NAME = 'Chief Sales Officer';
+
+    // Roles under the CSO that are not selling-team leaders (support, SE, BDR, alliances).
+    public static final Set<String> NON_SALES_LEADER_ROLE_TOKENS = new Set<String>{
+        'SALES SUPPORT', 'SOLUTION', 'BDR', 'PARTNERSHIP', 'ALLIANCE'
+    };
+
     // Phase B thresholds and modeled-call weights (Phase A: Cockpit_Setting__mdt).
     public static final Integer THRESHOLD_HIGH = 7;   // score >= : Include-High
     public static final Integer THRESHOLD_MED  = 3;   // score >= : Include-Med

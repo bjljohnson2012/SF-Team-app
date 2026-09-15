@@ -21,18 +21,12 @@ private class CockpitConversionControllerTest {
             System.assertNotEquals(null, opts, 'filter options returned');
             System.assert(!opts.directors.isEmpty(), 'director picker includes My team');
             System.assertEquals('mine', opts.directors[0].value, 'first option is my-team mode');
-            Set<String> salesUsernames = new Set<String>();
-            for (Forecast_Director__mdt d : [
-                SELECT Username__c FROM Forecast_Director__mdt
-                WHERE Is_Active__c = true AND Excluded__c = false
-            ]) {
-                if (String.isNotBlank(d.Username__c)) salesUsernames.add(d.Username__c.toLowerCase());
-            }
+            Set<Id> underCso = CockpitRosterService.rolesUnderChiefSalesOfficer();
             for (CockpitConversionService.FilterOption o : opts.directors) {
                 if (o.value == 'mine') continue;
-                User u = [SELECT Username FROM User WHERE Id = :o.value];
-                System.assert(salesUsernames.contains(u.Username.toLowerCase()),
-                    'picker lists sales directors only');
+                User u = [SELECT UserRoleId, UserRole.Name FROM User WHERE Id = :o.value];
+                System.assert(underCso.contains(u.UserRoleId),
+                    'picker lists leaders whose role rolls up to Chief Sales Officer');
             }
             System.assert(!opts.productTypes.isEmpty(), 'product type is EUNA_Solution__c');
             System.assert(!opts.sizeBands.isEmpty(), 'ARR size bands served from Apex');

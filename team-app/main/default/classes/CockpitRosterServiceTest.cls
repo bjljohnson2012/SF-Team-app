@@ -27,14 +27,31 @@ private class CockpitRosterServiceTest {
     }
 
     @isTest
-    static void salesDirectors_onlyActiveForecastDirectors() {
-        Set<String> allowed = new Set<String>();
-        for (Forecast_Director__mdt d : [
-            SELECT Username__c FROM Forecast_Director__mdt
-            WHERE Is_Active__c = true AND Excluded__c = false
-        ]) {
-            if (String.isNotBlank(d.Username__c)) allowed.add(d.Username__c.toLowerCase());
-        }
+    static void isSalesTeamLeaderRole_keepsDirectorsUnderCso_dropsSupportAndSe() {
+        System.assertEquals(true,
+            CockpitRosterService.isSalesTeamLeaderRole('MM NE Director', 'Director, Sales'));
+        System.assertEquals(true,
+            CockpitRosterService.isSalesTeamLeaderRole('VP Sales', 'Corporate Strategy'));
+        System.assertEquals(true,
+            CockpitRosterService.isSalesTeamLeaderRole('Chief Sales Officer', 'Chief Sales Officer'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Chief Sales Officer', 'Chief Product Officer'),
+            'CSO role with a non-CSO title is not a sales team leader');
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Director - Sales Support', 'Senior Bid Specialist'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Solutions Engineers', 'VP, Solutions'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Partnerships', 'VP, Partnerships'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('MM NE Rep', 'Account Executive'));
+        System.assertEquals(false, CockpitRosterService.isSalesTeamLeaderRole(null, 'Director'));
+    }
+
+    @isTest
+    static void salesDirectors_onlyCsoRollupTeamLeaders() {
+        Set<Id> underCso = CockpitRosterService.rolesUnderChiefSalesOfficer();
+        System.assert(!underCso.isEmpty(), 'org has a Chief Sales Officer role tree');
 
         Test.startTest();
         List<CockpitRosterService.DirectorOption> dirs = CockpitRosterService.salesDirectors();
@@ -43,12 +60,19 @@ private class CockpitRosterServiceTest {
         Set<Id> seen = new Set<Id>();
         for (CockpitRosterService.DirectorOption d : dirs) {
             System.assertNotEquals(null, d.userId, 'sales director has a user id');
-            System.assertEquals(false, seen.contains(d.userId), 'each sales director once');
+            System.assertEquals(false, seen.contains(d.userId), 'each leader once');
             seen.add(d.userId);
-            User u = [SELECT Username, IsActive FROM User WHERE Id = :d.userId];
+            User u = [
+                SELECT IsActive, Title, UserRoleId, UserRole.Name
+                FROM User WHERE Id = :d.userId
+            ];
             System.assertEquals(true, u.IsActive, 'inactive users stay out of the picker');
-            System.assert(allowed.contains(u.Username.toLowerCase()),
-                'picker is Forecast_Director__mdt, not every manager');
+            System.assert(underCso.contains(u.UserRoleId),
+                u.Name + ' role must roll up to Chief Sales Officer');
+            System.assertEquals(true,
+                CockpitRosterService.isSalesTeamLeaderRole(
+                    u.UserRole == null ? null : u.UserRole.Name, u.Title),
+                u.Name + ' is a selling-team leader role, not support/SE/alliances');
         }
     }
 

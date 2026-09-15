@@ -8,8 +8,8 @@
     </template>
 
     <div class="fh-ctl" onscopechange={handleScopeChange}>
-                <div class="fh-f wide">
-                    <label>Sales team</label>
+        <div class="fh-f wide">
+            <label>Sales team</label>
             <select onchange={handleDirector}>
                 <template for:each={directorOptions} for:item="o">
                     <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
