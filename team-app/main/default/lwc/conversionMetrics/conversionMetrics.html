@@ -17,6 +17,14 @@
             </select>
         </div>
         <div class="fh-f wide">
+            <label>Close quarter</label>
+            <select onchange={handleQuarter}>
+                <template for:each={quarterOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+        </div>
+        <div class="fh-f wide">
             <label>Product type</label>
             <select onchange={handleProduct}>
                 <template for:each={productOptions} for:item="o">
@@ -44,11 +52,22 @@
             <p class="lede">{convention}</p>
             <p class="note">{writerCaption}</p>
 
-            <h2>A. Band conversion</h2>
-            <p class="lede">Band at the beginning, middle, and last month of the close quarter — not the band held the day before close. Closed Euna Sale new business since 2025-01-01, migrations excluded. Count and dollar rates always sit side by side. Omitted wins stay visible.</p>
+            <div class="sec-head">
+                <h2>A. Forecast category accuracy</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="forecast" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">Of deals that closed in this quarter, what forecast category were they in during the first, second, and third month — and what share of those won? That conversion is the accuracy of the word the team used that month.</p>
+            <template lwc:if={showForecastExplain}><div class="box"><p>{forecastExplain}</p></div></template>
             <template lwc:if={hasInterpretation}><div class="box warn"><p>{interpretation}</p></div></template>
+            <div class="view-toggle" role="group" aria-label="Forecast category view">
+                <button class={teamViewClass} type="button" data-view="team" onclick={handleView}>Team</button>
+                <button class={aeViewClass} type="button" data-view="ae" onclick={handleView}>By AE</button>
+            </div>
             <div class="cards">
-                <div class="card"><div class="lab">Closed in window</div><div class="val">{closedInWindow}</div><div class="note">Sum of every band, including Unbanded</div></div>
+                <div class="card"><div class="lab">Closed in window</div><div class="val">{closedInWindow}</div><div class="note">Sum of every category, including Not on forecast</div></div>
                 <div class="card"><div class="lab">Median cycle</div><div class="val">{medianCycle}</div><div class="note">SQL datestamp → close, won deals</div></div>
             </div>
             <template for:each={checkpoints} for:item="cp">
@@ -59,7 +78,8 @@
                     <div class="tw">
                         <table>
                             <thead><tr>
-                                <th>Band</th>
+                                <template lwc:if={cp.showAe}><th>AE</th></template>
+                                <th>Forecast category</th>
                                 <th class="num">Won</th>
                                 <th class="num">Lost</th>
                                 <th class="num">Total</th>
@@ -71,6 +91,7 @@
                             <tbody>
                                 <template for:each={cp.rows} for:item="r">
                                     <tr key={r.rowKey} class={r.gapClass}>
+                                        <template lwc:if={cp.showAe}><td>{r.aeName}</td></template>
                                         <td><span class={r.pill}>{r.band}</span></td>
                                         <td class="num">{r.won}</td>
                                         <td class="num">{r.lost}</td>
@@ -87,8 +108,15 @@
                 </div>
             </template>
 
-            <h2>B. Commit accuracy</h2>
-            <p class="lede">Won ÷ sat in Commit in the last month of the close quarter. Below 80% with at least 4 Commit closes is flagged. Under 4 is a dash — never 0%.</p>
+            <div class="sec-head">
+                <h2>B. Commit accuracy</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="commit" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">Won ÷ sat in Commit in the third month of the close quarter. Below 80% with at least 4 Commit closes is flagged. Under 4 is a dash — never 0%.</p>
+            <template lwc:if={showCommitExplain}><div class="box"><p>{commitExplain}</p></div></template>
             <div class="tw"><table>
                 <thead><tr>
                     <th>AE</th>
@@ -108,8 +136,15 @@
                 </tbody>
             </table></div>
 
-            <h2>C. Root-cause loss matrix</h2>
-            <p class="lede">{lossFloor} Over-indexed when a rep has ≥4 losses in a reason, ≥18% of their losses, and more than 1.25× the team share.</p>
+            <div class="sec-head">
+                <h2>C. Root-cause loss matrix</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="loss" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">{lossFloor}</p>
+            <template lwc:if={showLossExplain}><div class="box"><p>{lossExplain}</p></div></template>
             <div class="tw"><table>
                 <thead><tr>
                     <th>Loss reason</th>
@@ -154,8 +189,15 @@
                 </table></div>
             </template>
 
-            <h2>D. Live-book leading indicators</h2>
+            <div class="sec-head">
+                <h2>D. Live-book leading indicators</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="live" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
             <p class="lede">Open book per AE. Flags fire only when the sample floor is met. Future-dated LastActivityDate is treated as silence, not a fresh touch. {meddpiccNote}</p>
+            <template lwc:if={showLiveExplain}><div class="box"><p>{liveExplain}</p></div></template>
             <div class="tw"><table>
                 <thead><tr>
                     <th>AE</th>

@@ -1,7 +1,7 @@
 /**
  * Aura entry for the Conversion Metrics page. Scope arrives from the shared
- * gtmScopeFilters contract (directorId, teamMode, productType, sizeBand).
- * Computes live — this tab is closure-based, not a cohort snapshot.
+ * gtmScopeFilters contract (directorId, teamMode, productType, sizeBand)
+ * plus a page-local closeQuarter. Computes live — this tab is closure-based.
  */
 public with sharing class CockpitConversionController {
 
@@ -15,8 +15,9 @@ public with sharing class CockpitConversionController {
         Id directorId,
         String teamMode,
         String productType,
-        String sizeBand
+        String sizeBand,
+        String closeQuarter
     ) {
-        return CockpitConversionService.load(directorId, teamMode, productType, sizeBand);
+        return CockpitConversionService.load(directorId, teamMode, productType, sizeBand, closeQuarter);
     }
 }

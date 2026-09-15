@@ -1,7 +1,7 @@
 /**
  * Covers: CockpitConversionService
  * Behavioural floors: interpret gap, commit dash vs flag, over-index
- * conjunction, live-book sample floors, null band → Unbanded.
+ * conjunction, live-book sample floors, null band → Not on forecast.
  */
 @isTest
 private class CockpitConversionServiceTest {
@@ -106,61 +106,71 @@ private class CockpitConversionServiceTest {
     }
 
     @isTest
-    static void checkpointDate_isStartMidAndLastMonthOfCloseQuarter() {
+    static void checkpointDate_isFirstSecondAndThirdMonthOfCloseQuarter() {
         Date q3 = Date.newInstance(2026, 9, 10);
         System.assertEquals(Date.newInstance(2026, 7, 1),
-            CockpitConversionService.checkpointDate(q3, CockpitConversionService.CP_START));
-        System.assertEquals(Date.newInstance(2026, 8, 15),
-            CockpitConversionService.checkpointDate(q3, CockpitConversionService.CP_MID));
+            CockpitConversionService.checkpointDate(q3, CockpitConversionService.CP_M1));
+        System.assertEquals(Date.newInstance(2026, 8, 1),
+            CockpitConversionService.checkpointDate(q3, CockpitConversionService.CP_M2));
         System.assertEquals(Date.newInstance(2026, 9, 1),
-            CockpitConversionService.checkpointDate(q3, CockpitConversionService.CP_LAST));
+            CockpitConversionService.checkpointDate(q3, CockpitConversionService.CP_M3));
         Date q1 = Date.newInstance(2026, 3, 10);
         System.assertEquals(Date.newInstance(2026, 1, 1),
-            CockpitConversionService.checkpointDate(q1, CockpitConversionService.CP_START));
-        System.assertEquals(Date.newInstance(2026, 2, 15),
-            CockpitConversionService.checkpointDate(q1, CockpitConversionService.CP_MID));
+            CockpitConversionService.checkpointDate(q1, CockpitConversionService.CP_M1));
+        System.assertEquals(Date.newInstance(2026, 2, 1),
+            CockpitConversionService.checkpointDate(q1, CockpitConversionService.CP_M2));
         System.assertEquals(Date.newInstance(2026, 3, 1),
-            CockpitConversionService.checkpointDate(q1, CockpitConversionService.CP_LAST));
-        System.assertEquals(null, CockpitConversionService.checkpointDate(null, CockpitConversionService.CP_START));
+            CockpitConversionService.checkpointDate(q1, CockpitConversionService.CP_M3));
+        System.assertEquals(null, CockpitConversionService.checkpointDate(null, CockpitConversionService.CP_M1));
     }
 
     @isTest
-    static void bandAsOf_nearestWeekWithinSlack_elseUnbanded() {
+    static void categoryInMonth_firstSecondThird_andNotOnForecast() {
+        Date close = Date.newInstance(2026, 9, 10);
         List<CockpitConversionService.SnapPoint> points = new List<CockpitConversionService.SnapPoint>{
             new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Commit'),
-            new CockpitConversionService.SnapPoint(Date.newInstance(2026, 8, 13), 'Best Case')
+            new CockpitConversionService.SnapPoint(Date.newInstance(2026, 8, 13), 'Best Case'),
+            new CockpitConversionService.SnapPoint(Date.newInstance(2026, 9, 3), 'Pipeline')
         };
         System.assertEquals('Commit',
-            CockpitConversionService.bandAsOf(points, Date.newInstance(2026, 7, 1)),
-            'Jul 2 is 1 day from quarter start');
+            CockpitConversionService.categoryInMonth(points, close, CockpitConversionService.CP_M1, null),
+            'July week is first month of Q3');
         System.assertEquals('Best Case',
-            CockpitConversionService.bandAsOf(points, Date.newInstance(2026, 8, 15)),
-            'Aug 13 is 2 days from mid-quarter');
-        System.assertEquals('Unbanded',
-            CockpitConversionService.bandAsOf(points, Date.newInstance(2026, 4, 1)),
-            'April start is far from July — not the same checkpoint');
-        System.assertEquals('Unbanded',
-            CockpitConversionService.bandAsOf(new List<CockpitConversionService.SnapPoint>(), Date.newInstance(2026, 7, 1)));
-        System.assertEquals('Unbanded', CockpitConversionService.bandAsOf(null, Date.newInstance(2026, 7, 1)));
-        System.assertEquals('Unbanded',
-            CockpitConversionService.bandAsOf(
+            CockpitConversionService.categoryInMonth(points, close, CockpitConversionService.CP_M2, null),
+            'August week is second month of Q3');
+        System.assertEquals('Pipeline',
+            CockpitConversionService.categoryInMonth(points, close, CockpitConversionService.CP_M3, null),
+            'September week is third month of Q3');
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.categoryInMonth(new List<CockpitConversionService.SnapPoint>(), close,
+                CockpitConversionService.CP_M1, null));
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.categoryInMonth(null, close, CockpitConversionService.CP_M1, null));
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.categoryInMonth(
                 new List<CockpitConversionService.SnapPoint>{
                     new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), null)
                 },
-                Date.newInstance(2026, 7, 1)),
-            'blank roll-up on a nearby week is Unbanded');
-        System.assertEquals('Pipeline',
-            CockpitConversionService.bandAsOf(
-                new List<CockpitConversionService.SnapPoint>{
-                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Commit'),
-                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 6, 30), 'Pipeline')
-                },
-                Date.newInstance(2026, 7, 1)),
-            'equal distance prefers the earlier week');
+                close, CockpitConversionService.CP_M1, null),
+            'blank roll-up in the month is Not on forecast');
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.categoryInMonth(points, Date.newInstance(2026, 4, 10),
+                CockpitConversionService.CP_M1, null),
+            'Q2 first month has no July week');
+        System.assertEquals('Commit',
+            CockpitConversionService.categoryInMonth(
+                new List<CockpitConversionService.SnapPoint>(),
+                close, CockpitConversionService.CP_M3, 'Commit'),
+            'before-close fills the month the deal actually closed');
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.categoryInMonth(
+                new List<CockpitConversionService.SnapPoint>(),
+                close, CockpitConversionService.CP_M1, 'Commit'),
+            'before-close does not leak into an earlier month');
     }
 
     @isTest
-    static void bandConversion_quarterCheckpoints_andUnbandedWithoutSnapshot() {
+    static void forecastAccuracy_monthCategories_byAe_andCloseQuarter() {
         User dir = setupDirectorWithRep();
         User rep = [SELECT Id FROM User WHERE ManagerId = :dir.Id LIMIT 1];
         Id rtId = eunaSaleRtId();
@@ -175,7 +185,9 @@ private class CockpitConversionServiceTest {
                 'Budget Professional', 20000, closeQ3.addDays(-2), 'Perceived lack of ROI');
             Opportunity large = closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Best Case',
                 'Budget Professional', 180000, closeQ3.addDays(-5), 'Ghosted');
-            insert new List<Opportunity>{ moved, bare, large, openDeal(a.Id, rep.Id, rtId, 'Budget Professional', 60000) };
+            Opportunity q1 = closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Pipeline',
+                'Budget Professional', 25000, Date.newInstance(2026, 2, 10), 'Ghosted');
+            insert new List<Opportunity>{ moved, bare, large, q1, openDeal(a.Id, rep.Id, rtId, 'Budget Professional', 60000) };
             CockpitConversionService.snapshotOverride = new Map<Id, List<CockpitConversionService.SnapPoint>>{
                 moved.Id => new List<CockpitConversionService.SnapPoint>{
                     new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Commit'),
@@ -186,45 +198,66 @@ private class CockpitConversionServiceTest {
 
             Test.startTest();
             CockpitConversionService.PagePayload page = CockpitConversionService.load(
-                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL);
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL, '2026-Q3');
             Test.stopTest();
 
             System.assertEquals(false, page.scope.emptyScope, 'director with an AE is a valid scope');
-            System.assert(page.closedInWindow >= 3, 'closed rows in window are counted');
-            System.assertEquals(3, page.bandCheckpoints.size(), 'start, mid, last-month tables');
-            System.assertEquals(CockpitConversionService.CP_START, page.bandCheckpoints[0].key);
-            System.assertEquals(CockpitConversionService.CP_MID, page.bandCheckpoints[1].key);
-            System.assertEquals(CockpitConversionService.CP_LAST, page.bandCheckpoints[2].key);
+            System.assertEquals('2026-Q3', page.scope.closeQuarter, 'selected close quarter is honored');
+            System.assertEquals(3, page.closedInWindow, 'Q1 close is excluded from Q3');
+            System.assertEquals(3, page.bandCheckpoints.size(), 'first, second, third month tables');
+            System.assertEquals(CockpitConversionService.CP_M1, page.bandCheckpoints[0].key);
+            System.assertEquals(CockpitConversionService.CP_M2, page.bandCheckpoints[1].key);
+            System.assertEquals(CockpitConversionService.CP_M3, page.bandCheckpoints[2].key);
+            System.assertEquals('First month of the quarter', page.bandCheckpoints[0].label);
+            System.assertEquals('Second month of the quarter', page.bandCheckpoints[1].label);
+            System.assertEquals('Third month of the quarter', page.bandCheckpoints[2].label);
             System.assertEquals(true, bandHas(page.bandCheckpoints[0].rows, 'Commit', 1),
-                'beginning of quarter reads the July week');
+                'first month reads the July week');
             System.assertEquals(true, bandHas(page.bandCheckpoints[1].rows, 'Best Case', 1),
-                'middle of quarter reads the August week');
+                'second month reads the August week');
             System.assertEquals(true, bandHas(page.bandCheckpoints[2].rows, 'Pipeline', 1),
-                'last month reads the September week');
+                'third month reads the September week');
+            System.assertEquals(true, bandHas(page.bandCheckpoints[2].rows, 'Best Case', 1),
+                'third month uses before-close when the deal closed that month and had no snapshot');
             for (CockpitConversionService.CheckpointTable t : page.bandCheckpoints) {
                 Integer bandSum = 0;
-                Boolean sawUnbanded = false;
+                Boolean sawMissing = false;
                 for (CockpitConversionService.BandRow b : t.rows) {
                     bandSum += b.total;
-                    if (b.band == CockpitConversionService.UNBANDED) {
-                        sawUnbanded = true;
-                        System.assert(b.lost >= 1, 'deals without a nearby snapshot stay Unbanded');
+                    if (b.band == CockpitConversionService.NOT_ON_FORECAST) {
+                        sawMissing = true;
+                        System.assert(b.lost >= 1, 'deals with no source stay Not on forecast');
                     }
                 }
-                System.assertEquals(true, sawUnbanded, t.key + ' keeps Unbanded');
+                System.assertEquals(true, sawMissing, t.key + ' keeps Not on forecast');
                 System.assertEquals(page.closedInWindow, bandSum, t.key + ' sums to closed in window');
+                System.assert(!t.byAe.isEmpty(), t.key + ' flattens by AE');
+                System.assertNotEquals(null, t.explain, t.key + ' explains the table');
             }
+            System.assertNotEquals(null, page.forecastExplain, 'forecast category accuracy is explained');
+            System.assert(page.forecastExplain.contains('first, second, and third month'),
+                'explain names the three months');
             System.assertNotEquals(null, page.conventionCaption, 'page says it is closure-based');
             System.assertNotEquals(null, page.liveBook, 'live book is computed');
             System.assert(!page.lossMatrix.isEmpty(), 'loss matrix includes floored closed-lost reasons');
+            System.assert(page.options.closeQuarters.size() > 1, 'close-quarter picker is served');
+            System.assertEquals(CockpitConversionService.QUARTER_ALL, page.options.closeQuarters[0].value);
+
+            CockpitConversionService.PagePayload allQ = CockpitConversionService.load(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL,
+                CockpitConversionService.QUARTER_ALL);
+            System.assert(allQ.closedInWindow >= 4, 'All close quarters includes Q1 and Q3');
+
             CockpitConversionService.snapshotOverride = null;
             CockpitConversionService.PagePayload liveQuery = CockpitConversionService.load(
-                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL);
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL, '2026-Q3');
             System.assertEquals(3, liveQuery.bandCheckpoints.size(), 'live snapshot query still builds three tables');
             CockpitConversionService.PagePayload sized = CockpitConversionService.load(
                 dir.Id, CockpitConversionService.TEAM_DIRECTOR, 'Budget Professional',
-                CockpitConversionService.SIZE_UNDER_50);
+                CockpitConversionService.SIZE_UNDER_50, '2026-Q3');
             System.assertNotEquals(null, sized.scope.caption, 'product + size filters produce a caption');
+            System.assert(sized.scope.caption.contains('2026 Q3') || sized.scope.caption.contains('2026-Q3'),
+                'caption names the close quarter');
         }
     }
 
@@ -235,12 +268,30 @@ private class CockpitConversionServiceTest {
         System.runAs(lone) {
             Test.startTest();
             CockpitConversionService.PagePayload page = CockpitConversionService.load(
-                lone.Id, CockpitConversionService.TEAM_MINE, null, CockpitConversionService.SIZE_ALL);
+                lone.Id, CockpitConversionService.TEAM_MINE, null, CockpitConversionService.SIZE_ALL, null);
             Test.stopTest();
             System.assertEquals(true, page.scope.emptyScope, 'director with no AEs is an empty scope');
             System.assertNotEquals(null, page.scope.emptyMessage, 'empty state is explained');
             System.assert(page.scope.emptyMessage.contains('account executives'),
                 'message talks about AEs, not a raw director-only error');
+        }
+    }
+
+    @isTest
+    static void resolveScope_blankQuarter_defaultsToCurrent() {
+        User dir = setupDirectorWithRep();
+        System.runAs(dir) {
+            Test.startTest();
+            CockpitConversionService.Scope blank = CockpitConversionService.resolveScope(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL, null);
+            CockpitConversionService.Scope allQ = CockpitConversionService.resolveScope(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL,
+                CockpitConversionService.QUARTER_ALL);
+            Test.stopTest();
+            System.assertEquals(CockpitConversionService.currentQuarterKey(), blank.closeQuarter,
+                'blank close quarter defaults to the running quarter');
+            System.assertEquals(CockpitConversionService.QUARTER_ALL, allQ.closeQuarter,
+                'All close quarters is an explicit choice, not a default');
         }
     }
 
@@ -256,8 +307,10 @@ private class CockpitConversionServiceTest {
 
     @isTest
     static void normalizeBand_andRootOf_blankPaths() {
-        System.assertEquals('Unbanded', CockpitConversionService.normalizeBand(null), 'null band');
-        System.assertEquals('Unbanded', CockpitConversionService.normalizeBand(''), 'blank band');
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.normalizeBand(null), 'null band');
+        System.assertEquals(CockpitConversionService.NOT_ON_FORECAST,
+            CockpitConversionService.normalizeBand(''), 'blank band');
         System.assertEquals('Commit', CockpitConversionService.normalizeBand('Commit'), 'named band kept');
         System.assertEquals('UNMAPPED', CockpitConversionService.rootOf(null), 'blank reason is unmapped');
         System.assertEquals('ENGAGE', CockpitConversionService.rootOf('Ghosted'), 'Ghosted maps to ENGAGE');

@@ -1,9 +1,16 @@
 import { LightningElement, api, wire } from 'lwc';
+import { refreshApex } from '@salesforce/apex';
 import load from '@salesforce/apex/CockpitConversionController.load';
 import getScopeOptions from '@salesforce/apex/CockpitConversionController.getScopeOptions';
 
 const SESSION_KEY = 'gtmScopeFilters';
-const DEFAULT_SCOPE = { directorId: null, teamMode: 'mine', productType: '', sizeBand: 'ALL' };
+const DEFAULT_SCOPE = {
+    directorId: null,
+    teamMode: 'mine',
+    productType: '',
+    sizeBand: 'ALL',
+    closeQuarter: ''
+};
 
 export default class ConversionMetrics extends LightningElement {
     @api embedded = false;
@@ -11,10 +18,14 @@ export default class ConversionMetrics extends LightningElement {
     teamMode = 'mine';
     productType = '';
     sizeBand = 'ALL';
-    options = { directors: [], productTypes: [], sizeBands: [] };
+    closeQuarter = '';
+    options = { directors: [], productTypes: [], sizeBands: [], closeQuarters: [] };
     page;
     error;
     loading = true;
+    viewByAe = false;
+    explainOpen = {};
+    wiredLoadResult;
 
     connectedCallback() {
         this.restoreScope();
@@ -22,17 +33,25 @@ export default class ConversionMetrics extends LightningElement {
 
     @wire(getScopeOptions)
     wiredOptions({ data, error }) {
-        if (data) this.options = data;
-        else if (error) this.error = this.msg(error);
+        if (data) {
+            this.options = data;
+            if (!this.closeQuarter) {
+                this.closeQuarter = this.defaultCloseQuarter(data.closeQuarters);
+            }
+        } else if (error) {
+            this.error = this.msg(error);
+        }
     }
 
     @wire(load, {
         directorId: '$directorId',
         teamMode: '$teamMode',
         productType: '$productType',
-        sizeBand: '$sizeBand'
+        sizeBand: '$sizeBand',
+        closeQuarter: '$closeQuarter'
     })
     wiredLoad(result) {
+        this.wiredLoadResult = result;
         this.loading = false;
         if (result.data) {
             this.page = result.data;
@@ -40,6 +59,12 @@ export default class ConversionMetrics extends LightningElement {
         } else if (result.error) {
             this.error = this.msg(result.error);
         }
+    }
+
+    defaultCloseQuarter(quarters) {
+        const list = quarters || [];
+        const current = list.filter((q) => q.value && q.value !== 'ALL').slice(-1)[0];
+        return current ? current.value : 'ALL';
     }
 
     restoreScope() {
@@ -51,6 +76,7 @@ export default class ConversionMetrics extends LightningElement {
             this.teamMode = s.teamMode || 'mine';
             this.productType = s.productType || '';
             this.sizeBand = s.sizeBand || 'ALL';
+            this.closeQuarter = s.closeQuarter || '';
         } catch (e) {
             /* session is best-effort */
         }
@@ -61,7 +87,8 @@ export default class ConversionMetrics extends LightningElement {
             directorId: this.directorId,
             teamMode: this.teamMode,
             productType: this.productType,
-            sizeBand: this.sizeBand
+            sizeBand: this.sizeBand,
+            closeQuarter: this.closeQuarter
         };
         try {
             sessionStorage.setItem(SESSION_KEY, JSON.stringify(detail));
@@ -77,6 +104,7 @@ export default class ConversionMetrics extends LightningElement {
         if (d.teamMode !== undefined) this.teamMode = d.teamMode || 'mine';
         if (d.productType !== undefined) this.productType = d.productType || '';
         if (d.sizeBand !== undefined) this.sizeBand = d.sizeBand || 'ALL';
+        if (d.closeQuarter !== undefined) this.closeQuarter = d.closeQuarter || '';
         this.persistScope();
     }
 
@@ -100,6 +128,28 @@ export default class ConversionMetrics extends LightningElement {
     handleSize(event) {
         this.sizeBand = event.target.value || 'ALL';
         this.emitScope();
+    }
+
+    handleQuarter(event) {
+        this.closeQuarter = event.target.value || '';
+        this.emitScope();
+    }
+
+    handleView(event) {
+        this.viewByAe = event.currentTarget.dataset.view === 'ae';
+    }
+
+    toggleExplain(event) {
+        const key = event.currentTarget.dataset.explain;
+        this.explainOpen = { ...this.explainOpen, [key]: !this.explainOpen[key] };
+    }
+
+    handleRefresh() {
+        if (!this.wiredLoadResult) return;
+        this.loading = true;
+        refreshApex(this.wiredLoadResult).finally(() => {
+            this.loading = false;
+        });
     }
 
     emitScope() {
@@ -136,6 +186,13 @@ export default class ConversionMetrics extends LightningElement {
             selected: o.value === this.sizeBand
         }));
     }
+    get quarterOptions() {
+        return (this.options.closeQuarters || []).map((o) => ({
+            value: o.value,
+            label: o.label,
+            selected: o.value === this.closeQuarter
+        }));
+    }
 
     get scopeCaption() { return this.page && this.page.scope ? this.page.scope.caption : ''; }
     get emptyScope() { return this.page && this.page.scope && this.page.scope.emptyScope; }
@@ -146,6 +203,16 @@ export default class ConversionMetrics extends LightningElement {
     get lossFloor() { return this.page ? this.page.lossReasonFloorCaption : ''; }
     get interpretation() { return this.page ? this.page.bandInterpretation : ''; }
     get hasInterpretation() { return !!this.interpretation; }
+    get forecastExplain() { return this.page ? this.page.forecastExplain : ''; }
+    get commitExplain() { return this.page ? this.page.commitExplain : ''; }
+    get lossExplain() { return this.page ? this.page.lossExplain : ''; }
+    get liveExplain() { return this.page ? this.page.liveExplain : ''; }
+    get showForecastExplain() { return !!this.explainOpen.forecast; }
+    get showCommitExplain() { return !!this.explainOpen.commit; }
+    get showLossExplain() { return !!this.explainOpen.loss; }
+    get showLiveExplain() { return !!this.explainOpen.live; }
+    get teamViewClass() { return this.viewByAe ? 'chip' : 'chip on'; }
+    get aeViewClass() { return this.viewByAe ? 'chip on' : 'chip'; }
     get meddpiccNote() {
         if (!this.page) return '';
         return this.page.meddpiccAvailable
@@ -165,20 +232,28 @@ export default class ConversionMetrics extends LightningElement {
             caption: cp.caption,
             interpretation: cp.interpretation,
             hasInterpretation: !!cp.interpretation,
-            rows: (cp.rows || []).map((r) => ({
-                rowKey: cp.key + ':' + r.band,
-                band: r.band,
-                pill: 'pill ' + this.bandClass(r.band),
-                won: r.won,
-                lost: r.lost,
-                total: r.total,
-                winRateCount: this.pct(r.winRateCount),
-                arrWon: this.money(r.arrWon),
-                arrTotal: this.money(r.arrTotal),
-                winRateArr: this.pct(r.winRateArr),
-                gapClass: r.largeDealsLose ? 'gap-warn' : ''
-            }))
+            showAe: this.viewByAe,
+            rows: this.viewByAe
+                ? (cp.byAe || []).map((r) => this.bandDisplay(cp.key + ':' + r.ownerId + ':' + r.band, r, r.aeName))
+                : (cp.rows || []).map((r) => this.bandDisplay(cp.key + ':' + r.band, r, ''))
         }));
+    }
+
+    bandDisplay(rowKey, r, aeName) {
+        return {
+            rowKey: rowKey,
+            aeName: aeName,
+            band: r.band,
+            pill: 'pill ' + this.bandClass(r.band),
+            won: r.won,
+            lost: r.lost,
+            total: r.total,
+            winRateCount: this.pct(r.winRateCount),
+            arrWon: this.money(r.arrWon),
+            arrTotal: this.money(r.arrTotal),
+            winRateArr: this.pct(r.winRateArr),
+            gapClass: r.largeDealsLose ? 'gap-warn' : ''
+        };
     }
 
     get commitRows() {
@@ -238,7 +313,8 @@ export default class ConversionMetrics extends LightningElement {
         if (band === 'Most Likely') return 'p-ml';
         if (band === 'Best Case') return 'p-bc';
         if (band === 'Omitted') return 'p-om';
-        if (band === 'Unbanded') return 'p-un';
+        if (band === 'Closed') return 'p-cl';
+        if (band === 'Not on forecast') return 'p-un';
         return 'p-pipe';
     }
     money(n) {

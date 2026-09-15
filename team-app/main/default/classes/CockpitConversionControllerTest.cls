@@ -15,12 +15,14 @@ private class CockpitConversionControllerTest {
             Test.startTest();
             CockpitConversionService.ScopeOptions opts = CockpitConversionController.getScopeOptions();
             CockpitConversionService.PagePayload page = CockpitConversionController.load(
-                dir.Id, 'director', null, 'ALL');
+                dir.Id, 'director', null, 'ALL', '2026-Q3');
             Test.stopTest();
 
             System.assertNotEquals(null, opts, 'filter options returned');
             System.assert(!opts.directors.isEmpty(), 'director picker includes My team');
             System.assertEquals('mine', opts.directors[0].value, 'first option is my-team mode');
+            System.assert(!opts.closeQuarters.isEmpty(), 'close-quarter picker is served');
+            System.assertEquals('ALL', opts.closeQuarters[0].value, 'first quarter option is all quarters');
             Set<Id> underCso = CockpitRosterService.rolesUnderChiefSalesOfficer();
             for (CockpitConversionService.FilterOption o : opts.directors) {
                 if (o.value == 'mine') continue;
@@ -33,6 +35,7 @@ private class CockpitConversionControllerTest {
             System.assertNotEquals(null, page, 'load returns a payload');
             System.assertNotEquals(null, page.scope, 'scope is director-driven');
             System.assertEquals(dir.Id, page.scope.directorId, 'selected director is honored');
+            System.assertEquals('2026-Q3', page.scope.closeQuarter, 'close quarter is honored');
         }
     }
 
