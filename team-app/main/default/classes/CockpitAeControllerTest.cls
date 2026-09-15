@@ -70,10 +70,10 @@ private class CockpitAeControllerTest {
         Test.stopTest();
 
         System.assert(mine.ownerIds().contains(ae.Id), 'default scope is the running director\'s team');
-        for (CockpitRosterService.Member m : directors) {
-            System.assertNotEquals('Ben Johnson', m.name, 'picker is not a hardcoded Team Johnson roster');
-        }
         System.assertNotEquals(null, directors, 'sales-director picker returns a list');
+        Set<Id> pickerIds = new Set<Id>();
+        for (CockpitRosterService.Member m : directors) pickerIds.add(m.userId);
+        System.assert(!pickerIds.contains(ae.Id), 'AE reports are not listed as directors');
     }
 
     static Integer seq = 0;
