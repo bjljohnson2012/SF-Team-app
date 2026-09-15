@@ -2,25 +2,25 @@
     <div class="bar">
         <div class="f">
             <label>Team / Director</label>
-            <select value={directorId} onchange={handleDirector} disabled={error}>
-                <template for:each={directors} for:item="d">
-                    <option key={d.key} value={d.value}>{d.label}</option>
+            <select onchange={handleDirector} disabled={error}>
+                <template for:each={directorSelectOptions} for:item="d">
+                    <option key={d.key} value={d.value} selected={d.selected}>{d.label}</option>
                 </template>
             </select>
         </div>
         <div class="f">
             <label>Product type</label>
-            <select value={productType} onchange={handleProduct} disabled={error}>
-                <template for:each={productTypes} for:item="d">
-                    <option key={d.value} value={d.value}>{d.label}</option>
+            <select onchange={handleProduct} disabled={error}>
+                <template for:each={productSelectOptions} for:item="d">
+                    <option key={d.value} value={d.value} selected={d.selected}>{d.label}</option>
                 </template>
             </select>
         </div>
         <div class="f">
             <label>ARR size</label>
-            <select value={sizeBand} onchange={handleSize} disabled={error}>
-                <template for:each={sizeBands} for:item="d">
-                    <option key={d.value} value={d.value}>{d.label}</option>
+            <select onchange={handleSize} disabled={error}>
+                <template for:each={sizeSelectOptions} for:item="d">
+                    <option key={d.value} value={d.value} selected={d.selected}>{d.label}</option>
                 </template>
             </select>
         </div>

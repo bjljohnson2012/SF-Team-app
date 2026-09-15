@@ -2,12 +2,14 @@ import { LightningElement } from 'lwc';
 import getFilterOptions from '@salesforce/apex/CockpitWinRateController.getFilterOptions';
 
 const STORE = 'gtmScopeFilters';
+const PRODUCT_ALL = 'ALL';
+const SIZE_ALL = 'ALL';
 
 export default class GtmScopeFilters extends LightningElement {
     directorId = '';
     teamMode = 'my';
-    productType = 'ALL';
-    sizeBand = 'ALL';
+    productType = PRODUCT_ALL;
+    sizeBand = SIZE_ALL;
     directors = [];
     productTypes = [];
     sizeBands = [];
@@ -26,15 +28,37 @@ export default class GtmScopeFilters extends LightningElement {
                 if (saved) {
                     this.directorId = saved.directorId || '';
                     this.teamMode = saved.teamMode || 'my';
-                    this.productType = saved.productType || 'ALL';
-                    this.sizeBand = saved.sizeBand || 'ALL';
                 }
+                this.productType = PRODUCT_ALL;
+                this.sizeBand = SIZE_ALL;
                 this.ready = true;
+                this.writeStore();
                 this.emit();
             })
             .catch((e) => {
                 this.error = (e && e.body && e.body.message) || e.message || 'Could not load filters.';
+                this.ready = true;
+                this.emit();
             });
+    }
+
+    get directorSelectOptions() {
+        return (this.directors || []).map((d) => ({
+            ...d,
+            selected: (d.value || '') === (this.directorId || '')
+        }));
+    }
+    get productSelectOptions() {
+        return (this.productTypes || []).map((d) => ({
+            ...d,
+            selected: d.value === this.productType
+        }));
+    }
+    get sizeSelectOptions() {
+        return (this.sizeBands || []).map((d) => ({
+            ...d,
+            selected: d.value === this.sizeBand
+        }));
     }
 
     get scopeCaption() {
@@ -50,11 +74,11 @@ export default class GtmScopeFilters extends LightningElement {
         this.persistAndEmit();
     }
     handleProduct(e) {
-        this.productType = e.target.value;
+        this.productType = e.target.value || PRODUCT_ALL;
         this.persistAndEmit();
     }
     handleSize(e) {
-        this.sizeBand = e.target.value;
+        this.sizeBand = e.target.value || SIZE_ALL;
         this.persistAndEmit();
     }
 
@@ -67,8 +91,8 @@ export default class GtmScopeFilters extends LightningElement {
         const detail = {
             directorId: this.directorId || null,
             teamMode: this.teamMode,
-            productType: this.productType,
-            sizeBand: this.sizeBand
+            productType: this.productType || PRODUCT_ALL,
+            sizeBand: this.sizeBand || SIZE_ALL
         };
         this.dispatchEvent(new CustomEvent('scopechange', { detail }));
     }
@@ -86,6 +110,7 @@ export default class GtmScopeFilters extends LightningElement {
         return hit ? hit.label : 'Selected director';
     }
     productLabel(v) {
+        if (!v || v === PRODUCT_ALL) return 'All products';
         const hit = (this.productTypes || []).find((d) => d.value === v);
         return hit ? hit.label : 'All products';
     }
@@ -107,8 +132,8 @@ export default class GtmScopeFilters extends LightningElement {
             sessionStorage.setItem(STORE, JSON.stringify({
                 directorId: this.directorId,
                 teamMode: this.teamMode,
-                productType: this.productType,
-                sizeBand: this.sizeBand
+                productType: this.productType || PRODUCT_ALL,
+                sizeBand: this.sizeBand || SIZE_ALL
             }));
         } catch (e) { /* private mode */ }
     }

@@ -19,8 +19,8 @@ export default class CockpitAeByAe extends LightningElement {
         const d = e.detail || {};
         this.directorId = d.directorId;
         this.teamMode = d.teamMode || 'my';
-        this.productType = d.productType || 'ALL';
-        this.sizeBand = d.sizeBand || 'ALL';
+        this.productType = !d.productType || d.productType === 'ALL' ? 'ALL' : d.productType;
+        this.sizeBand = !d.sizeBand || d.sizeBand === 'ALL' ? 'ALL' : d.sizeBand;
         this.refresh();
     }
 
