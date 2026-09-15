@@ -9,6 +9,11 @@ export default class CockpitAeByAe extends LightningElement {
     teamMode = 'my';
     productType = 'ALL';
     sizeBand = 'ALL';
+    req = 0;
+
+    connectedCallback() {
+        this.refresh();
+    }
 
     handleScope(e) {
         const d = e.detail || {};
@@ -20,17 +25,18 @@ export default class CockpitAeByAe extends LightningElement {
     }
 
     refresh() {
+        const req = ++this.req;
         this.loading = true;
         this.error = undefined;
         loadComposition({
-            directorId: this.directorId,
+            directorId: this.directorId || null,
             teamMode: this.teamMode,
             productType: this.productType,
             sizeBand: this.sizeBand
         })
-            .then((data) => { this.payload = data; })
-            .catch((err) => { this.error = this.msg(err); })
-            .finally(() => { this.loading = false; });
+            .then((data) => { if (req === this.req) this.payload = data; })
+            .catch((err) => { if (req === this.req) this.error = this.msg(err); })
+            .finally(() => { if (req === this.req) this.loading = false; });
     }
 
     msg(e) { return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.'; }

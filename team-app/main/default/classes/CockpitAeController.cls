@@ -28,7 +28,7 @@ public with sharing class CockpitAeController {
         return o;
     }
 
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static CockpitAeCompositionService.Payload loadComposition(
         Id directorId, String teamMode, String productType, String sizeBand
     ) {

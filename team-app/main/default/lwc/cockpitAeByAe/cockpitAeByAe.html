@@ -6,7 +6,10 @@
         <c-gtm-scope-filters onscopechange={handleScope}></c-gtm-scope-filters>
 
         <template lwc:if={loading}>
-            <lightning-spinner size="small" alternative-text="Loading AE composition"></lightning-spinner>
+            <div class="box">
+                <lightning-spinner size="small" alternative-text="Loading AE composition"></lightning-spinner>
+                <p class="note">Scoring the live book…</p>
+            </div>
         </template>
         <template lwc:if={error}><div class="err">{error}</div></template>
 

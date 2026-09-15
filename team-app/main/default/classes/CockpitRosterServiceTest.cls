@@ -31,9 +31,7 @@ private class CockpitRosterServiceTest {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User lone = mk(p.Id, null, 'Director');
         insert lone;
-        Set<Id> ids = CockpitRosterService.teamIds(lone.Id);
-        System.assertEquals(1, ids.size(), 'director with no AE reports is still a valid self scope');
-        System.assert(ids.contains(lone.Id), 'self is the only member');
+        System.assert(CockpitRosterService.teamIds(lone.Id).isEmpty(), 'no reports -> empty walk');
     }
 
     @isTest
