@@ -27,6 +27,74 @@ private class CockpitRosterServiceTest {
     }
 
     @isTest
+    static void isSalesTeamLeaderRole_keepsDirectorsUnderCso_dropsSupportAndSe() {
+        System.assertEquals(true,
+            CockpitRosterService.isSalesTeamLeaderRole('MM NE Director', 'Director, Sales'));
+        System.assertEquals(true,
+            CockpitRosterService.isSalesTeamLeaderRole('VP Sales', 'Corporate Strategy'));
+        System.assertEquals(true,
+            CockpitRosterService.isSalesTeamLeaderRole('Chief Sales Officer', 'Chief Sales Officer'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Chief Sales Officer', 'Chief Product Officer'),
+            'CSO role with a non-CSO title is not a sales team leader');
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Director - Sales Support', 'Senior Bid Specialist'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Solutions Engineers', 'VP, Solutions'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('Partnerships', 'VP, Partnerships'));
+        System.assertEquals(false,
+            CockpitRosterService.isSalesTeamLeaderRole('MM NE Rep', 'Account Executive'));
+        System.assertEquals(false, CockpitRosterService.isSalesTeamLeaderRole(null, 'Director'));
+    }
+
+    @isTest
+    static void salesDirectors_onlyCsoRollupTeamLeaders() {
+        Set<Id> underCso = CockpitRosterService.rolesUnderChiefSalesOfficer();
+        System.assert(!underCso.isEmpty(), 'org has a Chief Sales Officer role tree');
+
+        Test.startTest();
+        List<CockpitRosterService.DirectorOption> dirs = CockpitRosterService.salesDirectors();
+        List<CockpitRosterService.Member> listed = CockpitRosterService.listDirectors();
+        List<Id> batchIds = CockpitRosterService.directorIdsForBatch();
+        Test.stopTest();
+
+        System.assertEquals(dirs.size(), listed.size(),
+            'listDirectors wraps the CSO sales-director picker');
+        System.assertEquals(dirs.size(), batchIds.size(),
+            'batch director ids match the same picker');
+
+        Set<Id> seen = new Set<Id>();
+        for (Integer i = 0; i < dirs.size(); i++) {
+            CockpitRosterService.DirectorOption d = dirs[i];
+            System.assertNotEquals(null, d.userId, 'sales director has a user id');
+            System.assertEquals(false, seen.contains(d.userId), 'each leader once');
+            seen.add(d.userId);
+            System.assertEquals(d.userId, listed[i].userId, 'wrapper keeps picker order');
+            System.assertEquals(d.userId, batchIds[i], 'batch ids keep picker order');
+            User u = [
+                SELECT Name, IsActive, Title, UserRoleId, UserRole.Name
+                FROM User WHERE Id = :d.userId
+            ];
+            System.assertEquals(true, u.IsActive, 'inactive users stay out of the picker');
+            System.assert(underCso.contains(u.UserRoleId),
+                u.Name + ' role must roll up to Chief Sales Officer');
+            System.assertEquals(true,
+                CockpitRosterService.isSalesTeamLeaderRole(
+                    u.UserRole == null ? null : u.UserRole.Name, u.Title),
+                u.Name + ' is a selling-team leader role, not support/SE/alliances');
+        }
+    }
+
+    @isTest
+    static void emptyTeam_returnsEmpty() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User lone = mk(p.Id, null, 'Director');
+        insert lone;
+        System.assert(CockpitRosterService.teamIds(lone.Id).isEmpty(), 'no reports -> empty');
+    }
+
+    @isTest
     static void emptyTeam_nonAE_returnsEmpty() {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
         User lone = mk(p.Id, null, 'Solutions Engineer');
