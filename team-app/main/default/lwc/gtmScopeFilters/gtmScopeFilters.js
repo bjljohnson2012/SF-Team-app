@@ -1,11 +1,13 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, api } from 'lwc';
 import getFilterOptions from '@salesforce/apex/CockpitWinRateController.getFilterOptions';
 
 const STORE = 'gtmScopeFilters';
+const STORE_GROUPED = 'gtmScopeFiltersGrouped';
 const PRODUCT_ALL = 'ALL';
 const SIZE_ALL = 'ALL';
 
 export default class GtmScopeFilters extends LightningElement {
+    @api groupedProducts = false;
     directorId = '';
     teamMode = 'my';
     productType = PRODUCT_ALL;
@@ -22,7 +24,10 @@ export default class GtmScopeFilters extends LightningElement {
         getFilterOptions()
             .then((o) => {
                 this.directors = this.withKeys(o.directors || []);
-                this.productTypes = this.withKeys(o.productTypes || []);
+                const products = this.groupedProducts
+                    ? (o.productGroups || o.productTypes)
+                    : o.productTypes;
+                this.productTypes = this.withKeys(products || []);
                 this.sizeBands = this.withKeys(o.sizeBands || []);
                 this.defaultDirectorName = o.defaultDirectorName;
                 if (saved) {
@@ -31,6 +36,16 @@ export default class GtmScopeFilters extends LightningElement {
                 }
                 this.productType = PRODUCT_ALL;
                 this.sizeBand = SIZE_ALL;
+                if (saved) {
+                    const known = new Set((this.productTypes || []).map((p) => p.value));
+                    const sizes = new Set((this.sizeBands || []).map((s) => s.value));
+                    if (saved.productType && known.has(saved.productType)) {
+                        this.productType = saved.productType;
+                    }
+                    if (saved.sizeBand && sizes.has(saved.sizeBand)) {
+                        this.sizeBand = saved.sizeBand;
+                    }
+                }
                 this.ready = true;
                 this.writeStore();
                 this.emit();
@@ -109,6 +124,9 @@ export default class GtmScopeFilters extends LightningElement {
         const hit = (this.directors || []).find((d) => d.value === id);
         return hit ? hit.label : 'Selected director';
     }
+    storeKey() {
+        return this.groupedProducts ? STORE_GROUPED : STORE;
+    }
     productLabel(v) {
         if (!v || v === PRODUCT_ALL) return 'All products';
         const hit = (this.productTypes || []).find((d) => d.value === v);
@@ -121,7 +139,7 @@ export default class GtmScopeFilters extends LightningElement {
 
     readStore() {
         try {
-            const raw = sessionStorage.getItem(STORE);
+            const raw = sessionStorage.getItem(this.storeKey());
             return raw ? JSON.parse(raw) : null;
         } catch (e) {
             return null;
@@ -129,7 +147,7 @@ export default class GtmScopeFilters extends LightningElement {
     }
     writeStore() {
         try {
-            sessionStorage.setItem(STORE, JSON.stringify({
+            sessionStorage.setItem(this.storeKey(), JSON.stringify({
                 directorId: this.directorId,
                 teamMode: this.teamMode,
                 productType: this.productType || PRODUCT_ALL,

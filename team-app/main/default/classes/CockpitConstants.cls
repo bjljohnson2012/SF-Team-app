@@ -55,6 +55,25 @@ public with sharing class CockpitConstants {
     public static final String SIZE_50_150K = 'BAND_50_150K';
     public static final String SIZE_OVER_150K = 'OVER_150K';
     public static final String PRODUCT_ALL = 'ALL';
+    public static final String PRODUCT_GROUP_BUDGET = 'BUDGET';
+    public static final String PRODUCT_GROUP_GRANTS = 'GRANTS';
+    public static final String PRODUCT_GROUP_PROC_SOURCING = 'PROC_SOURCING';
+    public static final String PRODUCT_GROUP_PROC_MARKET = 'PROC_MARKET';
+
+    // Live EUNA_Solution__c values. OpenBid (DemandStar) and ESN are not sourcing.
+    public static final Set<String> SOLUTIONS_BUDGET = new Set<String>{
+        'Budget Professional', 'Budget Enterprise'
+    };
+    public static final Set<String> SOLUTIONS_GRANTS = new Set<String>{
+        'Grants', 'Amplifund', 'GrantExec'
+    };
+    public static final Set<String> SOLUTIONS_PROC_SOURCING = new Set<String>{
+        'Procurement-Bonfire', 'Procurement-IonWave'
+    };
+    public static final Set<String> SOLUTIONS_PROC_MARKET = new Set<String>{
+        'Procurement-EqualLevel', 'Procurement EL Vendor'
+    };
+
     public static final String TEAM_MODE_MY = 'my';
     public static final String TEAM_MODE_MINE = 'my';
     public static final String TEAM_MODE_DIRECTOR = 'director';
@@ -95,5 +114,30 @@ public with sharing class CockpitConstants {
     }
     public static Integer quarterOf(Date d) {
         return ((d.month() - 1) / 3) + 1;
+    }
+
+    public static Set<String> solutionsInProductFilter(String productType) {
+        if (String.isBlank(productType) || productType == PRODUCT_ALL) {
+            Set<String> all = new Set<String>();
+            all.addAll(SOLUTIONS_BUDGET);
+            all.addAll(SOLUTIONS_GRANTS);
+            all.addAll(SOLUTIONS_PROC_SOURCING);
+            all.addAll(SOLUTIONS_PROC_MARKET);
+            return all;
+        }
+        if (productType == PRODUCT_GROUP_BUDGET) return new Set<String>(SOLUTIONS_BUDGET);
+        if (productType == PRODUCT_GROUP_GRANTS) return new Set<String>(SOLUTIONS_GRANTS);
+        if (productType == PRODUCT_GROUP_PROC_SOURCING) return new Set<String>(SOLUTIONS_PROC_SOURCING);
+        if (productType == PRODUCT_GROUP_PROC_MARKET) return new Set<String>(SOLUTIONS_PROC_MARKET);
+        return new Set<String>{ productType };
+    }
+
+    public static String productGroupLabel(String productType) {
+        if (productType == PRODUCT_GROUP_BUDGET) return 'Budget';
+        if (productType == PRODUCT_GROUP_GRANTS) return 'Grants';
+        if (productType == PRODUCT_GROUP_PROC_SOURCING) return 'Procurement Sourcing';
+        if (productType == PRODUCT_GROUP_PROC_MARKET) return 'Procurement Marketplace';
+        if (String.isBlank(productType) || productType == PRODUCT_ALL) return 'All products';
+        return productType;
     }
 }

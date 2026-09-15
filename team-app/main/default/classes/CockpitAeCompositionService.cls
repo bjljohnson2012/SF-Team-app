@@ -322,9 +322,9 @@ public with sharing class CockpitAeCompositionService {
         Set<Id> owners, Date qStart, Date qEnd, String productType, String sizeBand
     ) {
         Map<Id, Booked> out = new Map<Id, Booked>();
-        Boolean filterProduct = productType != CockpitConstants.PRODUCT_ALL;
+        Set<String> solutions = CockpitConstants.solutionsInProductFilter(productType);
         Boolean filterSize = sizeBand != CockpitConstants.SIZE_ALL;
-        if (filterProduct || filterSize) {
+        if (filterSize) {
             for (Opportunity o : [
                 SELECT OwnerId, ARR_Opportunity_Amount_USD_Num__c, EUNA_Solution__c
                 FROM Opportunity
@@ -334,6 +334,7 @@ public with sharing class CockpitAeCompositionService {
                   AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
                   AND StageName NOT IN :CockpitConstants.MIGRATION_STAGES
                   AND CloseDate >= :qStart AND CloseDate <= :qEnd
+                  AND EUNA_Solution__c IN :solutions
                 WITH USER_MODE
             ]) {
                 if (!matchesProduct(o, productType)) continue;
@@ -354,6 +355,7 @@ public with sharing class CockpitAeCompositionService {
               AND Type IN :CockpitConstants.NEW_BUSINESS_TYPES
               AND StageName NOT IN :CockpitConstants.MIGRATION_STAGES
               AND CloseDate >= :qStart AND CloseDate <= :qEnd
+              AND EUNA_Solution__c IN :solutions
             WITH USER_MODE
             GROUP BY OwnerId
         ]) {
@@ -459,9 +461,10 @@ public with sharing class CockpitAeCompositionService {
         return null;
     }
 
-    private static Boolean matchesProduct(Opportunity o, String productType) {
-        if (String.isBlank(productType) || productType == CockpitConstants.PRODUCT_ALL) return true;
-        return o.EUNA_Solution__c == productType;
+    @TestVisible
+    static Boolean matchesProduct(Opportunity o, String productType) {
+        return o != null
+            && CockpitConstants.solutionsInProductFilter(productType).contains(o.EUNA_Solution__c);
     }
 
     @TestVisible
@@ -488,8 +491,7 @@ public with sharing class CockpitAeCompositionService {
     }
 
     private static String caption(String directorName, String productType, String sizeBand) {
-        String product = (String.isBlank(productType) || productType == CockpitConstants.PRODUCT_ALL)
-            ? 'All products' : productType;
+        String product = CockpitConstants.productGroupLabel(productType);
         String size = sizeLabel(sizeBand);
         String who = String.isBlank(directorName) ? 'your team' : directorName;
         return 'Team of ' + who + ' · ' + product + ' · ' + size;

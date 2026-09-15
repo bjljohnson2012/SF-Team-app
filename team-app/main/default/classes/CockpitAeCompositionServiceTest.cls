@@ -59,6 +59,7 @@ private class CockpitAeCompositionServiceTest {
             'LastActivityDate' => iso(lastActivity),
             'Is_Holdover__c' => false,
             'StageName' => 'Proposal',
+            'EUNA_Solution__c' => 'Budget Professional',
             'SQL_Datestamp_bf__c' => iso(today().addDays(-10)),
             'Next_Step_Date_bf__c' => iso(today().addDays(5))
         });
@@ -247,6 +248,71 @@ private class CockpitAeCompositionServiceTest {
         System.assertEquals(true, p.classMissing, 'null class is an explicit empty state');
         System.assert(p.emptyReason.contains('null class'), 'reason names the missing class');
         System.assertEquals(0, p.rows.size(), 'do not render Exclude-as-default rows');
+    }
+
+    @isTest
+    static void productFilter_fourFamiliesOnly() {
+        Opportunity budget = opp(new Map<String, Object>{ 'EUNA_Solution__c' => 'Budget Professional' });
+        Opportunity grant = opp(new Map<String, Object>{ 'EUNA_Solution__c' => 'GrantExec' });
+        Opportunity source = opp(new Map<String, Object>{ 'EUNA_Solution__c' => 'Procurement-Bonfire' });
+        Opportunity market = opp(new Map<String, Object>{ 'EUNA_Solution__c' => 'Procurement-EqualLevel' });
+        Opportunity openBid = opp(new Map<String, Object>{ 'EUNA_Solution__c' => 'OpenBid' });
+
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(budget, CockpitConstants.PRODUCT_ALL),
+            'All is the four families — Budget stays in');
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(grant, CockpitConstants.PRODUCT_ALL),
+            'All is the four families — GrantExec stays in');
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(source, CockpitConstants.PRODUCT_ALL),
+            'All is the four families — Bonfire stays in');
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(market, CockpitConstants.PRODUCT_ALL),
+            'All is the four families — EqualLevel stays in');
+        System.assertEquals(false,
+            CockpitAeCompositionService.matchesProduct(openBid, CockpitConstants.PRODUCT_ALL),
+            'OpenBid is not one of the four families');
+
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(budget, CockpitConstants.PRODUCT_GROUP_BUDGET),
+            'Budget Professional is Budget');
+        System.assertEquals(false,
+            CockpitAeCompositionService.matchesProduct(grant, CockpitConstants.PRODUCT_GROUP_BUDGET),
+            'GrantExec is not Budget');
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(grant, CockpitConstants.PRODUCT_GROUP_GRANTS),
+            'GrantExec is Grants');
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(source, CockpitConstants.PRODUCT_GROUP_PROC_SOURCING),
+            'Bonfire is Procurement Sourcing');
+        System.assertEquals(true,
+            CockpitAeCompositionService.matchesProduct(market, CockpitConstants.PRODUCT_GROUP_PROC_MARKET),
+            'EqualLevel is Procurement Marketplace');
+        System.assertEquals('Procurement Sourcing',
+            CockpitConstants.productGroupLabel(CockpitConstants.PRODUCT_GROUP_PROC_SOURCING),
+            'family labels drop the SKU suffixes');
+        System.assertEquals('Procurement Marketplace',
+            CockpitConstants.productGroupLabel(CockpitConstants.PRODUCT_GROUP_PROC_MARKET),
+            'marketplace label is the family name');
+
+        Id ae = fakeUser(9);
+        Opportunity budgetDeal = deal(ae, fakeOpp(81), CockpitConstants.BAND_PIPE, 1000, qStart().addDays(4));
+        budgetDeal.Cockpit_Class_Override__c = 'EX';
+        Opportunity grantDeal = deal(ae, fakeOpp(82), CockpitConstants.BAND_PIPE, 2000, qStart().addDays(5));
+        grantDeal.EUNA_Solution__c = 'GrantExec';
+        grantDeal.Cockpit_Class_Override__c = 'EX';
+        Test.startTest();
+        CockpitAeCompositionService.Payload budgetOnly = CockpitAeCompositionService.computeFrom(
+            oneAe(ae, 'Pat'), new List<Opportunity>{ budgetDeal, grantDeal },
+            new Map<Id, CockpitAeCompositionService.Booked>(),
+            today(), qStart(), nextStart(), nextEnd(), winEnd(),
+            CockpitConstants.PRODUCT_GROUP_BUDGET, CockpitConstants.SIZE_ALL);
+        Test.stopTest();
+        System.assertEquals(1000, budgetOnly.rows[0].currentQ.openArr,
+            'Budget filter keeps Budget Professional and drops GrantExec');
+        System.assert(budgetOnly.scopeCaption.contains('Budget'),
+            'caption uses the family name, not the SKU');
     }
 
     @isTest
