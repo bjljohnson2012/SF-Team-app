@@ -172,22 +172,22 @@ private class PricingReviewEvidenceTest {
 
     @isTest
     static void existing_book_and_rfp_formatters() {
-        Contract activated = new Contract(
-            Status = 'Activated',
-            ARR_Rollup__c = 23950,
-            Active_ARR__c = null,
-            Active_ARR_Rollup__c = 0,
-            StartDate = Date.newInstance(2024, 7, 1),
-            EndDate = Date.newInstance(2026, 6, 30));
-        activated.EUNA_Solution_Name_Formula__c = 'Procurement - Sourcing - Bonfire';
+        // Formula / rollup fields are not assignable in Apex; hydrate via JSON for formatter tests.
+        Contract activated = (Contract) JSON.deserialize(
+            '{"Status":"Activated","ARR_Rollup__c":23950,'
+            + '"StartDate":"2024-07-01","EndDate":"2026-06-30",'
+            + '"EUNA_Solution_Name_Formula__c":"Procurement - Sourcing - Bonfire"}',
+            Contract.class);
         System.assertEquals(23950, PricingReviewEvidence.effectiveArr(activated),
             'Activated contract uses ARR rollup when Active ARR is blank');
         String conLine = PricingReviewEvidence.formatExistingContract(activated);
         System.assert(conLine.contains('Procurement - Sourcing - Bonfire'), 'contract names the product');
         System.assert(conLine.contains('23,950') || conLine.contains('23950'), 'contract shows Active ARR');
 
-        Contract expiredActive = new Contract(Status = 'Expired', Active_ARR__c = 23950, ARR_Rollup__c = 0);
-        expiredActive.EUNA_Solution_Name_Formula__c = 'Procurement - Sourcing - Bonfire';
+        Contract expiredActive = (Contract) JSON.deserialize(
+            '{"Status":"Expired","Active_ARR__c":23950,"ARR_Rollup__c":0,'
+            + '"EUNA_Solution_Name_Formula__c":"Procurement - Sourcing - Bonfire"}',
+            Contract.class);
         System.assertEquals(23950, PricingReviewEvidence.effectiveArr(expiredActive),
             'Expired contract still reports Active ARR when the field is populated');
         System.assertEquals(null, PricingReviewEvidence.effectiveArr(null), 'null contract has no ARR');
