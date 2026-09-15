@@ -23,9 +23,10 @@ public with sharing class PricingReviewEvidence {
         List<DatedLine> newest = new List<DatedLine>();
         String s = header(o);
         s += profile(o);
+        s += existingBook(o);
+        s += rfpAndFiles(o);
         s += comparables(o);
         s += quotes(o);
-        s += relationships(o);
         s += contacts(o);
         s += activity(o, newest);
         s += emails(o, newest);
@@ -44,8 +45,10 @@ public with sharing class PricingReviewEvidence {
         String full = build(o);
         String head = 'FOCUS QUESTION Q' + questionNum + ': ' + safe(question) + '\n'
             + 'Search quote, opportunity, account, contacts, all activity, emails, calls, '
-            + 'and Gong transcripts/briefs (Unknown scope included). Newest evidence wins.\n';
+            + 'and Gong transcripts/briefs (Unknown scope included), Active Contracts / Active ARR, '
+            + 'LinkSquares agreements, RFP Details, and opportunity Files. Newest evidence wins.\n';
         List<String> keys = questionKeywords(question);
+        keys.addAll(extraKeywords(questionNum));
         if (!keys.isEmpty()) {
             List<String> hits = new List<String>();
             for (String line : full.split('\n')) {
@@ -66,7 +69,7 @@ public with sharing class PricingReviewEvidence {
     @TestVisible
     static Boolean budgetSameOrder(Decimal prospect, Decimal comparable) {
         if (prospect == null || comparable == null || prospect <= 0 || comparable <= 0) return false;
-        return comparable >= (prospect / 4) && comparable <= (prospect * 4);
+        return comparable >= (prospect * 0.5) && comparable <= (prospect * 2);
     }
 
     @TestVisible
@@ -118,9 +121,31 @@ public with sharing class PricingReviewEvidence {
         List<String> out = new List<String>();
         if (String.isBlank(question)) return out;
         for (String w : question.toLowerCase().replaceAll('[^a-z0-9 ]', ' ').split('\\s+')) {
-            if (w.length() >= 4 && !stop.contains(w)) out.add(w);
+            if ((w.length() >= 4 || w == 'arr' || w == 'rfp') && !stop.contains(w)) out.add(w);
         }
         return out;
+    }
+
+    /** Domain terms the question text itself often omits (ARR, RFP due dates, budget band). */
+    @TestVisible
+    static List<String> extraKeywords(Integer questionNum) {
+        if (questionNum == 3) {
+            return new List<String>{
+                'active arr', 'existing euna book', 'linksquares', 'active / arr-bearing',
+                'solution relationships'
+            };
+        }
+        if (questionNum == 2 || questionNum == 10 || questionNum == 11
+                || questionNum == 19 || questionNum == 23) {
+            return new List<String>{
+                'rfp', 'submission due', 'questions due', 'partner due',
+                'files on the opportunity', 'has rfp attached'
+            };
+        }
+        if (questionNum == 6) {
+            return new List<String>{ 'comparable', 'operating-budget', '0.5x-2x', 'active arr' };
+        }
+        return new List<String>();
     }
 
     // ---- sections ----
@@ -168,40 +193,75 @@ public with sharing class PricingReviewEvidence {
         String product = dealProduct(o);
         Decimal budget = dealBudget(o);
         String vertical = (o.Account != null) ? o.Account.Industry : null;
-        String s = '\nComparable Euna customers (must match vertical + product type + annual-budget order of magnitude):\n'
+        String s = '\nComparable Euna customers (must match vertical + product type + operating-budget range 0.5x-2x; closest budget first):\n'
             + '  Filter: vertical=' + safe(vertical) + ' product=' + safe(product)
-            + ' annual-budget=' + fmtCur(budget) + ' (band 0.25x-4x)\n';
+            + ' operating-budget=' + fmtCur(budget) + ' (band 0.5x-2x)\n';
         if (o.Account == null || String.isBlank(vertical) || String.isBlank(product)) {
             return s + '  (skipped \u2014 need vertical and product type on the deal)\n';
         }
         List<Contract> rows = [
             SELECT AccountId, Account.Name, Account.Industry, Account.AnnualRevenue, Account.Student_Count__c,
-                   ARR_Rollup__c, EUNA_Solution_Name_Formula__c, EUNA_Solution_Lookup__r.Name
+                   ARR_Rollup__c, Active_ARR__c, Active_ARR_Rollup__c,
+                   EUNA_Solution_Name_Formula__c, EUNA_Solution_Lookup__r.Name
             FROM Contract
-            WHERE Status = 'Activated' AND ARR_Rollup__c > 0
+            WHERE Status = 'Activated'
               AND Account.Industry = :vertical AND AccountId != :o.AccountId
               AND Account.RecordType.DeveloperName = 'Customer_EUNA'
-            ORDER BY ARR_Rollup__c DESC
+              AND (ARR_Rollup__c > 0 OR Active_ARR__c > 0 OR Active_ARR_Rollup__c > 0)
             LIMIT :COMP_SCAN
         ];
-        Integer shown = 0;
+        List<CompRow> ranked = new List<CompRow>();
         for (Contract c : rows) {
             String cProd = contractProduct(c);
             Decimal cBudget = (c.Account != null) ? c.Account.AnnualRevenue : null;
             if (!isComparable(product, budget, cProd, cBudget)) continue;
-            s += '  - ' + safe(c.Account != null ? c.Account.Name : '')
-               + ' | product=' + safe(cProd)
-               + ' | ARR=' + fmtCur(c.ARR_Rollup__c)
-               + ' | annual budget=' + fmtCur(cBudget)
-               + ' | students=' + num(c.Account != null ? c.Account.Student_Count__c : null)
-               + ' | Account: ' + accountUrl(c.AccountId) + '\n';
+            ranked.add(new CompRow(c, cProd, cBudget, budget, effectiveArr(c)));
+        }
+        ranked.sort();
+        Integer shown = 0;
+        for (CompRow row : ranked) {
+            s += '  - ' + row.line() + ' | Account: ' + accountUrl(row.accountId) + '\n';
             shown++;
             if (shown >= COMP_KEEP) break;
         }
         if (shown == 0) {
-            s += '  (none matched vertical + product type + annual-budget order of magnitude)\n';
+            s += '  (none matched vertical + product type + operating-budget range 0.5x-2x)\n';
         }
         return s;
+    }
+
+    @TestVisible
+    static Decimal effectiveArr(Contract c) {
+        if (c == null) return null;
+        if (c.Active_ARR__c != null && c.Active_ARR__c > 0) return c.Active_ARR__c;
+        if (c.Active_ARR_Rollup__c != null && c.Active_ARR_Rollup__c > 0) return c.Active_ARR_Rollup__c;
+        if (c.ARR_Rollup__c != null && c.ARR_Rollup__c > 0) return c.ARR_Rollup__c;
+        return null;
+    }
+
+    private class CompRow implements Comparable {
+        Id accountId;
+        String name, product;
+        Decimal budget, arr, distance;
+        CompRow(Contract c, String product, Decimal budget, Decimal dealBudget, Decimal arr) {
+            this.accountId = c.AccountId;
+            this.name = (c.Account != null) ? c.Account.Name : '';
+            this.product = product;
+            this.budget = budget;
+            this.arr = arr;
+            this.distance = (dealBudget != null && dealBudget > 0 && budget != null)
+                ? (budget - dealBudget).abs() : Decimal.valueOf(999999999);
+        }
+        public Integer compareTo(Object other) {
+            CompRow oth = (CompRow) other;
+            if (distance == oth.distance) return 0;
+            return distance < oth.distance ? -1 : 1;
+        }
+        String line() {
+            return safe(name) + ' | product=' + safe(product)
+                + ' | operating budget=' + fmtCur(budget)
+                + ' | Active ARR=' + fmtCur(arr);
+        }
     }
 
     @TestVisible
@@ -253,8 +313,33 @@ public with sharing class PricingReviewEvidence {
         return s;
     }
 
-    private static String relationships(Opportunity o) {
-        if (o.AccountId == null) return '\nExisting Euna relationships: none found\n';
+    /**
+     * Q3 book: every current product + Active ARR from contracts, plus
+     * LinkSquares agreements. Do not say "no ARR" when any of these have a figure.
+     */
+    private static String existingBook(Opportunity o) {
+        if (o.AccountId == null) return '\nExisting Euna book (Q3): none \u2014 no account on the opportunity\n';
+        String s = '\nExisting Euna book (authoritative for Q3 \u2014 Active ARR / contracts / LinkSquares):\n'
+            + '  Report EVERY current product and its Active ARR. Do not say there is no ARR '
+            + 'if any contract or agreement below has a figure, even when it is a different product than this deal.\n';
+
+        List<Contract> cons = [
+            SELECT Status, StartDate, EndDate, ARR_Rollup__c, Active_ARR__c, Active_ARR_Rollup__c,
+                   EUNA_Solution_Name_Formula__c, EUNA_Solution_Lookup__r.Name
+            FROM Contract
+            WHERE AccountId = :o.AccountId
+              AND (Status = 'Activated' OR Active_ARR__c > 0 OR ARR_Rollup__c > 0 OR Active_ARR_Rollup__c > 0)
+            ORDER BY Status ASC
+            LIMIT 20
+        ];
+        if (cons.isEmpty()) s += '  Active contracts: (none with ARR)\n';
+        else {
+            s += '  Active / ARR-bearing contracts:\n';
+            for (Contract c : cons) {
+                s += '    - ' + formatExistingContract(c) + '\n';
+            }
+        }
+
         List<String> rels = new List<String>();
         for (Account_Solution_Relationship__c r : [
             SELECT Euna_Solution__r.Name, Status__c, First_Solution_Contract_Date__c
@@ -267,8 +352,109 @@ public with sharing class PricingReviewEvidence {
                 + (r.First_Solution_Contract_Date__c != null
                     ? ' purchased ' + r.First_Solution_Contract_Date__c.format() : ''));
         }
-        return '\nExisting Euna relationships: ' + (rels.isEmpty() ? 'none found' : String.join(rels, '; ')) + '\n';
+        s += '  Solution relationships: ' + (rels.isEmpty() ? 'none found' : String.join(rels, '; ')) + '\n';
+
+        List<LinkSquares__Agreement__c> ags = [
+            SELECT Name, LinkSquares__Agreement_Name__c, LinkSquares__Document_Title__c,
+                   LinkSquares__Effective_Date__c, LinkSquares__Commencement_Date__c,
+                   LinkSquares__Renewal_Date__c, LinkSquares__Contract_Term_Months__c
+            FROM LinkSquares__Agreement__c
+            WHERE LinkSquares__Account__c = :o.AccountId
+            ORDER BY LinkSquares__Effective_Date__c DESC NULLS LAST
+            LIMIT 10
+        ];
+        if (ags.isEmpty()) s += '  LinkSquares agreements: (none)\n';
+        else {
+            s += '  LinkSquares agreements:\n';
+            for (LinkSquares__Agreement__c a : ags) {
+                s += '    - ' + formatAgreement(a) + '\n';
+            }
+        }
+        return s;
     }
+
+    @TestVisible
+    static String formatExistingContract(Contract c) {
+        if (c == null) return '';
+        return safe(contractProduct(c))
+            + ' | status=' + safe(c.Status)
+            + ' | Active ARR=' + fmtCur(effectiveArr(c))
+            + ' | ARR rollup=' + fmtCur(c.ARR_Rollup__c)
+            + ' | start=' + (c.StartDate != null ? c.StartDate.format() : '')
+            + ' | end=' + (c.EndDate != null ? c.EndDate.format() : '');
+    }
+
+    @TestVisible
+    static String formatAgreement(LinkSquares__Agreement__c a) {
+        if (a == null) return '';
+        String title = String.isNotBlank(a.LinkSquares__Agreement_Name__c)
+            ? a.LinkSquares__Agreement_Name__c : a.Name;
+        return safe(title)
+            + ' | doc=' + safe(a.LinkSquares__Document_Title__c)
+            + ' | effective=' + (a.LinkSquares__Effective_Date__c != null ? a.LinkSquares__Effective_Date__c.format() : '')
+            + ' | start=' + (a.LinkSquares__Commencement_Date__c != null ? a.LinkSquares__Commencement_Date__c.format() : '')
+            + ' | renewal=' + (a.LinkSquares__Renewal_Date__c != null ? a.LinkSquares__Renewal_Date__c.format() : '')
+            + ' | term-months=' + num(a.LinkSquares__Contract_Term_Months__c);
+    }
+
+    private static String rfpAndFiles(Opportunity o) {
+        String s = '\nRFP and opportunity Files (authoritative for RFP timelines \u2014 Q2/Q10/Q11/Q19/Q23):\n'
+            + '  If this is an RFP, only treat a timeline as known when it is explicit below '
+            + '(submission due, questions due, partner due, or a dated RFP file title). '
+            + 'If no explicit date is present, say the RFP does not state a timeline.\n'
+            + '  Has RFP attached: ' + yn(o.Has_RFP_Attached__c)
+            + ' | RFP flag: ' + yn(o.RFP_bf__c)
+            + ' | RFP type: ' + safe(o.RFP_Type__c) + '\n';
+
+        List<RFP_Details__c> rfps = [
+            SELECT Name, RFP_Title__c, RFP_Number__c, RFP_Status__c, Date_Issued__c,
+                   Submission_Due_Date__c, RFPQuestionsDueDate__c, Due_Date_to_Partner__c,
+                   RFP_Notes__c, RFP_Source__c
+            FROM RFP_Details__c
+            WHERE Opportunity__c = :o.Id
+            ORDER BY Submission_Due_Date__c DESC NULLS LAST
+            LIMIT 5
+        ];
+        if (rfps.isEmpty()) s += '  RFP Details records: (none)\n';
+        else {
+            for (RFP_Details__c r : rfps) s += '  - ' + formatRfp(r) + '\n';
+        }
+
+        s += '  Files on the opportunity (newest first):\n';
+        List<ContentDocumentLink> files = [
+            SELECT ContentDocument.Title, ContentDocument.FileType, ContentDocument.FileExtension, SystemModstamp
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId = :o.Id
+            ORDER BY SystemModstamp DESC
+            LIMIT 20
+        ];
+        if (files.isEmpty()) s += '    (none)\n';
+        for (ContentDocumentLink l : files) {
+            String title = (l.ContentDocument != null) ? l.ContentDocument.Title : '';
+            String typ = (l.ContentDocument != null)
+                ? safe(l.ContentDocument.FileType) + '/' + safe(l.ContentDocument.FileExtension) : '';
+            s += '    - ' + dt(l.SystemModstamp) + ' ' + safe(title) + ' [' + typ + ']\n';
+        }
+        return s;
+    }
+
+    @TestVisible
+    static String formatRfp(RFP_Details__c r) {
+        if (r == null) return '';
+        return 'RFP ' + safe(r.Name)
+            + ' | title=' + safe(r.RFP_Title__c)
+            + ' | number=' + safe(r.RFP_Number__c)
+            + ' | status=' + safe(r.RFP_Status__c)
+            + ' | issued=' + (r.Date_Issued__c != null ? r.Date_Issued__c.format() : '')
+            + ' | submission due=' + (r.Submission_Due_Date__c != null ? r.Submission_Due_Date__c.format() : '')
+            + ' | questions due=' + (r.RFPQuestionsDueDate__c != null ? r.RFPQuestionsDueDate__c.format() : '')
+            + ' | partner due=' + (r.Due_Date_to_Partner__c != null ? r.Due_Date_to_Partner__c.format() : '')
+            + ' | source=' + safe(r.RFP_Source__c)
+            + ' | notes=' + clip(safe(r.RFP_Notes__c), 400);
+    }
+
+    @TestVisible
+    static String yn(Boolean b) { return b == true ? 'yes' : 'no'; }
 
     private static String contacts(Opportunity o) {
         String s = '\nContacts (opportunity contact roles):\n';

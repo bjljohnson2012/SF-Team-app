@@ -4,7 +4,7 @@ Living reference for the in-platform GTM/Sales tooling built on the `euna` **pro
 (`00D1I000001VBDGUA4`, user `benjamin.johnson@eunasolutions.com`). Read this first to pick up
 where the last session left off.
 
-Last updated: 2026-09-15 (retrieval deploy).
+Last updated: 2026-09-15 (Active ARR / RFP Files / budget-band / Product Interest).
 
 ---
 
@@ -32,7 +32,7 @@ Two Lightning apps of AE/director sales tooling, all custom LWC + Apex, deployed
   - `CockpitForecastController` — Sales Performance data + AI (`load`, `getForecastSummary`, `getCreatedPipeline`, `getConversion`, `getWinRateTruth`, `getAeConversion`, `getProblems`, `getClosedWon`, `setInCall`, `setOverride`, `applyDefaultPicks`, `analyzePerformance`, and the Admin methods `getAccessMatrix`/`assignAccess`/`revokeAccess`). Pulls the pricing-review Done flag via `PricingReviewController.reviewedOppIds`.
   - `CockpitConstants`, `CockpitRosterService`, `CockpitScoreService` — Euna canon (filters, stage weights, roster resolution, scoring).
   - `PricingReviewController` — the pricing-review tool controller (see §4).
-  - `PricingReviewEvidence` — newest-first evidence pack (quote, account, contacts, activity, emails, calls, Gong Unknown-scope, vertical+product+budget comparables).
+  - `PricingReviewEvidence` — newest-first evidence pack (quote, account, Active Contracts / Active ARR, LinkSquares, RFP Details + Files, contacts, activity, emails, calls, Gong Unknown-scope, vertical+product+0.5x–2x operating-budget comparables).
   - `DocxZip` — pure-Apex ZIP writer (STORE method + CRC32) used to assemble the `.docx` package.
   - `AnthropicService` — thin wrapper over the Anthropic Messages API via the `anthropic_api` Named Credential; model `claude-sonnet-5`; `complete(prompt[, model, maxTokens])`.
   - `TeamOpportunityController` — Main tab data + LLM summary.
@@ -63,8 +63,8 @@ Two Lightning apps of AE/director sales tooling, all custom LWC + Apex, deployed
 
 `pricingReviewTool` LWC + `PricingReviewController` + `DocxZip`.
 
-- Lists open **new-business** deals **≥ $30K ARR**, scoped by role: a **director** defaults to their team's deals (toggle "Just me"); an **AE** sees only their own. Search box (account/AE/stage), sortable columns (ARR/size, close date, review status, stage), a clickable link to each opportunity, and a per-row **Override** (Auto/Done/Not done → `Pricing_Review_Override__c`).
-- **AI pre-fill** (`draftAnswers` / per-question `draftOne`): on selecting a deal, Claude drafts all **24** checklist questions from a **holistic, newest-first** evidence pack — quote (headers, modules/phases, amounts), opportunity, account, contacts, all activity, emails, Salesforce calls, and **Gong** transcripts+briefs+key points (non-private, **Unknown scope included**, account-level calls included; Internal excluded). **Comparables (Q6)** must match **vertical + product type + annual-budget order of magnitude (0.25x–4x)**; each row names the product and links the Account. If Salesforce + Gong still do not answer, Claude **searches the web** (Anthropic `web_search`, with a no-tool fallback) and cites URLs. Reasoned answers stay **prefixed `INFERRED:`**; `[No data …]` is a last resort. Bulk call ~30s; resilient JSON parse recovers from truncation (max_tokens 8192).
+- Lists open **new-business** deals **≥ $30K ARR**, scoped by role: a **director** defaults to their team's deals (toggle "Just me"); an **AE** sees only their own. Search box (account/AE/stage/product), sortable columns (ARR/size, close date, review status, stage, **Product Interest** = `EUNA_Solution__c`), a clickable link to each opportunity, and a per-row **Override** (Auto/Done/Not done → `Pricing_Review_Override__c`).
+- **AI pre-fill** (`draftAnswers` / per-question `draftOne`): on selecting a deal, Claude drafts all **24** checklist questions from a **holistic, newest-first** evidence pack — quote (headers, modules/phases, amounts), opportunity, account, **Active Contracts / Active ARR**, **LinkSquares agreements**, **RFP Details + opportunity Files**, contacts, all activity, emails, Salesforce calls, and **Gong** transcripts+briefs+key points (non-private, **Unknown scope included**, account-level calls included; Internal excluded). **Q3** must report every current product's Active ARR (do not say "no ARR" when a contract or agreement has a figure, even for a different product than this deal). **RFP timelines** (Q2/Q10/Q11/Q19/Q23) are known only when RFP Details or a dated RFP file states them explicitly. **Comparables (Q6)** must match **vertical + product type + operating-budget 0.5x–2x** (closest budget first); each row names the product and links the Account. If Salesforce + Gong still do not answer, Claude **searches the web** (Anthropic `web_search`, with a no-tool fallback) and cites URLs. Reasoned answers stay **prefixed `INFERRED:`**; `[No data …]` is a last resort. Bulk call ~30s; resilient JSON parse recovers from truncation (max_tokens 8192).
 - **Per-question controls**: **Try again** (regenerate one question, ~2s) and **Expand** (`draftOne`).
 - **Complete** (`createReview`): persists the 24 answers as JSON on `Pricing_Review_Answers__c` and attaches a **real branded `.docx`** (WordprocessingML via `DocxZip`) to the opportunity's **Files**. Saved answers are re-viewable on the tool page ("View responses"); completion status flows to the Sales Performance dashboard.
 - **UI gotchas that bit us** (avoid regressions): native `<textarea value={x}>` does NOT render in LWC — use `lightning-textarea` (or bind value as element text content and render fields only after answers load). Auto-scroll to the builder was hiding the top-of-page error banner; errors are now shown inside the form.
@@ -121,6 +121,6 @@ Handy sample record: **Rochester City School District** — Opp `006OL00000g35fj
 - **Pipeline migration**: move deploys off direct-CLI onto euna-salesforce CI/CD (carve-out expired; queue contention is real).
 - **Pre-fill latency** (~30s bulk) is inherent to the Claude call over rich context; per-question Try again (~2s) is the fast path. Could move bulk pre-fill to async/queueable with progress if it becomes a problem.
 - **In-org UI verification** blocked by the SSO password wall — no Selenium/computer-use walkthroughs yet.
-- **Comparables (Q6)** now require vertical + product type + annual-budget order of magnitude and link the Account. If the band is too tight for a thin vertical, consider a documented widen — do not silently cite a different product.
+- **Comparables (Q6)** now require vertical + product type + operating-budget **0.5x–2x** (closest first) and link the Account. If the band is too tight for a thin vertical, consider a documented widen — do not silently cite a different product.
 - **Reference intelligence** could be expanded (CSM/health/tier fields from the field map) for a fuller account picture.
 - Consider committing a sanitized permission-set template (the real ones stay out of the public repo).

@@ -43,7 +43,7 @@ public with sharing class PricingReviewController {
 
     public class ReviewDeal {
         @AuraEnabled public Id id;
-        @AuraEnabled public String account, ae, stage, leadSource, director, statusOverride;
+        @AuraEnabled public String account, ae, stage, productInterest, leadSource, director, statusOverride;
         @AuraEnabled public Decimal arr;
         @AuraEnabled public Date closeDate;
         @AuraEnabled public Boolean reviewDone;
@@ -72,7 +72,7 @@ public with sharing class PricingReviewController {
 
         for (Opportunity o : [
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, LeadSource,
-                   Sales_Director__c, ARR_Opportunity_Amount_USD_Num__c,
+                   EUNA_Solution__c, Sales_Director__c, ARR_Opportunity_Amount_USD_Num__c,
                    Pricing_Review_Answers__c, Pricing_Review_Override__c
             FROM Opportunity
             WHERE IsClosed = false AND OwnerId IN :owners
@@ -87,6 +87,7 @@ public with sharing class PricingReviewController {
             r.account = (o.Account != null) ? o.Account.Name : o.Name;
             r.ae = (o.Owner != null) ? o.Owner.Name : null;
             r.stage = o.StageName;
+            r.productInterest = o.EUNA_Solution__c;
             r.arr = o.ARR_Opportunity_Amount_USD_Num__c;
             r.closeDate = o.CloseDate;
             r.leadSource = o.LeadSource;
@@ -182,12 +183,13 @@ public with sharing class PricingReviewController {
         String prompt = 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
             + 'for a government/public-sector software deal. Search every evidence section below (quote, '
             + 'opportunity, account, contacts, all activity, emails, calls, Gong transcripts and briefs including '
-            + 'Unknown scope). Prefer the newest dated fact over an older one. If Salesforce and Gong still do '
-            + 'not answer, search the web and cite the source URL. If the context has direct evidence, use it. '
-            + 'If not, give your best inference and PREFIX it with "INFERRED: ". Do not fabricate specific '
-            + 'figures, quotes, or names not in the context or a cited web source. '
-            + 'For comparable customers (Q6), only cite accounts that match this deal\'s vertical AND product '
-            + 'type AND annual-budget order of magnitude; always name the product and include the Account URL. '
+            + 'Unknown scope), Active Contracts / Active ARR, LinkSquares agreements, RFP Details, and Files. '
+            + 'Prefer the newest dated fact. If Salesforce and Gong still do not answer, search the web and cite '
+            + 'the source URL. If the context has direct evidence, use it. If not, PREFIX with "INFERRED: ". '
+            + 'For Q3, use Active ARR on contracts and LinkSquares; do not say there is no ARR if a figure exists '
+            + 'for any current product. For an RFP, only report a timeline that is explicit in RFP Details or '
+            + 'a dated RFP file. For Q6, only cite comparables matching vertical + product + operating-budget '
+            + '0.5x-2x; name the product and include the Account URL. '
             + 'Return ONLY the answer text \u2014 no preamble, no question restatement, no JSON.\n\n'
             + ask + '\n\nCONTEXT:\n' + PricingReviewEvidence.buildForQuestion(o, questionNum, q);
         String raw;
@@ -208,6 +210,7 @@ public with sharing class PricingReviewController {
                    Account.Recent_Budget_Trends__c,
                    Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
                    EUNA_Solution__c, Euna_Solutions_Lookup__r.Name, EUNA_Competitors__c,
+                   Has_RFP_Attached__c, RFP_bf__c, RFP_Type__c,
                    Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
                    NextStep, Description, LeadSource, Type
             FROM Opportunity WHERE Id = :opportunityId LIMIT 1
@@ -223,13 +226,17 @@ public with sharing class PricingReviewController {
         return 'You are helping a Euna Solutions Account Executive complete a Pricing Review Checklist '
             + 'for a government/public-sector software deal. Provide a useful draft answer (1-3 sentences) for '
             + 'EVERY one of the 24 questions \u2014 do not leave any blank.\n'
-            + 'For EVERY question, search the whole evidence pack: quote (line items, modules, amounts), '
-            + 'opportunity, account, contacts, all activity, emails, calls, and Gong transcripts + briefs '
-            + '(Unknown scope included). Prefer the newest dated evidence over older notes.\n'
-            + 'Map sources: ENTITY PROFILE for Q1 and Q7; COMPARABLE CUSTOMERS for Q6 (only those matching '
-            + 'vertical + product type + annual-budget order of magnitude \u2014 always name the product and include '
-            + 'the Account URL); QUOTES / modules for Q21 and to anchor Q24; Gong + emails + activity for Q4, '
-            + 'Q5/Q17, Q9, Q13/Q19, Q16; contacts for stakeholders; existing relationships for Q3.\n'
+            + 'For EVERY question, search the whole evidence pack: quote, opportunity, account, contacts, '
+            + 'activity, emails, calls, Gong transcripts + briefs (Unknown scope included), Active Contracts '
+            + '(Active ARR), LinkSquares agreements, RFP Details, and opportunity Files. Prefer the newest dated evidence.\n'
+            + 'Map sources: ENTITY PROFILE for Q1 and Q7; EXISTING EUNA BOOK (Active ARR, contracts, '
+            + 'LinkSquares, solution relationships) for Q3 \u2014 cite the actual Active ARR even when it is a '
+            + 'different product than this deal; never say there is no ARR if a contract or agreement has a figure. '
+            + 'COMPARABLE CUSTOMERS for Q6 (vertical + product type + operating-budget 0.5x-2x only, closest '
+            + 'budget first \u2014 name the product and include the Account URL). RFP Details + Files for Q2, '
+            + 'Q10, Q11, Q19, Q23: if this is an RFP, a timeline is known ONLY when the RFP states it explicitly '
+            + '(submission due, questions due, partner due, or a dated RFP file title); otherwise say the RFP '
+            + 'does not state a timeline. QUOTES for Q21/Q24; Gong + emails + activity for Q4, Q5/Q17, Q9, Q16.\n'
             + 'For each question follow this order:\n'
             + '1) If Salesforce or Gong has direct evidence, answer from the newest of it.\n'
             + '2) If Salesforce + Gong still do not answer, search the web and cite the source URL. Do not '

@@ -187,6 +187,17 @@ private class PricingReviewControllerTest {
         System.assertEquals(0, m.size(), 'no opportunity returns an empty map');
     }
 
+    @isTest
+    static void reviewDeal_exposes_productInterest() {
+        PricingReviewController.ReviewDeal r = new PricingReviewController.ReviewDeal();
+        r.account = 'City Of Nashua';
+        r.ae = 'AE';
+        r.stage = 'Alignment';
+        r.productInterest = 'Budget Professional';
+        System.assertEquals('Budget Professional', r.productInterest,
+            'table row carries Product Interest from EUNA_Solution__c');
+    }
+
     static Integer seq = 0;
     static User usr(Id profileId, Id mgr, String title) {
         seq++;

@@ -7,9 +7,11 @@ private class PricingReviewEvidenceTest {
     @isTest
     static void helpers_budget_product_url_keywords() {
         System.assert(PricingReviewEvidence.budgetSameOrder(965000000, 700000000),
-            '700M is same order as 965M');
+            '700M is inside the 0.5x-2x operating-budget band of 965M');
         System.assert(!PricingReviewEvidence.budgetSameOrder(965000000, 137000000),
-            '137M is outside the 0.25x-4x band of 965M');
+            '137M is outside the 0.5x-2x operating-budget band of 965M');
+        System.assert(!PricingReviewEvidence.budgetSameOrder(383000000, 96000000),
+            'a much smaller operating budget is not a comparable');
         System.assert(!PricingReviewEvidence.budgetSameOrder(null, 700000000),
             'null prospect budget does not match');
         System.assert(PricingReviewEvidence.productMatches('Budget Professional', 'Budget Professional'),
@@ -31,6 +33,20 @@ private class PricingReviewEvidenceTest {
             'Who are comparable customers and what have we priced them at?');
         System.assert(keys.contains('comparable'), 'question keywords keep comparable');
         System.assert(!keys.contains('what'), 'stopwords are dropped');
+        System.assert(PricingReviewEvidence.questionKeywords(
+            'Do they have an Euna product currently? What? When purchased? Current ARR?').contains('arr'),
+            'Q3 keeps the 3-letter ARR token');
+        System.assert(PricingReviewEvidence.questionKeywords(
+            'Is this pricing based on: Budgetary / Direct Purchase / State Contract / RFP?').contains('rfp'),
+            'Q11 keeps the 3-letter RFP token');
+        System.assert(PricingReviewEvidence.extraKeywords(3).contains('active arr'),
+            'Q3 hoists Active ARR / existing-book lines');
+        System.assert(PricingReviewEvidence.extraKeywords(11).contains('submission due'),
+            'RFP questions hoist explicit due dates');
+        System.assert(PricingReviewEvidence.extraKeywords(6).contains('0.5x-2x'),
+            'Q6 hoists the operating-budget band');
+        System.assertEquals(0, PricingReviewEvidence.extraKeywords(1).size(),
+            'Q1 has no extra domain tokens');
     }
 
     @isTest
@@ -140,13 +156,84 @@ private class PricingReviewEvidenceTest {
         System.assert(q6.contains('FULL EVIDENCE PACK'), 'per-question pack still includes the holistic pull');
         System.assert(q6.contains('comparable') || q6.contains('Comparable'),
             'Q6-focused section searches the comparable keyword');
+        System.assert(pack.contains('Existing Euna book'), 'Q3 book section is always present');
+        System.assert(pack.contains('RFP and opportunity Files'), 'RFP / Files section is always present');
+        System.assert(pack.contains('operating-budget range 0.5x-2x'),
+            'comparables state the tighter operating-budget band');
+
+        String q3 = PricingReviewEvidence.buildForQuestion(loaded, 3,
+            'Do they have an Euna product currently? What? When purchased? Current ARR?');
+        System.assert(q3.contains('Active Contracts / Active ARR'),
+            'Q3 focus tells the model to search Active ARR');
+        String q11 = PricingReviewEvidence.buildForQuestion(loaded, 11,
+            'Is this pricing based on: Budgetary / Direct Purchase / State Contract / RFP?');
+        System.assert(q11.contains('RFP Details'), 'Q11 focus searches RFP Details');
+    }
+
+    @isTest
+    static void existing_book_and_rfp_formatters() {
+        Contract activated = new Contract(
+            Status = 'Activated',
+            ARR_Rollup__c = 23950,
+            Active_ARR__c = null,
+            Active_ARR_Rollup__c = 0,
+            StartDate = Date.newInstance(2024, 7, 1),
+            EndDate = Date.newInstance(2026, 6, 30));
+        activated.EUNA_Solution_Name_Formula__c = 'Procurement - Sourcing - Bonfire';
+        System.assertEquals(23950, PricingReviewEvidence.effectiveArr(activated),
+            'Activated contract uses ARR rollup when Active ARR is blank');
+        String conLine = PricingReviewEvidence.formatExistingContract(activated);
+        System.assert(conLine.contains('Procurement - Sourcing - Bonfire'), 'contract names the product');
+        System.assert(conLine.contains('23,950') || conLine.contains('23950'), 'contract shows Active ARR');
+
+        Contract expiredActive = new Contract(Status = 'Expired', Active_ARR__c = 23950, ARR_Rollup__c = 0);
+        expiredActive.EUNA_Solution_Name_Formula__c = 'Procurement - Sourcing - Bonfire';
+        System.assertEquals(23950, PricingReviewEvidence.effectiveArr(expiredActive),
+            'Expired contract still reports Active ARR when the field is populated');
+        System.assertEquals(null, PricingReviewEvidence.effectiveArr(null), 'null contract has no ARR');
+        System.assertEquals('', PricingReviewEvidence.formatExistingContract(null), 'null contract formats blank');
+
+        RFP_Details__c rfp = new RFP_Details__c(
+            Name = 'RFP# 0619-093026',
+            RFP_Title__c = 'Enterprise Resource Planning (ERP) System Software',
+            RFP_Number__c = '0619-093026',
+            RFP_Status__c = 'Open',
+            Date_Issued__c = Date.newInstance(2026, 7, 13),
+            Submission_Due_Date__c = Date.newInstance(2026, 9, 30),
+            RFPQuestionsDueDate__c = Date.newInstance(2026, 8, 7),
+            Due_Date_to_Partner__c = Date.newInstance(2026, 8, 7),
+            RFP_Source__c = 'Direct',
+            RFP_Notes__c = 'Submit by 4pm');
+        String rfpLine = PricingReviewEvidence.formatRfp(rfp);
+        System.assert(rfpLine.contains('submission due='), 'RFP line labels submission due');
+        System.assert(rfpLine.contains('9/30/2026') || rfpLine.contains('2026'), 'RFP line has the due date');
+        System.assertEquals('', PricingReviewEvidence.formatRfp(null), 'null RFP formats blank');
+        System.assertEquals('yes', PricingReviewEvidence.yn(true), 'yn true');
+        System.assertEquals('no', PricingReviewEvidence.yn(false), 'yn false');
+        System.assertEquals('no', PricingReviewEvidence.yn(null), 'yn null is no');
+
+        LinkSquares__Agreement__c ag = new LinkSquares__Agreement__c(
+            Name = 'City of Nashua | Euna Solutions, Inc. Order Form | 2026-06-29',
+            LinkSquares__Agreement_Name__c = 'City of Nashua | Euna Solutions, Inc. Order Form | 2026-06-29',
+            LinkSquares__Document_Title__c = 'Renewal Order Form',
+            LinkSquares__Effective_Date__c = Date.newInstance(2026, 7, 1),
+            LinkSquares__Commencement_Date__c = Date.newInstance(2026, 7, 1),
+            LinkSquares__Renewal_Date__c = Date.newInstance(2027, 6, 30),
+            LinkSquares__Contract_Term_Months__c = 12);
+        String agLine = PricingReviewEvidence.formatAgreement(ag);
+        System.assert(agLine.contains('Renewal Order Form'), 'agreement keeps the document title');
+        System.assert(agLine.contains('term-months=12'), 'agreement keeps the term');
+        System.assertEquals('', PricingReviewEvidence.formatAgreement(null), 'null agreement formats blank');
     }
 
     @isTest
     static void comparables_require_vertical_product_and_budget() {
         System.assert(PricingReviewEvidence.isComparable(
             'Budget Professional', 965000000, 'Budget Professional', 700000000),
-            'same vertical product and budget band matches');
+            'same product and 0.5x-2x operating budget matches');
+        System.assert(!PricingReviewEvidence.isComparable(
+            'Budget Professional', 383000000, 'Budget Professional', 96000000),
+            'operating budget outside 0.5x-2x is rejected');
         System.assert(!PricingReviewEvidence.isComparable(
             'Budget Professional', 965000000, 'Payments', 800000000),
             'different product type is rejected even with a similar budget');
@@ -197,6 +284,7 @@ private class PricingReviewEvidenceTest {
                    Account.Recent_Budget_Trends__c,
                    Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
                    EUNA_Solution__c, Euna_Solutions_Lookup__r.Name, EUNA_Competitors__c,
+                   Has_RFP_Attached__c, RFP_bf__c, RFP_Type__c,
                    Sales_Segment__c, Sales_Director__c, ForecastCategoryName,
                    NextStep, Description, LeadSource, Type
             FROM Opportunity WHERE Id = :opportunityId LIMIT 1
