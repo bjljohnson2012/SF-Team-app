@@ -74,3 +74,14 @@ Owner asked to clean up the live tab: created vs qualified, won/(won+lost) besid
 - **Approved by:** org owner (benjamin.johnson), live-tab cleanup follow-up.
 - **Post-deploy smoke (Ben / My team / grouped All / All):** created 1,326, qualified 1,007, won 256, worked 296, never-real 31, ghosted 180, won/(won+lost) 32.5%, contested 47.8%, qualified/created 77.0%, p50 171 / p75 311, meaning includes Ghosted. Budget 14 rows, Sourcing 15 rows.
 - **Rollback:** prior WRT LWC/Apex from `0AfOL000003T1Bt0AK`.
+
+## 2026-09-15 — Win Rate Truth product filter is four families only
+
+Owner asked for the product type filter to be only Budget, Grants, Procurement Sourcing, Procurement Marketplace.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`)
+- **Validated job id:** `0AfOL000003T1zt0AC` — 12 tests, 0 failures. Check-only.
+- **Quick-deploy job id:** `0AfOL000003T21V0AS` — Succeeded.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Post-deploy smoke:** `getFilterOptions.productGroups` is exactly those four labels. Default page is Budget (14 rows, caption `Team of Ben Johnson · Budget · All sizes`). AE still uses raw SKUs.
+- **Rollback:** prior grouped picker from `0AfOL000003T1wf0AC`.
