@@ -56,7 +56,15 @@ public with sharing class CockpitConstants {
     public static final String SIZE_OVER_150K = 'OVER_150K';
     public static final String PRODUCT_ALL = 'ALL';
     public static final String TEAM_MODE_MY = 'my';
+    public static final String TEAM_MODE_MINE = 'my';
     public static final String TEAM_MODE_DIRECTOR = 'director';
+
+    public static final String BAND_COMMIT = 'Commit';
+    public static final String BAND_ML = 'Most Likely';
+    public static final String BAND_BC = 'Best Case';
+    public static final String BAND_PIPE = 'Pipeline';
+    public static final String BAND_OMITTED = 'Omitted';
+    public static final Decimal CONCENTRATION_PCT = 40;
 
     public static final String SETTING_EXCLUDE_GHOSTED = 'winrate.exclude.ghosted';
     public static final String SETTING_THIN_SAMPLE = 'winrate.thin.sample';

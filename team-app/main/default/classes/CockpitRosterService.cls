@@ -44,10 +44,22 @@ public with sharing class CockpitRosterService {
     }
 
     public static Id resolveDirectorId(Id directorId, String teamMode) {
-        if (teamMode == CockpitConstants.TEAM_MODE_MY || directorId == null) {
+        if (directorId == null
+            || teamMode == CockpitConstants.TEAM_MODE_MY
+            || teamMode == CockpitConstants.TEAM_MODE_MINE
+            || teamMode == 'mine') {
             return UserInfo.getUserId();
         }
         return directorId;
+    }
+
+    /** Euna product / solution family as it exists on Opportunity. */
+    public static List<String> productTypes() {
+        List<String> out = new List<String>();
+        for (Schema.PicklistEntry e : Opportunity.EUNA_Solution__c.getDescribe().getPicklistValues()) {
+            if (e.isActive()) out.add(e.getValue());
+        }
+        return out;
     }
 
     public static ScopeResult resolveScope(Id directorId, String teamMode) {

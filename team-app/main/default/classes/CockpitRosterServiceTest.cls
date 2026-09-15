@@ -119,6 +119,16 @@ private class CockpitRosterServiceTest {
             null, CockpitConstants.TEAM_MODE_MY);
         System.assertEquals(UserInfo.getUserId(), s.directorId, 'my team is the running user');
         System.assertNotEquals(null, s.directorName, 'director name populated');
+        System.assertEquals(UserInfo.getUserId(),
+            CockpitRosterService.resolveDirectorId(UserInfo.getUserId(), 'mine'),
+            'AE-by-AE mine mode is the running user');
+    }
+
+    @isTest
+    static void productTypes_areActiveEunaSolutions() {
+        List<String> types = CockpitRosterService.productTypes();
+        System.assert(!types.isEmpty(), 'EUNA_Solution__c has active values');
+        System.assert(!types.contains(null), 'picklist values are not null');
     }
 
     static Integer seq = 0;
