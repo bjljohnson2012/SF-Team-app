@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Created_Count__c</fullName>
+    <label>Created Count</label>
+    <description>New-business opportunities opened in this quarter (CreatedDate).</description>
+    <inlineHelpText>Opened this quarter, before SQL qualification.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

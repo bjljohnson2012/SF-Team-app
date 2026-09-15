@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Classification__c</fullName>
+    <label>Classification</label>
+    <description>Never_Real (including Ghosted under Euna canon) or Worked. Ghosted can flip via winrate.exclude.ghosted.</description>
+    <inlineHelpText>Never_Real or Worked. Ghosted follows winrate.exclude.ghosted (default exclude).</inlineHelpText>
+    <type>Picklist</type>
+    <required>true</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Never_Real</fullName>
+                <default>false</default>
+                <label>Never real</label>
+            </value>
+            <value>
+                <fullName>Worked</fullName>
+                <default>true</default>
+                <label>Worked loss</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

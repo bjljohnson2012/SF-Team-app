@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Director__c</fullName>
+    <label>Director</label>
+    <description>Director whose AE team this cohort snapshot covers. Not hardcoded to one user.</description>
+    <inlineHelpText>Director whose AE team this cohort snapshot covers. Not hardcoded to one user.</inlineHelpText>
+    <type>Lookup</type>
+    <referenceTo>User</referenceTo>
+    <relationshipName>Cohort_Snapshots</relationshipName>
+    <required>false</required>
+    <deleteConstraint>SetNull</deleteConstraint>
+</CustomField>

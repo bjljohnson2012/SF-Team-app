@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>P75_Cycle_Days__c</fullName>
+    <label>P75 Cycle Days</label>
+    <description>p75 of SQL-to-close days on resolved deals used for maturity.</description>
+    <inlineHelpText>p75 of SQL-to-close days on resolved deals used for maturity.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

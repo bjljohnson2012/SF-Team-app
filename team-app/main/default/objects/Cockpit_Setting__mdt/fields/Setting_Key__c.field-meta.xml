@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Setting_Key__c</fullName>
+    <label>Setting Key</label>
+    <description>Dotted key the Apex reader looks up, e.g. winrate.exclude.ghosted.</description>
+    <inlineHelpText>Dotted key the Apex reader looks up, e.g. winrate.exclude.ghosted.</inlineHelpText>
+    <type>Text</type>
+    <length>80</length>
+    <required>true</required>
+    <unique>true</unique>
+    <caseSensitive>false</caseSensitive>
+    <externalId>false</externalId>
+</CustomField>

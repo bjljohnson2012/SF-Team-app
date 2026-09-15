@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Mature__c</fullName>
+    <label>Mature</label>
+    <description>True when quarter-end is more than p75 SQL-to-close days in the past.</description>
+    <inlineHelpText>True when quarter-end is more than p75 SQL-to-close days in the past.</inlineHelpText>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Distortion__c</fullName>
+    <label>Distortion</label>
+    <description>Stored contested minus closure-based. Null when either rate is null.</description>
+    <inlineHelpText>Stored contested minus closure-based. Null when either rate is null.</inlineHelpText>
+    <type>Number</type>
+    <precision>5</precision>
+    <scale>4</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

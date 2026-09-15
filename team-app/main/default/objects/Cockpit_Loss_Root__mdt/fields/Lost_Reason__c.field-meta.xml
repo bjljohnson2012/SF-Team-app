@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lost_Reason__c</fullName>
+    <label>Lost Reason</label>
+    <description>Exact Opportunity.Lost_Reason__c picklist value. Blank reasons are never-real in code, not here.</description>
+    <inlineHelpText>Exact Opportunity.Lost_Reason__c picklist value. Blank reasons are never-real in code, not here.</inlineHelpText>
+    <type>Text</type>
+    <length>255</length>
+    <required>true</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

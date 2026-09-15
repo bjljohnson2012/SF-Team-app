@@ -1,0 +1,130 @@
+<template>
+    <div class="wrap">
+        <h2>Win rate truth</h2>
+        <p class="lede">
+            Two different questions. <strong>Created</strong> is opportunities opened this quarter.
+            <strong>Qualified</strong> is those that received an SQL datestamp — that is the cohort.
+            Worked and never-real stay visible. Ghosted is a third bucket, not never-real.
+            Compare <strong>contested</strong> (won / worked contests) to
+            <strong>won / (won + lost)</strong>, the close-date number reports quote.
+        </p>
+
+        <c-gtm-scope-filters grouped-products onscopechange={handleScope}></c-gtm-scope-filters>
+        <p class="scope" lwc:if={scopeCaption}>{scopeCaption}</p>
+        <p class="ghost">{ghostedConvention}</p>
+        <p class="snap">{snapshotAsOf}</p>
+
+        <template lwc:if={loading}>
+            <div class="box"><span class="spin"></span> Loading cohorts…</div>
+        </template>
+        <template lwc:elseif={error}>
+            <div class="box bad">{error}</div>
+        </template>
+        <template lwc:elseif={emptyMessage}>
+            <div class="box">{emptyMessage}</div>
+        </template>
+        <template lwc:elseif={hasRows}>
+            <div class="cards">
+                <template for:each={headlines} for:item="c">
+                    <div key={c.key} class={c.cls}>
+                        <div class="lab">{c.lab}</div>
+                        <div class="val">{c.val}</div>
+                        <div class="note">{c.note}</div>
+                    </div>
+                </template>
+            </div>
+            <p class="meta">{cycleCaption}</p>
+
+            <div class="actions">
+                <button type="button" class="explain" onclick={toggleMeaning}>
+                    Tell me what this data means
+                </button>
+            </div>
+            <div class="box meaning" lwc:if={showMeaning}>
+                <h3>What this filter is saying</h3>
+                <p>{meaning}</p>
+            </div>
+
+            <div class="tw">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Quarter</th>
+                            <th class="num">Created</th>
+                            <th class="num">Qualified</th>
+                            <th class="num">Won</th>
+                            <th class="num">Worked</th>
+                            <th class="num">Never-real</th>
+                            <th class="num">Ghosted</th>
+                            <th class="num">Open</th>
+                            <th class="num">Qualified / created</th>
+                            <th class="num">Contested</th>
+                            <th class="num">Won / (won + lost)</th>
+                            <th class="num">Distortion</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={rows} for:item="r">
+                            <tr key={r.key} class={r.rowClass}>
+                                <td>{r.label}</td>
+                                <td class="num">{r.created}</td>
+                                <td class="num">{r.qualified}</td>
+                                <td class="num">{r.won}</td>
+                                <td class="num">{r.worked}</td>
+                                <td class="num">{r.neverReal}</td>
+                                <td class="num">{r.ghosted}</td>
+                                <td class="num">{r.stillOpen}</td>
+                                <td class="num">{r.qualYield}</td>
+                                <td class="num">{r.contestedWR}</td>
+                                <td class="num">{r.closureBased}</td>
+                                <td class="num">{r.distortion}</td>
+                                <td><span class="badge" lwc:if={r.badge}>{r.badge}</span></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="cards two">
+                <div class="card">
+                    <div class="lab">Silent purge</div>
+                    <div class="val">{purgeSilent}</div>
+                    <div class="note">Closed-lost, CloseDate − LastActivityDate &gt; 60 days (or no activity). Future Events make LastActivityDate look fresh.</div>
+                </div>
+                <div class="card">
+                    <div class="lab">Dump purge</div>
+                    <div class="val">{purgeDump}</div>
+                    <div class="note">Same owner and CloseDate, not won, group of 5+.</div>
+                </div>
+            </div>
+
+            <template lwc:if={hasUnmapped}>
+                <h3>Unmapped loss reasons</h3>
+                <p class="lede">These count as worked losses today so contested stays conservative — map them in Cockpit Loss Root.</p>
+                <div class="tw">
+                    <table>
+                        <thead><tr><th>Reason</th><th class="num">Count</th></tr></thead>
+                        <tbody>
+                            <template for:each={unmapped} for:item="u">
+                                <tr key={u.reason} class="thin">
+                                    <td>{u.reason}</td>
+                                    <td class="num">{u.count}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </template>
+        <template lwc:elseif={loadedOnce}>
+            <div class="box">No new-business deals in this product group and team.</div>
+        </template>
+
+        <ul class="caps">
+            <template for:each={captions} for:item="c">
+                <li key={c}>{c}</li>
+            </template>
+        </ul>
+    </div>
+</template>

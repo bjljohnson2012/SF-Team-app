@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Root_Cause__c</fullName>
+    <label>Root Cause</label>
+    <description>Optional root token (QUAL, DUPE, VALUE, FIT, COMP, TIMING, PAPER, EB, ENGAGE) for mapping honesty.</description>
+    <inlineHelpText>Optional root token (QUAL, DUPE, VALUE, FIT, COMP, TIMING, PAPER, EB, ENGAGE) for mapping honesty.</inlineHelpText>
+    <type>Text</type>
+    <length>40</length>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>
