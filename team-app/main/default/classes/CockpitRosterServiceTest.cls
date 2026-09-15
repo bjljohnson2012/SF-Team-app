@@ -63,7 +63,7 @@ private class CockpitRosterServiceTest {
             System.assertEquals(false, seen.contains(d.userId), 'each leader once');
             seen.add(d.userId);
             User u = [
-                SELECT IsActive, Title, UserRoleId, UserRole.Name
+                SELECT Name, IsActive, Title, UserRoleId, UserRole.Name
                 FROM User WHERE Id = :d.userId
             ];
             System.assertEquals(true, u.IsActive, 'inactive users stay out of the picker');
