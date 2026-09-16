@@ -107,6 +107,16 @@ public with sharing class WaterfallRateEngine {
         }
     }
 
+    @TestVisible
+    static RateRow applyClosedForTest(List<Opportunity> opps) {
+        RateRow row = new RateRow();
+        if (opps != null) {
+            for (Opportunity o : opps) tapClosed(row, o);
+        }
+        finish(row, null);
+        return row;
+    }
+
     static void tapClosed(RateRow row, Opportunity o) {
         row.ungatedClosed++;
         if (o.IsWon) row.ungatedWins++;

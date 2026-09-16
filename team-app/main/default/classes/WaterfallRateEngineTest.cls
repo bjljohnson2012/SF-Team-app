@@ -6,31 +6,20 @@
 private class WaterfallRateEngineTest {
 
     @isTest
-    static void calibrate_gatesWinRate_andDropsZeroArrFromAsp() {
-        User dir = usr(null, 'Director');
-        insert dir;
-        User ae = usr(dir.Id, 'Account Executive');
-        insert ae;
-        Account acc = new Account(Name = 'WF Rate Acc');
-        insert acc;
-        Id rt = eunaSaleRtId();
-        Date close = Date.today().addDays(-30);
+    static void tapClosed_gatesWinRate_andDropsZeroArrFromAsp() {
+        Date sql = Date.today().addDays(-40);
         List<Opportunity> opps = new List<Opportunity>{
-            closed(acc.Id, ae.Id, rt, 'Closed Won', 'Budget Professional', 20000, close, null, true),
-            closed(acc.Id, ae.Id, rt, 'Closed Won', 'Budget Professional', 0, close, null, true),
-            closed(acc.Id, ae.Id, rt, 'Closed Lost', 'Budget Professional', 15000, close, 'Strength of Competitor Relationship', true),
-            closed(acc.Id, ae.Id, rt, 'Closed Lost', 'Budget Professional', 15000, close, 'Ghosted', true),
-            closed(acc.Id, ae.Id, rt, 'Closed Lost', 'Budget Professional', 15000, close, 'Product Related Reasons', false)
+            closedMem(true, 20000, sql, null),
+            closedMem(true, 0, sql, null),
+            closedMem(false, 15000, sql, 'Strength of Competitor Relationship'),
+            closedMem(false, 15000, sql, 'Ghosted'),
+            closedMem(false, 15000, null, 'Product Related Reasons')
         };
-        insert opps;
 
         Test.startTest();
-        WaterfallRateEngine.RateSet rates = WaterfallRateEngine.calibrate(
-            new Set<Id>{ ae.Id }, CockpitConstants.PRODUCT_GROUP_BUDGET,
-            CockpitConstants.SIZE_ALL, Date.today());
+        WaterfallRateEngine.RateRow row = WaterfallRateEngine.applyClosedForTest(opps);
         Test.stopTest();
 
-        WaterfallRateEngine.RateRow row = rates.byOwner.get(ae.Id);
         System.assertEquals(3, row.closedCount, 'gated set is 2 wins + 1 competitive loss; Ghosted and ungated are out');
         System.assertEquals(2, row.wins, 'zero-ARR win still counts in the win rate');
         System.assertEquals(1, row.arrBearingWins, 'zero-ARR win is out of the ASP denominator');
@@ -38,6 +27,38 @@ private class WaterfallRateEngineTest {
         System.assertEquals(20000, row.aspRaw, 'ASP is not cut by the $0 win');
         System.assertEquals((2.0 / 3).setScale(4), row.winRateRaw.setScale(4), 'gated win rate is 2/3');
         System.assert(row.ungatedClosed > row.closedCount, 'ungated closed is stored and larger');
+    }
+
+    @isTest
+    static void calibrate_readsOwnerBook_withoutWonQuote() {
+        User dir = usr(null, 'Director');
+        insert dir;
+        User ae = usr(dir.Id, 'Account Executive');
+        insert ae;
+        Account acc = new Account(Name = 'WF Rate Acc');
+        insert acc;
+        Id rt = eunaSaleRtId();
+        insert new Opportunity(
+            Name = 'WF Open SQL',
+            AccountId = acc.Id,
+            OwnerId = ae.Id,
+            RecordTypeId = rt,
+            Type = 'New Sale',
+            StageName = 'Proposal',
+            CloseDate = Date.today().addDays(20),
+            EUNA_Solution__c = 'Budget Professional',
+            Y1_ARR_Offered_Price__c = 12000,
+            SQL_Datestamp_bf__c = Date.today().addDays(-15)
+        );
+
+        Test.startTest();
+        WaterfallRateEngine.RateSet rates = WaterfallRateEngine.calibrate(
+            new Set<Id>{ ae.Id }, CockpitConstants.PRODUCT_GROUP_BUDGET,
+            CockpitConstants.SIZE_ALL, Date.today());
+        Test.stopTest();
+
+        System.assert(rates.byOwner.containsKey(ae.Id), 'calibrate returns a row for the scoped AE');
+        System.assertEquals(0, rates.byOwner.get(ae.Id).closedCount, 'open Proposal is not a gated close');
     }
 
     @isTest
@@ -73,23 +94,14 @@ private class WaterfallRateEngineTest {
         System.assertEquals(first[0].Id, second[0].Id, 'upsert key is External_Id__c');
     }
 
-    static Opportunity closed(
-        Id accountId, Id ownerId, Id rtId, String stage, String solution,
-        Decimal arr, Date closeDate, String lostReason, Boolean sql
-    ) {
-        return new Opportunity(
-            Name = 'WF ' + stage + ' ' + String.valueOf(arr),
-            AccountId = accountId,
-            OwnerId = ownerId,
-            RecordTypeId = rtId,
-            Type = 'New Sale',
-            StageName = stage,
-            CloseDate = closeDate,
-            EUNA_Solution__c = solution,
-            Y1_ARR_Offered_Price__c = arr,
-            Lost_Reason__c = lostReason,
-            SQL_Datestamp_bf__c = sql ? closeDate.addDays(-40) : null
-        );
+    static Opportunity closedMem(Boolean won, Decimal arr, Date sql, String lostReason) {
+        Opportunity o = new Opportunity();
+        o.IsWon = won;
+        o.ARR_Opportunity_Amount_USD_Num__c = arr;
+        o.SQL_Datestamp_bf__c = sql;
+        o.Lost_Reason__c = lostReason;
+        o.Days_since_SQL__c = sql == null ? null : 40;
+        return o;
     }
 
     static Id eunaSaleRtId() {
