@@ -30,3 +30,4 @@
     margin: 0 0 10px;
 }
 .ord-status .sep { width: 1px; height: 12px; background: #475569; }
+.ord-load { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 6px; padding: 6px 10px; margin: 0 0 8px; font-size: 12.5px; }

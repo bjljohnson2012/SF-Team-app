@@ -22,11 +22,11 @@
 
         <!-- primary sections -->
         <div class="fh-nav">
-            <template for:each={sections} for:item="s"><button key={s.id} class={s.cls} data-s={s.id} onclick={handleSection}>{s.label}</button></template>
+            <template for:each={sections} for:item="s"><button type="button" key={s.id} class={s.cls} data-s={s.id} onclick={handleSection}>{s.label}</button></template>
         </div>
         <!-- sub-tabs -->
         <div class="fh-subnav">
-            <template for:each={subTabs} for:item="t"><button key={t.id} class={t.cls} data-t={t.id} onclick={handleSub}>{t.label}</button></template>
+            <template for:each={subTabs} for:item="t"><button type="button" key={t.id} class={t.cls} data-t={t.id} onclick={handleSub}>{t.label}</button></template>
         </div>
 
         <div class="fh-body">

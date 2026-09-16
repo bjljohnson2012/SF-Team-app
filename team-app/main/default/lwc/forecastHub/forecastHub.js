@@ -96,9 +96,11 @@ export default class ForecastHub extends LightningElement {
 
     renderedCallback() {
         if (!this.chartLoaded) {
+            if (this._chartRequested) return;
+            this._chartRequested = true;
             loadScript(this, CHARTJS)
                 .then(() => { this.chartLoaded = true; this.drawCharts(); })
-                .catch(() => { /* charts degrade; tables still work */ });
+                .catch(() => { this.chartLoaded = true; });
             return;
         }
         this.drawCharts();
@@ -329,12 +331,14 @@ export default class ForecastHub extends LightningElement {
     // ---- charts ----
     drawCharts() {
         if (!this.chartLoaded || !window.Chart) return;
+        try {
         if (this.vCreated) this.barChart('cvCreated', this.createdRows.map((r) => r.label),
             [{ label: 'Created ARR', data: this.createdRows.map((r) => r.createdArr || 0), backgroundColor: '#4A32C4' },
              { label: 'Booked ARR', data: this.createdRows.map((r) => r.bookedArr || 0), backgroundColor: '#FF6E14' }]);
         if (this.vOpen) this.doughnut('cvOpen', this.openBreakdown());
         if (this.vAe) this.barChart('cvAe', this.aeRows.map((r) => r.ae),
             [{ label: 'Win rate %', data: this.aeRows.map((r) => Math.round((r.winRate || 0) * 1000) / 10), backgroundColor: '#CB007B' }]);
+        } catch (e) { /* chart errors must not freeze tab clicks */ }
     }
     openBreakdown() {
         let hi = 0, md = 0, ex = 0;

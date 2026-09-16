@@ -79,12 +79,12 @@ export default class PipelineReview extends LightningElement {
             b: count('B'),
             c: count('C'),
             d: count('D'),
-            mismatches: rows.filter((r) => r.mismatch).length,
-            changed: rows.filter((r) => r.noteUpdatedOn && String(r.noteUpdatedOn).slice(0, 10) === today).length,
+            mismatches: all.filter((r) => r.mismatch).length,
+            changed: all.filter((r) => r.noteUpdatedOn && String(r.noteUpdatedOn).slice(0, 10) === today).length,
             doneToday: this.doneToday + ' / ' + all.length,
             pushedToday: this.pushedToday + ' / ' + all.length,
             chip: this.chipFilter || '',
-            summary: this.thresholdSummary(all, rows)
+            summary: this.thresholdSummary(all, visible)
         };
     }
     get displayRows() {

@@ -4,7 +4,7 @@
             <h2>Opportunity Review Dashboard</h2>
             <p class="ord-sub">Live Salesforce, read-only on load. Local tags, note edits, and forecast overrides stay in Salesforce. Export writes a CSV.</p>
         </div>
-        <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+        <template lwc:if={loading}><div class="ord-load" role="status">Loading book…</div></template>
         <template lwc:if={error}><div class="ord-banner">{error}</div></template>
         <template lwc:if={truncated}><div class="ord-banner">Loaded {loaded} of {expected}. History fetch truncated — retry.</div></template>
 

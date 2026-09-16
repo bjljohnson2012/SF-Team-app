@@ -13,7 +13,7 @@
                 </select>
             </div>
         </div>
-        <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+        <template lwc:if={loading}><div class="pr-banner">Loading this week…</div></template>
         <template lwc:if={error}><div class="pr-banner">{error}</div></template>
         <c-gtm-scope-filters grouped-products onscopechange={onScope}></c-gtm-scope-filters>
         <div class="chips">
