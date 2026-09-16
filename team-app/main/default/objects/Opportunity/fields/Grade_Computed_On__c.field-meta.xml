@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Grade_Computed_On__c</fullName>
+    <description>Timestamp of the last Pipeline Review grade write for this opportunity.</description>
+    <inlineHelpText>When Job A or the Opportunity trigger last wrote grade fields.</inlineHelpText>
+    <label>Grade Computed On</label>
+    <type>DateTime</type>
+    <required>false</required>
+</CustomField>

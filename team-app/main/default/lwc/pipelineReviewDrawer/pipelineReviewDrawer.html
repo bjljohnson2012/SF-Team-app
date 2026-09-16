@@ -1,0 +1,20 @@
+<template>
+    <template lwc:if={row}>
+        <div class="drawer">
+            <h3>{row.account}</h3>
+            <p class="pr-sub">{row.ae} · {row.stage} · {row.recommendedForecast}</p>
+            <p>{row.rationale}</p>
+            <div class="pr-f"><label>Director note</label>
+                <textarea rows="6" style="width:100%" oninput={onNote}>{note}</textarea>
+            </div>
+            <div class="row-acts">
+                <button class="btn" onclick={onSave}>Save note</button>
+                <button class="btn ghost" onclick={onRegen}>Regenerate</button>
+                <a class="btn ghost" href={row.url} target="_blank">Open deal</a>
+                <button class="btn ghost" onclick={onClose}>Close</button>
+            </div>
+            <template lwc:if={preview}><div class="suggest"><b>Preview</b><p>{preview}</p></div></template>
+            <template lwc:if={error}><div class="pr-banner">{error}</div></template>
+        </div>
+    </template>
+</template>

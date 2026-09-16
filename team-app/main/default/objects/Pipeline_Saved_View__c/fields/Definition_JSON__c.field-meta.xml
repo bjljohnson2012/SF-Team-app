@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Definition_JSON__c</fullName>
+    <description>Filters, sort, and columns. A view saved before a filter is added must still load.</description>
+    <inlineHelpText>Versioned JSON {"v":1,...}. Unknown keys are ignored on read.</inlineHelpText>
+    <label>Definition JSON</label>
+    <type>LongTextArea</type>
+    <length>32768</length>
+    <visibleLines>25</visibleLines>
+</CustomField>

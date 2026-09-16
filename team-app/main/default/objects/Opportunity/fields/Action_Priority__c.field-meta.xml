@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Action_Priority__c</fullName>
+    <description>Stored This Week action priority written by Job A. Cap-friendly integer.</description>
+    <inlineHelpText>This Week priority 0-100. Today mode is computed at query time.</inlineHelpText>
+    <label>Action Priority</label>
+    <type>Number</type>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>

@@ -1,0 +1,36 @@
+<template>
+    <div class="pr-filters">
+        <div class="pr-f"><label>AE</label>
+            <select multiple size="3" onchange={onOwners}>
+                <template for:each={aes} for:item="a"><option key={a.id} value={a.id}>{a.name}</option></template>
+            </select>
+        </div>
+        <div class="pr-f"><label>Forecast — AE</label>
+            <select multiple size="3" onchange={onAeFc} data-k="aeForecasts">
+                <template for:each={forecasts} for:item="v"><option key={v} value={v}>{v}</option></template>
+            </select>
+        </div>
+        <div class="pr-f"><label>Forecast — Recommended</label>
+            <select multiple size="3" onchange={onRec} data-k="recommendedForecasts">
+                <template for:each={forecasts} for:item="v"><option key={v} value={v}>{v}</option></template>
+            </select>
+        </div>
+        <div class="pr-f"><label>Next step</label>
+            <select multiple size="3" onchange={onState}>
+                <option value="Missing">Missing</option>
+                <option value="PastDue">Past due</option>
+                <option value="Parked">Parked</option>
+                <option value="Healthy">Healthy</option>
+            </select>
+        </div>
+        <div class="pr-f"><label>Mismatch</label>
+            <select onchange={onMismatch}>
+                <option value="">All</option>
+                <option value="1">Mismatch only</option>
+            </select>
+        </div>
+        <div class="pr-f"><label>Search</label>
+            <input type="text" placeholder="Account, opp, note" oninput={onSearch} value={search}>
+        </div>
+    </div>
+</template>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Forecast_Mismatch__c</fullName>
+    <description>Four-way mismatch flag across ForecastCategoryName, Director, Roll-up, and Recommended.</description>
+    <inlineHelpText>AE, director, roll-up, and recommended forecast disagree.</inlineHelpText>
+    <label>Forecast Mismatch</label>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>

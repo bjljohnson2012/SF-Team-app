@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Owner__c</fullName>
+    <description>Owner-only edit. Shared views are read-only to everyone else.</description>
+    <inlineHelpText>User who owns this view. Only the owner can edit.</inlineHelpText>
+    <label>View Owner</label>
+    <type>Lookup</type>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>View Owner</relationshipLabel>
+    <relationshipName>Pipeline_Saved_Views</relationshipName>
+    <required>true</required>
+</CustomField>

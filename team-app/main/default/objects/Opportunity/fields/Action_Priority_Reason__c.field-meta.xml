@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Action_Priority_Reason__c</fullName>
+    <description>Deterministic explainability for Action_Priority__c. Never AI-generated.</description>
+    <inlineHelpText>Two highest-contributing scoring components in plain language.</inlineHelpText>
+    <label>Action Priority Reason</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>255</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

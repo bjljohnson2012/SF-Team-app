@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Default__c</fullName>
+    <description>Per-user default saved view. Service clears siblings on save.</description>
+    <inlineHelpText>Loads on open. One default per user, enforced in service code.</inlineHelpText>
+    <label>Default</label>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>

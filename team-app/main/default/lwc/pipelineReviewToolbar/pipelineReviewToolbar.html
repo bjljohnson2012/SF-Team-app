@@ -1,0 +1,12 @@
+<template>
+    <div class="pr-head">
+        <div>
+            <p class="pr-sub">Last updated {lastUpdatedLabel}. {skipLine}</p>
+        </div>
+        <div class="row-acts">
+            <button class="btn" onclick={onRegen}>Regenerate selected</button>
+            <button class="btn ghost" onclick={onExport}>Export CSV</button>
+        </div>
+    </div>
+    <template lwc:if={banner}><div class="pr-banner">{banner}</div></template>
+</template>

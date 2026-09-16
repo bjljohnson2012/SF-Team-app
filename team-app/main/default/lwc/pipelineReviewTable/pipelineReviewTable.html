@@ -1,0 +1,46 @@
+<template>
+    <div class="tw">
+        <table class="pr-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th data-k="account" onclick={onSort}>Account</th>
+                    <th data-k="ae" onclick={onSort}>AE</th>
+                    <th data-k="stage" onclick={onSort}>Stage</th>
+                    <th data-k="arr" onclick={onSort}>ARR</th>
+                    <th data-k="closeDate" onclick={onSort}>Close</th>
+                    <th data-k="aeForecast" onclick={onSort}>AE fcst</th>
+                    <th data-k="recommendedForecast" onclick={onSort}>Recommended</th>
+                    <th data-k="grade" onclick={onSort}>Grade</th>
+                    <th>Tag</th>
+                    <th>Why</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template for:each={rows} for:item="r">
+                    <tr key={r.id} class={r.rowClass} data-id={r.id} onclick={onOpen}>
+                        <td><input type="checkbox" checked={r.selected} data-id={r.id} onclick={onPick}></td>
+                        <td><a href={r.url} target="_blank">{r.account}</a><div class="pr-sub">{r.name}</div></td>
+                        <td>{r.ae}</td>
+                        <td>{r.stage}</td>
+                        <td>{r.arrLabel}</td>
+                        <td>{r.closeDate}</td>
+                        <td>{r.aeForecast}</td>
+                        <td>{r.recommendedForecast}</td>
+                        <td><span class={r.gradeClass}>{r.grade}</span></td>
+                        <td>
+                            <select data-id={r.id} onchange={onTag}>
+                                <option value="">—</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                        </td>
+                        <td class={r.mismatchClass}>{r.rationale}</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</template>

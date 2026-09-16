@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>This Week ranked action queue. Monday lock and live Today mode.</description>
+    <label>This Week</label>
+    <lwcComponent>pipelineThisWeek</lwcComponent>
+    <motif>Custom54: Handshake</motif>
+</CustomTab>

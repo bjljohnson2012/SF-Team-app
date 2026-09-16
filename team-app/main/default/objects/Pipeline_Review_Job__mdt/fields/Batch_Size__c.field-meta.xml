@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Batch_Size__c</fullName>
+    <description>Database.executeBatch scope. Callout jobs must stay at one callout per execute.</description>
+    <inlineHelpText>Job A 200, Job B/C 15 (one callout per execute).</inlineHelpText>
+    <label>Batch Size</label>
+    <type>Number</type>
+    <precision>4</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>

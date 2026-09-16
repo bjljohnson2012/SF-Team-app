@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Per-opportunity generation outcome. Resume queries Pending and Failed only.</description>
+    <label>Pipeline Review Run Item</label>
+    <pluralLabel>Pipeline Review Run Items</pluralLabel>
+    <nameField>
+        <displayFormat>PRI-{000000}</displayFormat>
+        <label>Item Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <sharingModel>ControlledByParent</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

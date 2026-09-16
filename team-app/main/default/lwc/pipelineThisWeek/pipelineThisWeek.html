@@ -1,0 +1,44 @@
+<template>
+    <div class="pr-wrap">
+        <div class="pr-head">
+            <div>
+                <h2>This Week</h2>
+                <p class="pr-sub">{headerLine}</p>
+            </div>
+            <div class="pr-f">
+                <label>Mode</label>
+                <select onchange={onMode}>
+                    <option value="week" selected={isWeek}>This Week</option>
+                    <option value="today" selected={isToday}>Today</option>
+                </select>
+            </div>
+        </div>
+        <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+        <template lwc:if={error}><div class="pr-banner">{error}</div></template>
+        <c-gtm-scope-filters grouped-products onscopechange={onScope}></c-gtm-scope-filters>
+        <div class="chips">
+            <span class="chip">{page.focusCount} in focus</span>
+            <span class="chip">{page.dueCount} due this week</span>
+            <span class="chip">{page.overdueCount} overdue</span>
+            <span class="chip">{page.unworkableCount} unworkable</span>
+            <template lwc:if={isWeek}><span class="chip">Cleared {page.cleared} of {page.focusCount}</span></template>
+        </div>
+        <template lwc:if={hasChips}>
+            <div class="chips">
+                <template for:each={page.aeChips} for:item="c">
+                    <span key={c.ownerId} class="chip">{c.name}: {c.focusCount} focus · {c.cleared} cleared · {c.overdue} overdue</span>
+                </template>
+            </div>
+        </template>
+        <template for:each={page.focus} for:item="r">
+            <c-pipeline-focus-card key={r.id} row={r} ondone={onDone} onreschedule={onResched}
+                onsnooze={onSnooze} onaccept={onAccept}></c-pipeline-focus-card>
+        </template>
+        <h3>Due this week</h3>
+        <c-pipeline-review-table rows={page.dueThisWeek}></c-pipeline-review-table>
+        <h3>Decide or kill</h3>
+        <c-pipeline-review-table rows={page.decideOrKill}></c-pipeline-review-table>
+        <h3>Fix first</h3>
+        <c-pipeline-review-table rows={page.fixFirst}></c-pipeline-review-table>
+    </div>
+</template>

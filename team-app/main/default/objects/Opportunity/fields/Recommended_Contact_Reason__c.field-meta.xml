@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Recommended_Contact_Reason__c</fullName>
+    <description>Plain-language reason for Recommended_Contact__c.</description>
+    <inlineHelpText>Why this contact won: reply recency, primary, title.</inlineHelpText>
+    <label>Recommended Contact Reason</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>255</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

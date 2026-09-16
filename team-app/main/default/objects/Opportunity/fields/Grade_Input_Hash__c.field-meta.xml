@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Grade_Input_Hash__c</fullName>
+    <description>SHA-like hash of Stage, CloseDate, forecast, next step, activity, newest history, ARR.</description>
+    <inlineHelpText>Hash of the inputs used for the last grade and note. Job B skips when unchanged.</inlineHelpText>
+    <label>Grade Input Hash</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>64</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Next_Step_State__c</fullName>
+    <description>Derived next-step health used by Pipeline Review filters and This Week ranking.</description>
+    <inlineHelpText>Missing, past due, parked, or healthy.</inlineHelpText>
+    <label>Next Step State</label>
+    <type>Picklist</type>
+    <required>false</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Missing</fullName>
+                <default>true</default>
+                <label>Missing</label>
+            </value>
+            <value>
+                <fullName>PastDue</fullName>
+                <default>false</default>
+                <label>PastDue</label>
+            </value>
+            <value>
+                <fullName>Parked</fullName>
+                <default>false</default>
+                <label>Parked</label>
+            </value>
+            <value>
+                <fullName>Healthy</fullName>
+                <default>false</default>
+                <label>Healthy</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
