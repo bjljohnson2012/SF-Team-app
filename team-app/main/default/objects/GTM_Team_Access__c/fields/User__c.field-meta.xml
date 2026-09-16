@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>User__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The Salesforce user this Team Johnson access grant belongs to. One grant row per user, upserted on User_Key__c.</description>
+    <inlineHelpText>User who can open GTM - Team Johnson with the role and checkboxes on this row.</inlineHelpText>
+    <label>User</label>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>GTM Team Access</relationshipLabel>
+    <relationshipName>GTM_Team_Access</relationshipName>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

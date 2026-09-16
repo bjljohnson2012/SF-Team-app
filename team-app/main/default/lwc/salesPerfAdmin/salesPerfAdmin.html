@@ -1,0 +1,155 @@
+<template>
+    <div class="adm-header">
+        <h1>Sales Performance &mdash; Access Admin</h1>
+        <p class="sub">Search a user, pick Admin / Leader / Team member, then edit the tab and activity checkboxes. App access still uses <b>{permSetName}</b> and <b>{viewerPermSetName}</b>.</p>
+    </div>
+    <div class="adm-bar"></div>
+
+    <div class="adm-body">
+        <template lwc:if={error}><div class="err">{error}</div></template>
+        <template lwc:if={notice}><div class="ok">{notice}</div></template>
+
+        <template lwc:if={info}>
+            <div class="cards">
+                <div class="card"><div class="lab">Users with access</div><div class="val">{userCount}</div><div class="note">assigned {info.permSet}</div></div>
+                <div class="card"><div class="lab">Tick into call</div><div class="val"><span class={editClass}>{editBadge}</span></div><div class="note">Cockpit_In_Call__c edit</div></div>
+                <div class="card"><div class="lab">Override class</div><div class="val"><span class={overrideClass}>{overrideBadge}</span></div><div class="note">Cockpit_Class_Override__c edit</div></div>
+                <div class="card"><div class="lab">Apex / data access</div><div class="val"><span class={apexClass}>{apexBadge}</span></div><div class="note">CockpitForecastController</div></div>
+            </div>
+
+            <h3>Users with access</h3>
+            <template lwc:if={canManage}>
+                <div class="assign">
+                    <div class="search-col">
+                        <lightning-input
+                            type="search"
+                            label="Assign user"
+                            placeholder="Search name, username, or email"
+                            value={searchTerm}
+                            onchange={handleSearchTerm}
+                            onkeyup={handleSearchKey}
+                            disabled={busy}>
+                        </lightning-input>
+                        <template lwc:if={showHits}>
+                            <ul class="hits" role="listbox">
+                                <template for:each={hits} for:item="h">
+                                    <li key={h.id}>
+                                        <button class="hit" type="button" data-id={h.id} onclick={pickHit} disabled={busy}>
+                                            <span class="hit-name">{h.name}</span>
+                                            <span class="hit-meta">{h.meta}</span>
+                                        </button>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
+                        <template lwc:if={searchEmpty}>
+                            <p class="search-empty">No matching users.</p>
+                        </template>
+                    </div>
+                    <template lwc:if={selectedUserId}>
+                        <div class="picked">
+                            <span class="picked-lab">Selected</span>
+                            <span class="picked-name">{selectedName}</span>
+                            <button class="adm-btn gh" type="button" onclick={clearSelected} disabled={busy}>Clear</button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template lwc:if={showEditor}>
+                <div class="editor">
+                    <div class="editor-head">
+                        <h3>{editorTitle}</h3>
+                        <template lwc:if={editingExisting}>
+                            <button class="adm-btn gh" type="button" onclick={cancelEdit} disabled={busy}>Close</button>
+                        </template>
+                    </div>
+                    <p class="editor-sub">Role sets the default checkboxes. You can still change what they can do after you pick a role.</p>
+                    <fieldset class="roles" disabled={busy}>
+                        <legend>Role</legend>
+                        <template for:each={roleOptions} for:item="r">
+                            <label key={r.value} class={r.cls}>
+                                <input type="radio" name="gtm-role" value={r.value} checked={r.selected} onchange={handleRole} />
+                                <span>{r.label}</span>
+                            </label>
+                        </template>
+                    </fieldset>
+                    <div class="grid2">
+                        <div>
+                            <h4>Tabs they can use</h4>
+                            <ul class="checks">
+                                <template for:each={tabItems} for:item="t">
+                                    <li key={t.key}>
+                                        <label>
+                                            <input type="checkbox" data-kind="tab" data-key={t.key} checked={t.checked} onchange={toggleItem} disabled={busy} />
+                                            <span>{t.label}</span>
+                                        </label>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4>Activities they can perform</h4>
+                            <ul class="checks">
+                                <template for:each={activityItems} for:item="a">
+                                    <li key={a.key}>
+                                        <label>
+                                            <input type="checkbox" data-kind="activity" data-key={a.key} checked={a.checked} onchange={toggleItem} disabled={busy} />
+                                            <span>{a.label}</span>
+                                        </label>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="editor-actions">
+                        <button class="adm-btn" type="button" onclick={save} disabled={saveDisabled}>{saveLabel}</button>
+                        <template lwc:if={busy}><span class="adm-spin"></span></template>
+                    </div>
+                </div>
+            </template>
+
+            <template lwc:if={hasUsers}>
+                <div class="tw"><table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Username</th>
+                            <th>Profile</th>
+                            <th>Role</th>
+                            <th>Tabs</th>
+                            <th>Activities</th>
+                            <template lwc:if={canManage}><th></th></template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={info.users} for:item="u">
+                            <tr key={u.id} class={u.rowClass}>
+                                <td>{u.name}</td>
+                                <td class="small">{u.username}</td>
+                                <td>{u.profile}</td>
+                                <td><span class="pill p-hi">{u.roleLabel}</span></td>
+                                <td class="small">{u.tabSummary}</td>
+                                <td class="small">{u.activitySummary}</td>
+                                <template lwc:if={canManage}>
+                                    <td class="row-actions">
+                                        <button class="adm-btn" data-id={u.id} onclick={editUser} disabled={busy}>Edit</button>
+                                        <button class="adm-btn gh" data-id={u.id} onclick={remove} disabled={busy}>Remove</button>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table></div>
+            </template>
+            <template lwc:else>
+                <div class="box"><p>No users are assigned yet. Search above to grant access.</p></div>
+            </template>
+
+            <div class="box info">
+                <h4>How access works here</h4>
+                <p>Search finds a user; a role (Admin, Leader, Team member) fills the checkboxes; you still edit tabs and activities before save. Admin and Leader get <b>{info.permSet}</b>. Team member gets <b>{info.viewerPermSet}</b> unless an edit activity is checked. Grants are stored on GTM Team Access and do not change Forecast, Pipeline, Waterfall, or Conversion Metrics code.</p>
+            </div>
+        </template>
+    </div>
+</template>

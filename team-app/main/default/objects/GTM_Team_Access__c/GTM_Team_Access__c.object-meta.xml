@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Per-user GTM - Team Johnson role, tab, and activity grants edited on the Admin tab. Salesforce app access still comes from GTM_Team_Johnson_Access / GTM_Team_Johnson_Viewer.</description>
+    <label>GTM Team Access</label>
+    <nameField>
+        <displayFormat>GTA-{000000}</displayFormat>
+        <label>Access Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>GTM Team Access</pluralLabel>
+    <sharingModel>ReadWrite</sharingModel>
+    <externalSharingModel>ReadWrite</externalSharingModel>
+    <enableActivities>false</enableActivities>
+    <enableReports>true</enableReports>
+    <enableBulkApi>true</enableBulkApi>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableSearch>true</enableSearch>
+    <startsWith>Consonant</startsWith>
+</CustomObject>
