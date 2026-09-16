@@ -279,7 +279,7 @@ private class PricingReviewEvidenceTest {
     @isTest
     static void grant_deal_and_comparable_fallback_tiers() {
         Opportunity grant = new Opportunity(EUNA_Solution__c = 'Amplifund');
-        grant.Account = new Account(Grant_Funds_Managed__c = 1140000000, AnnualRevenue = 4700000000);
+        grant.Account = new Account(Grant_Funds_Managed__c = 1140000000, AnnualRevenue = 4700000000L);
         System.assert(PricingReviewEvidence.isGrantDeal(grant), 'Amplifund is a grant deal');
         System.assertEquals(1140000000, PricingReviewEvidence.grantFunds(grant), 'grant funds come from the account');
         System.assert(PricingReviewEvidence.isGrantDeal(new Opportunity(EUNA_Solution__c = 'Grants')), 'Grants is a grant deal');
