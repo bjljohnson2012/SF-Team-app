@@ -350,11 +350,11 @@ private class CockpitConversionServiceTest {
             CockpitConversionService.PagePayload page = CockpitConversionService.load(
                 dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL, '2026-Q3');
             Test.stopTest();
-            CockpitConversionService.BandRow commit = bandOf(page.bandCheckpoints[0].rows, 'Commit');
+            CockpitConversionService.BandRow commitRow = bandOf(page.bandCheckpoints[0].rows, 'Commit');
             CockpitConversionService.BandRow ml = bandOf(page.bandCheckpoints[0].rows, 'Most Likely');
-            System.assertNotEquals(null, commit, 'July Commit stays on the book');
-            System.assertEquals(1, commit.lost, 'in-quarter close is a loss');
-            System.assertEquals(0, commit.pushed, 'the Q3 close is not a push');
+            System.assertNotEquals(null, commitRow, 'July Commit stays on the book');
+            System.assertEquals(1, commitRow.lost, 'in-quarter close is a loss');
+            System.assertEquals(0, commitRow.pushed, 'the Q3 close is not a push');
             System.assertNotEquals(null, ml, 'July Most Likely stays on the book');
             System.assertEquals(1, ml.pushed, 'Q4 close date is a push');
             System.assertEquals(0, ml.lost, 'a push is not an in-quarter loss');
