@@ -194,10 +194,12 @@ private class CockpitCohortServiceTest {
             CockpitConstants.quarterOf(CockpitConstants.shiftQuarters(today, -1))
         ).addDays(5);
         List<Opportunity> opps = new List<Opportunity>{
-            closed(a.Id, ae.Id, rt, 'Lag2 Win', sqlLag2, closeThisQ, 'Closed Won', null),
             closed(a.Id, ae.Id, rt, 'Lag2 Work', sqlLag2, closeThisQ,
                 'Closed Lost', 'Perceived lack of ROI'),
-            closed(a.Id, ae.Id, rt, 'Lag1 Win', sqlLag1, closeThisQ, 'Closed Won', null)
+            closed(a.Id, ae.Id, rt, 'Lag2 Ghost', sqlLag2, closeThisQ,
+                'Closed Lost', 'Ghosted'),
+            closed(a.Id, ae.Id, rt, 'Lag1 Work', sqlLag1, closeThisQ,
+                'Closed Lost', 'Perceived lack of ROI')
         };
         for (Integer i = 0; i < 5; i++) {
             opps.add(closed(a.Id, ae.Id, rt, 'Cycle seed ' + i,
@@ -217,8 +219,9 @@ private class CockpitCohortServiceTest {
             'p50 of ~90/180/180 days is two quarters');
         System.assertEquals(matchedKey, page.matchedCohortKey,
             'matched vintage is current quarter minus product cycle lag');
-        System.assertEquals(2, page.headlines.thisQuarterWon);
-        System.assertEquals(1, page.headlines.thisQuarterLost);
+        System.assertEquals(0, page.headlines.thisQuarterWon,
+            'this-quarter fixtures are closed-lost so quote validation does not fire');
+        System.assertEquals(3, page.headlines.thisQuarterLost);
         System.assertEquals(2, page.closeMix.size(),
             'this-quarter closes split across two SQL vintages');
         System.assertEquals(6, page.meaningSections.size());
