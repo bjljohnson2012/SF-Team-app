@@ -106,6 +106,38 @@ that access as **read-only** by default:
 
 ---
 
+## Additive apps — new work must not change what already exists
+
+Team Johnson panes (Pipeline Review, This Week, Conversion Metrics, and anything after)
+are **additive**. They read existing sales data. They do not change how Opportunity,
+Account, or sibling apps already save or render.
+
+This overrides "the spec said to add a trigger" and "extend the existing service":
+
+1. **No new trigger, before-save Flow, or validation rule** on Opportunity, Account,
+   Contact, Lead, User, Task, or Event. Compute in the new app: its LWC, its controller,
+   or a scheduled/batch job **it owns**. Nightly recompute is isolated. Live-on-save is
+   not — that is how a title-pattern CMDT miss failed every Opportunity edit org-wide.
+2. **Do not edit sibling panes or shared chassis.** Leave `forecastHub` hosts,
+   `c-gtm-scope-filters`, `CockpitRosterService`, existing permsets, and existing
+   triggers alone. New tab, new LWC, new Apex, new additive permset. If the hub needs
+   one new sub-tab slot, add only that slot — do not rewrite the host.
+3. **New CMDT and objects stay off the existing save path.** Nothing that already runs
+   on Opportunity (or Account, etc.) insert/update may query them. If a shared method
+   must read new config, it returns empty/null and the existing save still succeeds.
+4. **Do not write new fields back onto Opportunity from a trigger.** Page-load compute
+   or the new app's own batch is the isolated path. Storing grade columns on Opportunity
+   is a data-model choice; hooking them to after-update is the coupling that takes down
+   saves.
+5. **Never `deploy start` or `deploy quick` this class of change to prod.** Branch → PR
+   → human pipeline. Check-only validate is the agent ceiling.
+
+Reuse existing *fields and data* (ARR, `ManagerId`, `Euna_Sale`). Do not reuse existing
+*automation* (Opportunity triggers, shared hub JS, org-wide permsets) as the place to
+hang a new app.
+
+---
+
 ## Reuse Existing Metadata — SEARCH THE ORG BEFORE CREATING ANYTHING
 
 Reuse is the default. New metadata — field, object, picklist value, record type, permission set,
