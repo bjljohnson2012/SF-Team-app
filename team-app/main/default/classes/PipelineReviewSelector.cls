@@ -273,22 +273,39 @@ public with sharing class PipelineReviewSelector {
         }
     }
 
+    @TestVisible static Boolean simulateConfigQueryFailure = false;
+    private class ConfigQueryException extends Exception {}
+
     public static List<Pipeline_Title_Pattern__mdt> titlePatterns() {
-        return [
-            SELECT Category__c, Pattern__c
-            FROM Pipeline_Title_Pattern__mdt
-        ];
+        try {
+            if (simulateConfigQueryFailure) {
+                throw new ConfigQueryException('Pipeline_Title_Pattern__mdt unavailable');
+            }
+            return [
+                SELECT Category__c, Pattern__c
+                FROM Pipeline_Title_Pattern__mdt
+            ];
+        } catch (Exception e) {
+            return new List<Pipeline_Title_Pattern__mdt>();
+        }
     }
 
     public static Pipeline_Priority_Config__mdt priorityConfig() {
-        List<Pipeline_Priority_Config__mdt> rows = [
-            SELECT Weight_Value__c, Weight_Urgency__c, Weight_Leverage__c, Weight_Decay__c,
-                   Focus_Cap_Week__c, Focus_Cap_Today__c, Carryover_Boost__c,
-                   Quota_Basis__c, Big_Deal_Percent__c
-            FROM Pipeline_Priority_Config__mdt
-            LIMIT 1
-        ];
-        return rows.isEmpty() ? null : rows[0];
+        try {
+            if (simulateConfigQueryFailure) {
+                throw new ConfigQueryException('Pipeline_Priority_Config__mdt unavailable');
+            }
+            List<Pipeline_Priority_Config__mdt> rows = [
+                SELECT Weight_Value__c, Weight_Urgency__c, Weight_Leverage__c, Weight_Decay__c,
+                       Focus_Cap_Week__c, Focus_Cap_Today__c, Carryover_Boost__c,
+                       Quota_Basis__c, Big_Deal_Percent__c
+                FROM Pipeline_Priority_Config__mdt
+                LIMIT 1
+            ];
+            return rows.isEmpty() ? null : rows[0];
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public static List<PipelineReviewGradeService.TitlePattern> titlePatternInputs() {

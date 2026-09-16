@@ -15,6 +15,9 @@ public with sharing class PipelineReviewOpportunityHandler {
         running = true;
         try {
             recompute(changed, Date.today());
+        } catch (Exception e) {
+            // Title-pattern / priority CMDT (or any selector miss) must never
+            // fail Opportunity after-insert / after-update org-wide.
         } finally {
             running = false;
         }

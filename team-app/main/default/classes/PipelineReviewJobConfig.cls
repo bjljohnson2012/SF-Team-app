@@ -18,21 +18,25 @@ public with sharing class PipelineReviewJobConfig {
         DateTime et = toEt(nowUtc);
         Integer hour = Integer.valueOf(et.format('HH', 'America/New_York'));
         String dow = et.format('EEE', 'America/New_York'); // Mon
-        for (Pipeline_Review_Job__mdt row : [
-            SELECT DeveloperName, Enabled__c, Hour_ET__c, Days_Of_Week__c, Batch_Size__c, Job_Class__c
-            FROM Pipeline_Review_Job__mdt
-        ]) {
-            if (row.Enabled__c != true) continue;
-            if (row.Hour_ET__c != null && Integer.valueOf(row.Hour_ET__c) != hour) continue;
-            if (!dayMatches(row.Days_Of_Week__c, dow)) continue;
-            JobSpec spec = new JobSpec();
-            spec.developerName = row.DeveloperName;
-            spec.jobClass = row.Job_Class__c;
-            spec.batchSize = row.Batch_Size__c == null ? 200 : Integer.valueOf(row.Batch_Size__c);
-            spec.enabled = true;
-            spec.hourEt = row.Hour_ET__c == null ? null : Integer.valueOf(row.Hour_ET__c);
-            spec.daysOfWeek = row.Days_Of_Week__c;
-            out.add(spec);
+        try {
+            for (Pipeline_Review_Job__mdt row : [
+                SELECT DeveloperName, Enabled__c, Hour_ET__c, Days_Of_Week__c, Batch_Size__c, Job_Class__c
+                FROM Pipeline_Review_Job__mdt
+            ]) {
+                if (row.Enabled__c != true) continue;
+                if (row.Hour_ET__c != null && Integer.valueOf(row.Hour_ET__c) != hour) continue;
+                if (!dayMatches(row.Days_Of_Week__c, dow)) continue;
+                JobSpec spec = new JobSpec();
+                spec.developerName = row.DeveloperName;
+                spec.jobClass = row.Job_Class__c;
+                spec.batchSize = row.Batch_Size__c == null ? 200 : Integer.valueOf(row.Batch_Size__c);
+                spec.enabled = true;
+                spec.hourEt = row.Hour_ET__c == null ? null : Integer.valueOf(row.Hour_ET__c);
+                spec.daysOfWeek = row.Days_Of_Week__c;
+                out.add(spec);
+            }
+        } catch (Exception e) {
+            return out;
         }
         return out;
     }

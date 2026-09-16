@@ -285,6 +285,25 @@ private class PipelineReviewServicesTest {
     }
 
     @IsTest
+    static void config_queries_degrade_without_failing_trigger() {
+        PipelineReviewSelector.simulateConfigQueryFailure = true;
+        Test.startTest();
+        System.assertEquals(0, PipelineReviewSelector.titlePatterns().size());
+        System.assertEquals(null, PipelineReviewSelector.priorityConfig());
+        System.assertEquals(0, PipelineReviewSelector.titlePatternInputs().size());
+        Opportunity o = [
+            SELECT Id, StageName, CloseDate, ForecastCategoryName, Director_Forecast_bf__c,
+                   Next_Step_bf__c, Next_Step_Date_bf__c, LastActivityDate
+            FROM Opportunity
+            LIMIT 1
+        ];
+        PipelineReviewOpportunityHandler.afterChange(new List<Opportunity>{ o }, null);
+        Test.stopTest();
+        PipelineReviewSelector.simulateConfigQueryFailure = false;
+        System.assertEquals(false, PipelineReviewOpportunityHandler.running);
+    }
+
+    @IsTest
     static void controller_writes_and_jobRunner() {
         Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 1' LIMIT 1];
         Test.startTest();
