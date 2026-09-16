@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Metric__c</fullName>
+    <description>Rate or plan field this override replaces, for example Win_Rate_Blended or Dials.</description>
+    <inlineHelpText>Rate or plan field this override replaces, for example Win_Rate_Blended or Dials.</inlineHelpText>
+    <label>Metric</label>
+    <length>40</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+    <trackHistory>true</trackHistory>
+</CustomField>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>AE__c</fullName>
+    <description>Opportunity owner whose rates this row stores. Resolved from ManagerId, never a hardcoded user.</description>
+    <inlineHelpText>Opportunity owner whose rates this row stores. Resolved from ManagerId, never a hardcoded user.</inlineHelpText>
+    <label>AE</label>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <referenceTo>User</referenceTo>
+    <relationshipName>Waterfall_Rates</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

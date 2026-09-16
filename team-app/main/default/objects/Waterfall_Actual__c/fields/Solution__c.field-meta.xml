@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Solution__c</fullName>
+    <description>EUNA_Solution__c for a product-family row. Blank means AE blended across the four families.</description>
+    <inlineHelpText>EUNA_Solution__c for a product-family row. Blank means AE blended across the four families.</inlineHelpText>
+    <label>Solution</label>
+    <length>80</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
