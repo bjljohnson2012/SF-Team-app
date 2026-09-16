@@ -89,38 +89,39 @@ public with sharing class PipelineReviewSelector {
             ? new Set<Id>(f.ownerIds)
             : teamOwnerIds(f == null ? null : f.directorId);
         Id rt = eunaSaleRecordTypeId();
-        String soql = 'SELECT Id, Name, AccountId, Account.Name, OwnerId, Owner.Name, StageName, CloseDate, '
+        String core = 'SELECT Id, Name, AccountId, Account.Name, OwnerId, Owner.Name, StageName, CloseDate, '
             + 'ForecastCategoryName, Director_Forecast_bf__c, Roll_Up_Forecast_bf__c, '
-            + 'Next_Step_bf__c, Next_Step_Date_bf__c, Director_Notes_bf__c, Director_Note_Updated_On__c, '
+            + 'Next_Step_bf__c, Next_Step_Date_bf__c, Director_Notes_bf__c, '
             + 'ARR_Opportunity_Amount_USD_Num__c, LastActivityDate, EUNA_Solution__c, '
-            + 'Pricing_Approval_Status__c, Pipeline_Grade__c, Recommended_Forecast__c, Grade_Rationale__c, '
-            + 'Grade_Computed_On__c, Grade_Input_Hash__c, Parked_Cycles__c, Freshest_Activity_Age__c, '
-            + 'Date_Conflict__c, Forecast_Mismatch__c, Next_Step_State__c, Action_Priority__c, '
-            + 'Action_Priority_Reason__c, Action_Bucket__c, Recommended_Contact__c, '
+            + 'Pricing_Approval_Status__c ';
+        String extraFields = ', Director_Note_Updated_On__c, Pipeline_Grade__c, Recommended_Forecast__c, '
+            + 'Grade_Rationale__c, Grade_Computed_On__c, Grade_Input_Hash__c, Parked_Cycles__c, '
+            + 'Freshest_Activity_Age__c, Date_Conflict__c, Forecast_Mismatch__c, Next_Step_State__c, '
+            + 'Action_Priority__c, Action_Priority_Reason__c, Action_Bucket__c, Recommended_Contact__c, '
             + 'Recommended_Contact__r.Name, Recommended_Contact__r.Title, Recommended_Contact__r.Email, '
             + 'Recommended_Contact_Reason__c, Priority_Computed_On__c, Suggested_Next_Step__c, '
             + 'Suggested_Next_Step_Date__c, Suggestion_Generated_On__c, Suggestion_Status__c, '
-            + 'Next_Step_Source__c, Suggestions_Ignored_Count__c '
-            + 'FROM Opportunity WHERE IsClosed = false AND OwnerId IN :owners';
-        if (rt != null) soql += ' AND RecordTypeId = :rt';
+            + 'Next_Step_Source__c, Suggestions_Ignored_Count__c ';
+        String tail = 'FROM Opportunity WHERE IsClosed = false AND OwnerId IN :owners';
+        if (rt != null) tail += ' AND RecordTypeId = :rt';
         if (f != null && String.isNotBlank(f.productType) && f.productType != CockpitConstants.PRODUCT_ALL) {
             f.productSolutions = CockpitConstants.solutionsInProductFilter(f.productType);
         }
-        soql += appendFilters(f);
-        soql += ' ORDER BY ARR_Opportunity_Amount_USD_Num__c DESC NULLS LAST, CloseDate ASC NULLS LAST LIMIT 2000';
-        try {
-            out.records = Database.query(soql, AccessLevel.USER_MODE);
-        } catch (System.QueryException qe) {
-            out.records = Database.query(soql);
-        }
+        tail += appendFilters(f);
+        tail += ' ORDER BY ARR_Opportunity_Amount_USD_Num__c DESC NULLS LAST, CloseDate ASC NULLS LAST LIMIT 2000';
+        out.records = queryBook(core + extraFields + tail, core + tail);
         out.loaded = out.records.size();
         out.expected = out.loaded;
         for (Opportunity o : out.records) {
             Decimal arr = (Decimal) o.get('ARR_Opportunity_Amount_USD_Num__c');
             out.totalArr += arr == null ? 0 : arr;
-            if (o.Grade_Computed_On__c != null
-                && (out.lastUpdated == null || o.Grade_Computed_On__c > out.lastUpdated)) {
-                out.lastUpdated = o.Grade_Computed_On__c;
+            try {
+                Datetime computed = (Datetime) o.get('Grade_Computed_On__c');
+                if (computed != null && (out.lastUpdated == null || computed > out.lastUpdated)) {
+                    out.lastUpdated = computed;
+                }
+            } catch (Exception e) {
+                // grade fields not in this query
             }
         }
         return out;
@@ -140,12 +141,21 @@ public with sharing class PipelineReviewSelector {
     private static void loadHistoryChunk(List<Id> chunk, Map<Id, Map<String, String>> out, Integer size) {
         if (chunk == null || chunk.isEmpty()) return;
         try {
-            List<Opportunity> rows = [
-                SELECT Id, Next_Step_History_bf__c, Director_Notes_History_bf__c
-                FROM Opportunity
-                WHERE Id IN :chunk
-                WITH USER_MODE
-            ];
+            List<Opportunity> rows;
+            try {
+                rows = [
+                    SELECT Id, Next_Step_History_bf__c, Director_Notes_History_bf__c
+                    FROM Opportunity
+                    WHERE Id IN :chunk
+                    WITH USER_MODE
+                ];
+            } catch (System.QueryException qe) {
+                rows = [
+                    SELECT Id, Next_Step_History_bf__c, Director_Notes_History_bf__c
+                    FROM Opportunity
+                    WHERE Id IN :chunk
+                ];
+            }
             if (rows.size() < chunk.size() && chunk.size() > 1 && size > 20) {
                 Integer half = Math.max(1, chunk.size() / 2);
                 List<Id> left = new List<Id>();
@@ -304,6 +314,22 @@ public with sharing class PipelineReviewSelector {
         if (row.Focus_Cap_Today__c != null) w.focusCapToday = Integer.valueOf(row.Focus_Cap_Today__c);
         if (row.Carryover_Boost__c != null) w.carryoverBoost = row.Carryover_Boost__c;
         return w;
+    }
+
+    private static List<Opportunity> queryBook(String enriched, String core) {
+        try {
+            return Database.query(enriched, AccessLevel.USER_MODE);
+        } catch (Exception e1) {
+            try {
+                return Database.query(enriched, AccessLevel.SYSTEM_MODE);
+            } catch (Exception e2) {
+                try {
+                    return Database.query(core, AccessLevel.SYSTEM_MODE);
+                } catch (Exception e3) {
+                    return new List<Opportunity>();
+                }
+            }
+        }
     }
 
     private static String appendFilters(Filter f) {

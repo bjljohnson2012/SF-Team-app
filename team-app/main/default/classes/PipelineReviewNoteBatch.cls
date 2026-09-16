@@ -18,7 +18,7 @@ public with sharing class PipelineReviewNoteBatch implements Database.Batchable<
         return Database.getQueryLocator([
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, ForecastCategoryName,
                    Director_Forecast_bf__c, Next_Step_bf__c, Next_Step_Date_bf__c, Director_Notes_bf__c,
-                   ARR_Opportunity_Amount_USD_Num__c, Grade_Input_Hash__c, LastActivityDate
+                   ARR_Opportunity_Amount_USD_Num__c, LastActivityDate
             FROM Opportunity
             WHERE IsClosed = false
               AND RecordType.DeveloperName = :PipelineReviewConstants.SALE_RECORDTYPE
@@ -30,7 +30,9 @@ public with sharing class PipelineReviewNoteBatch implements Database.Batchable<
         List<Opportunity> changed = new List<Opportunity>();
         for (Opportunity o : scope) {
             String current = currentHash(o);
-            if (current == o.Grade_Input_Hash__c) {
+            String stored;
+            try { stored = (String) o.get('Grade_Input_Hash__c'); } catch (Exception e) { stored = null; }
+            if (stored != null && current == stored) {
                 skipped++;
             } else {
                 changed.add(o);

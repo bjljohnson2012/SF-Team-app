@@ -164,7 +164,6 @@ public with sharing class PipelineReviewController {
                     SELECT Opportunity__c
                     FROM Pipeline_Action_Snooze__c
                     WHERE User__c = :UserInfo.getUserId() AND Snooze_Until__c >= :today
-                    WITH USER_MODE
                 ]) snoozed.add(s.Opportunity__c);
             } catch (Exception e) { /* degrade */ }
         }
@@ -177,7 +176,6 @@ public with sharing class PipelineReviewController {
                     FROM Pipeline_Week_Focus__c
                     WHERE Week_Start__c = :monday
                       AND Status__c != :PipelineReviewConstants.FOCUS_DROPPED
-                    WITH USER_MODE
                     ORDER BY Rank__c
                 ]) locked.put(row.Opportunity__c, row);
             } catch (Exception e) { /* degrade */ }
@@ -202,9 +200,10 @@ public with sharing class PipelineReviewController {
             if (o.Next_Step_Date_bf__c != null && o.Next_Step_Date_bf__c < today) overdue++;
             if (o.Next_Step_Date_bf__c != null && o.Next_Step_Date_bf__c >= today
                 && o.Next_Step_Date_bf__c <= today.addDays(7)) due++;
-            if (o.Action_Bucket__c == PipelineReviewConstants.BUCKET_FIX) page.fixFirst.add(row);
-            else if (o.Action_Bucket__c == PipelineReviewConstants.BUCKET_KILL) page.decideOrKill.add(row);
-            else if (o.Action_Bucket__c == PipelineReviewConstants.BUCKET_DUE) page.dueThisWeek.add(row);
+            String bucket = (String) safeGet(o, 'Action_Bucket__c');
+            if (bucket == PipelineReviewConstants.BUCKET_FIX) page.fixFirst.add(row);
+            else if (bucket == PipelineReviewConstants.BUCKET_KILL) page.decideOrKill.add(row);
+            else if (bucket == PipelineReviewConstants.BUCKET_DUE) page.dueThisWeek.add(row);
             if (!snoozed.contains(o.Id)) liveRanked.add(row);
             if (!chips.containsKey(o.OwnerId)) {
                 AeChipDTO c = new AeChipDTO();
@@ -309,7 +308,7 @@ public with sharing class PipelineReviewController {
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, ForecastCategoryName,
                    Director_Forecast_bf__c, Next_Step_bf__c, Next_Step_Date_bf__c, Director_Notes_bf__c,
                    ARR_Opportunity_Amount_USD_Num__c
-            FROM Opportunity WHERE Id = :opportunityId WITH USER_MODE LIMIT 1
+            FROM Opportunity WHERE Id = :opportunityId LIMIT 1
         ];
         List<PipelineReviewAIService.GenerateResult> rows =
             PipelineReviewAIService.generateNotes(new List<Opportunity>{ o }, Date.today(), false);
@@ -332,7 +331,6 @@ public with sharing class PipelineReviewController {
             for (Pipeline_Review_Run__c r : [
                 SELECT Id, Status__c, Total__c, Completed__c, Failed__c, Skipped__c, Started_At__c, Finished_At__c
                 FROM Pipeline_Review_Run__c
-                WITH USER_MODE
                 ORDER BY CreatedDate DESC
                 LIMIT 10
             ]) {
@@ -411,31 +409,45 @@ public with sharing class PipelineReviewController {
         r.aeForecast = o.ForecastCategoryName;
         r.directorForecast = o.Director_Forecast_bf__c;
         r.rollupForecast = o.Roll_Up_Forecast_bf__c;
-        r.recommendedForecast = o.Recommended_Forecast__c;
-        r.grade = o.Pipeline_Grade__c;
-        r.rationale = o.Grade_Rationale__c;
+        r.recommendedForecast = (String) safeGet(o, 'Recommended_Forecast__c');
+        r.grade = (String) safeGet(o, 'Pipeline_Grade__c');
+        r.rationale = (String) safeGet(o, 'Grade_Rationale__c');
         r.tag = tag;
-        r.mismatch = o.Forecast_Mismatch__c == true;
-        r.dateConflict = o.Date_Conflict__c == true;
+        r.mismatch = safeGet(o, 'Forecast_Mismatch__c') == true;
+        r.dateConflict = safeGet(o, 'Date_Conflict__c') == true;
         r.nextStep = o.Next_Step_bf__c;
         r.nextStepDate = o.Next_Step_Date_bf__c;
-        r.nextStepState = o.Next_Step_State__c;
+        r.nextStepState = (String) safeGet(o, 'Next_Step_State__c');
         r.note = o.Director_Notes_bf__c;
-        r.suggestedNextStep = o.Suggested_Next_Step__c;
-        r.suggestedNextStepDate = o.Suggested_Next_Step_Date__c;
-        r.suggestionStatus = o.Suggestion_Status__c;
-        r.nextStepSource = o.Next_Step_Source__c;
-        r.priority = o.Action_Priority__c;
-        r.priorityReason = o.Action_Priority_Reason__c;
-        r.bucket = o.Action_Bucket__c;
-        r.contactName = o.Recommended_Contact__r == null ? null : o.Recommended_Contact__r.Name;
-        r.contactTitle = o.Recommended_Contact__r == null ? null : o.Recommended_Contact__r.Title;
-        r.contactEmail = o.Recommended_Contact__r == null ? null : o.Recommended_Contact__r.Email;
-        r.contactReason = o.Recommended_Contact_Reason__c;
-        r.parkedCycles = o.Parked_Cycles__c == null ? 0 : Integer.valueOf(o.Parked_Cycles__c);
-        r.freshestAge = o.Freshest_Activity_Age__c == null ? null : Integer.valueOf(o.Freshest_Activity_Age__c);
+        r.suggestedNextStep = (String) safeGet(o, 'Suggested_Next_Step__c');
+        r.suggestedNextStepDate = (Date) safeGet(o, 'Suggested_Next_Step_Date__c');
+        r.suggestionStatus = (String) safeGet(o, 'Suggestion_Status__c');
+        r.nextStepSource = (String) safeGet(o, 'Next_Step_Source__c');
+        r.priority = (Decimal) safeGet(o, 'Action_Priority__c');
+        r.priorityReason = (String) safeGet(o, 'Action_Priority_Reason__c');
+        r.bucket = (String) safeGet(o, 'Action_Bucket__c');
+        try {
+            r.contactName = o.Recommended_Contact__r == null ? null : o.Recommended_Contact__r.Name;
+            r.contactTitle = o.Recommended_Contact__r == null ? null : o.Recommended_Contact__r.Title;
+            r.contactEmail = o.Recommended_Contact__r == null ? null : o.Recommended_Contact__r.Email;
+        } catch (Exception e) {
+            r.contactName = null;
+        }
+        r.contactReason = (String) safeGet(o, 'Recommended_Contact_Reason__c');
+        Decimal parked = (Decimal) safeGet(o, 'Parked_Cycles__c');
+        r.parkedCycles = parked == null ? 0 : Integer.valueOf(parked);
+        Decimal age = (Decimal) safeGet(o, 'Freshest_Activity_Age__c');
+        r.freshestAge = age == null ? null : Integer.valueOf(age);
         r.url = '/' + o.Id;
         return r;
+    }
+
+    private static Object safeGet(SObject rec, String fieldName) {
+        try {
+            return rec.get(fieldName);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static Boolean rowMatchesSearch(RowDTO row, String search) {

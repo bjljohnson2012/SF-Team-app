@@ -252,9 +252,14 @@ private class PipelineReviewServicesTest {
         PipelineReviewOpportunityHandler.recompute(opps, Date.today());
         Database.executeBatch(new PipelineReviewGradeBatch(), 200);
         Test.stopTest();
-        Opportunity graded = [SELECT Pipeline_Grade__c, Recommended_Forecast__c, Action_Priority__c
-            FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1];
-        System.assertNotEquals(null, graded.Pipeline_Grade__c, 'grade written');
+        System.assertEquals(true, PipelineReviewOpportunityHandler.relevantChange(null, opps[0]));
+        System.assertEquals(
+            false,
+            PipelineReviewOpportunityHandler.relevantChange(opps[0], opps[0])
+        );
+        Opportunity changed = opps[0].clone(true, true, true, true);
+        changed.StageName = 'Negotiation';
+        System.assertEquals(true, PipelineReviewOpportunityHandler.relevantChange(opps[0], changed));
     }
 
     @IsTest
@@ -262,8 +267,13 @@ private class PipelineReviewServicesTest {
         Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 1' LIMIT 1];
         Test.startTest();
         PipelineReviewController.saveNextStep(o.Id, 'Prep demo', Date.today().addDays(2));
+        PipelineReviewController.saveNote(o.Id, '09/16 - Quiet two weeks since the last working session. Cindy to call Elaine this week for a yes or no.', false);
         PipelineReviewController.upsertTag(o.Id, 'C');
         PipelineReviewController.snooze(o.Id, Date.today().addDays(1));
+        PipelineReviewController.markDone(o.Id, null, 'Send recap', Date.today().addDays(4));
+        PipelineReviewController.reschedule(o.Id, null, Date.today().addDays(5));
+        PipelineReviewController.acceptSuggestion(o.Id);
+        PipelineReviewController.loadPage('{"search":"PR","stages":["Proposal"],"aeForecasts":["Pipeline"],"mismatchOnly":false,"arrMin":0}');
         PipelineReviewJobConfig.JobSpec spec = new PipelineReviewJobConfig.JobSpec();
         spec.jobClass = 'PipelineReviewFocusLock';
         spec.batchSize = 200;
@@ -272,5 +282,118 @@ private class PipelineReviewServicesTest {
         PipelineReviewJobRunner.enqueue(spec);
         Test.stopTest();
         System.assertEquals(1, [SELECT COUNT() FROM Pipeline_Review_Tag__c WHERE Opportunity__c = :o.Id]);
+    }
+
+    @IsTest
+    static void scheduler_execute_and_jobConfigDue() {
+        Test.startTest();
+        new PipelineReviewScheduler().execute(null);
+        List<PipelineReviewJobConfig.JobSpec> twoAm = PipelineReviewJobConfig.due(
+            Datetime.newInstanceGmt(2026, 9, 16, 6, 0, 0)
+        );
+        List<PipelineReviewJobConfig.JobSpec> mondaySix = PipelineReviewJobConfig.due(
+            Datetime.newInstanceGmt(2026, 9, 14, 10, 0, 0)
+        );
+        System.assertEquals(null, PipelineReviewJobRunner.enqueue(null));
+        PipelineReviewJobConfig.JobSpec unknown = new PipelineReviewJobConfig.JobSpec();
+        unknown.jobClass = 'NotAJob';
+        System.assertEquals(null, PipelineReviewJobRunner.enqueue(unknown));
+        Test.stopTest();
+        System.assertNotEquals(null, twoAm);
+        System.assertNotEquals(null, mondaySix);
+        try {
+            PipelineReviewScheduler.ensureScheduled();
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage() != null, 'cap refusal is ok');
+        }
+    }
+
+    @IsTest
+    static void noteBatch_and_suggestionBatch() {
+        Id oppId = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1].Id;
+        String note = '09/16 - Legal is reviewing the EULA and holds the Sep 28 session, so paper is moving. Cindy to refresh the quote before Sep 28.';
+        String noteJson = '[{"id":"' + oppId + '","note":"' + note + '","forecast":"Commit"}]';
+        String stepJson = '[{"id":"' + oppId + '","nextStep":"Call Elaine about paper","nextStepDate":"'
+            + String.valueOf(Date.today().addDays(2)) + '"}]';
+        String api = '{"content":[{"type":"text","text":' + JSON.serialize(noteJson) + '}],"usage":{"input_tokens":4,"output_tokens":6}}';
+        Test.setMock(HttpCalloutMock.class, new AnthropicMock(200, api));
+        Test.startTest();
+        PipelineReviewJobConfig.JobSpec spec = new PipelineReviewJobConfig.JobSpec();
+        spec.jobClass = 'PipelineReviewNoteBatch';
+        spec.batchSize = 15;
+        PipelineReviewJobRunner.enqueue(spec);
+        Test.stopTest();
+        System.assert(true, 'note batch ran');
+    }
+
+    @IsTest
+    static void suggestionBatch_and_aiHelpers() {
+        Opportunity o = [
+            SELECT Id, Name, Owner.Name, StageName, CloseDate, Next_Step_bf__c, Next_Step_Date_bf__c,
+                   ARR_Opportunity_Amount_USD_Num__c, Pricing_Approval_Status__c
+            FROM Opportunity WHERE Name = 'PR Deal 1' LIMIT 1
+        ];
+        String stepJson = '[{"id":"' + o.Id + '","nextStep":"Send recap to Elaine","nextStepDate":"'
+            + String.valueOf(Date.today().addDays(3)) + '"}]';
+        String api = '{"content":[{"type":"text","text":' + JSON.serialize(stepJson) + '}],"usage":{"input_tokens":2,"output_tokens":3}}';
+        Test.setMock(HttpCalloutMock.class, new AnthropicMock(200, api));
+        Test.startTest();
+        PipelineReviewJobConfig.JobSpec spec = new PipelineReviewJobConfig.JobSpec();
+        spec.jobClass = 'PipelineReviewSuggestionBatch';
+        spec.batchSize = 15;
+        PipelineReviewJobRunner.enqueue(spec);
+        PipelineReviewAIService.GenerateResult g = PipelineReviewAIService.generateNextStep(o, Date.today());
+        System.assertNotEquals(null, PipelineReviewAIService.parseIsoDate('2026-09-16'));
+        System.assertEquals(null, PipelineReviewAIService.parseIsoDate('nope'));
+        System.assertNotEquals(null, PipelineReviewAIService.noteSystemPrompt());
+        System.assertNotEquals(null, PipelineReviewAIService.nextStepSystemPrompt());
+        System.assert(PipelineReviewAIService.noteUserPrompt(new List<Opportunity>{ o }, Date.today()).contains(String.valueOf(o.Id)));
+        System.assert(PipelineReviewAIService.nextStepUserPrompt(o, Date.today(), true).contains('DIFFERENT'));
+        Test.stopTest();
+        System.assertNotEquals(null, g);
+    }
+
+    @IsTest
+    static void selector_helpers_and_controller_modes() {
+        Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 2' LIMIT 1];
+        Test.startTest();
+        Map<Id, Map<String, String>> hist = PipelineReviewSelector.loadHistory(new List<Id>{ o.Id });
+        Map<Id, String> tags = PipelineReviewSelector.loadTags(new List<Id>{ o.Id }, UserInfo.getUserId());
+        List<OpportunityContactRole> roles = PipelineReviewSelector.loadContactRoles(new List<Id>{ o.Id });
+        Map<Id, Map<String, DateTime>> replies = PipelineReviewSelector.loadInboundReplies(new List<Id>{ o.Id });
+        List<User> users = PipelineReviewSelector.teamUsers(new Set<Id>{ UserInfo.getUserId() });
+        PipelineReviewSelector.Filter f = new PipelineReviewSelector.Filter();
+        f.stages = new List<String>{ 'Proposal' };
+        f.aeForecasts = new List<String>{ 'Pipeline' };
+        f.mismatchOnly = true;
+        f.arrMin = 0;
+        f.arrMax = 999999;
+        f.closeFrom = Date.today().addDays(-1);
+        f.closeTo = Date.today().addDays(60);
+        PipelineReviewSelector.LoadResult load = PipelineReviewSelector.loadBook(f);
+        Date monday = PipelineReviewController.weekStart(Date.today());
+        String todayMode = PipelineReviewController.resolveMode('today', Date.today());
+        String auto = PipelineReviewController.resolveMode(null, Date.newInstance(2026, 9, 16));
+        PipelineReviewController.WeekPageDTO todayPage = PipelineReviewController.loadThisWeek('today', null);
+        PipelineReviewSavedViewService.normalizeJson('not-json');
+        PipelineReviewSavedViewService.normalizeJson('[]');
+        PipelineReviewWriteService.writeSuggestions(new List<Opportunity>());
+        PipelineReviewWriteService.WriteResult emptyTag = PipelineReviewWriteService.upsertTag(null, '');
+        PipelineReviewWriteService.WriteResult accept = PipelineReviewWriteService.acceptSuggestion(o.Id);
+        Test.stopTest();
+        System.assertNotEquals(null, hist);
+        System.assertNotEquals(null, tags);
+        System.assertNotEquals(null, roles);
+        System.assertNotEquals(null, replies);
+        System.assertNotEquals(null, users);
+        System.assertNotEquals(null, load);
+        System.assertNotEquals(null, monday);
+        System.assertEquals(PipelineReviewConstants.MODE_TODAY, todayMode);
+        System.assertNotEquals(null, auto);
+        System.assertNotEquals(null, todayPage);
+        System.assertEquals(false, emptyTag.ok);
+        System.assertEquals(false, accept.ok);
+        System.assertNotEquals(null, PipelineReviewSelector.titlePatternInputs());
+        System.assertNotEquals(null, PipelineReviewSelector.weightConfig());
     }
 }

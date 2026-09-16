@@ -21,7 +21,6 @@ public with sharing class PipelineReviewSavedViewService {
             SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, OwnerId
             FROM Pipeline_Saved_View__c
             WHERE OwnerId = :uid OR Is_Shared__c = true
-            WITH USER_MODE
             ORDER BY Sort_Order__c NULLS LAST, View_Name__c
         ]) {
             out.add(toDto(row, uid));
@@ -35,7 +34,7 @@ public with sharing class PipelineReviewSavedViewService {
         Pipeline_Saved_View__c row;
         if (viewId != null) {
             row = [
-                SELECT Id, OwnerId FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
+                SELECT Id, OwnerId FROM Pipeline_Saved_View__c WHERE Id = :viewId LIMIT 1
             ];
             if (row.OwnerId != uid) {
                 throw new AuraHandledException('Only the owner can edit this view.');
@@ -55,21 +54,20 @@ public with sharing class PipelineReviewSavedViewService {
                 SELECT Id, Is_Default__c
                 FROM Pipeline_Saved_View__c
                 WHERE OwnerId = :uid AND Id != :row.Id AND Is_Default__c = true
-                WITH USER_MODE
             ];
             for (Pipeline_Saved_View__c s : siblings) s.Is_Default__c = false;
             if (!siblings.isEmpty()) update siblings;
         }
         return toDto([
             SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, OwnerId
-            FROM Pipeline_Saved_View__c WHERE Id = :row.Id WITH USER_MODE LIMIT 1
+            FROM Pipeline_Saved_View__c WHERE Id = :row.Id LIMIT 1
         ], uid);
     }
 
     @AuraEnabled
     public static void deleteView(Id viewId) {
         Pipeline_Saved_View__c row = [
-            SELECT Id, OwnerId FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
+            SELECT Id, OwnerId FROM Pipeline_Saved_View__c WHERE Id = :viewId LIMIT 1
         ];
         if (row.OwnerId != UserInfo.getUserId()) {
             throw new AuraHandledException('Only the owner can delete this view.');
@@ -81,7 +79,7 @@ public with sharing class PipelineReviewSavedViewService {
     public static ViewDTO duplicateView(Id viewId) {
         Pipeline_Saved_View__c src = [
             SELECT View_Name__c, Definition_JSON__c, Sort_Order__c
-            FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
+            FROM Pipeline_Saved_View__c WHERE Id = :viewId LIMIT 1
         ];
         return saveView(null, src.View_Name__c + ' copy', src.Definition_JSON__c, false, false, src.Sort_Order__c);
     }

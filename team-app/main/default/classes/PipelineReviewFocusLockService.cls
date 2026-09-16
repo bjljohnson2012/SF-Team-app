@@ -31,22 +31,37 @@ public with sharing class PipelineReviewFocusLockService {
         ]) users.add(report.Id);
 
         Map<Id, Set<Id>> lastOpen = new Map<Id, Set<Id>>();
-        for (Pipeline_Week_Focus__c prior : [
-            SELECT Opportunity__c, User__c, Status__c
-            FROM Pipeline_Week_Focus__c
-            WHERE Week_Start__c = :priorMonday AND Status__c = :PipelineReviewConstants.FOCUS_OPEN
-        ]) {
-            if (!lastOpen.containsKey(prior.User__c)) lastOpen.put(prior.User__c, new Set<Id>());
-            lastOpen.get(prior.User__c).add(prior.Opportunity__c);
+        try {
+            for (Pipeline_Week_Focus__c prior : [
+                SELECT Opportunity__c, User__c, Status__c
+                FROM Pipeline_Week_Focus__c
+                WHERE Week_Start__c = :priorMonday AND Status__c = :PipelineReviewConstants.FOCUS_OPEN
+            ]) {
+                if (!lastOpen.containsKey(prior.User__c)) lastOpen.put(prior.User__c, new Set<Id>());
+                lastOpen.get(prior.User__c).add(prior.Opportunity__c);
+            }
+        } catch (System.QueryException qe) {
+            lastOpen = new Map<Id, Set<Id>>();
         }
 
-        List<Opportunity> book = [
-            SELECT Id, OwnerId, Action_Priority__c, Action_Priority_Reason__c, Action_Bucket__c
-            FROM Opportunity
-            WHERE IsClosed = false
-              AND OwnerId IN :users
-              AND RecordType.DeveloperName = :PipelineReviewConstants.SALE_RECORDTYPE
-        ];
+        List<Opportunity> book;
+        try {
+            book = [
+                SELECT Id, OwnerId, Action_Priority__c, Action_Priority_Reason__c, Action_Bucket__c
+                FROM Opportunity
+                WHERE IsClosed = false
+                  AND OwnerId IN :users
+                  AND RecordType.DeveloperName = :PipelineReviewConstants.SALE_RECORDTYPE
+            ];
+        } catch (System.QueryException qe) {
+            book = [
+                SELECT Id, OwnerId
+                FROM Opportunity
+                WHERE IsClosed = false
+                  AND OwnerId IN :users
+                  AND RecordType.DeveloperName = :PipelineReviewConstants.SALE_RECORDTYPE
+            ];
+        }
         Map<Id, List<Opportunity>> byOwner = new Map<Id, List<Opportunity>>();
         for (Opportunity o : book) {
             if (!byOwner.containsKey(o.OwnerId)) byOwner.put(o.OwnerId, new List<Opportunity>());
@@ -59,7 +74,9 @@ public with sharing class PipelineReviewFocusLockService {
             for (Opportunity o : byOwner.get(uid)) {
                 Scored s = new Scored();
                 s.opp = o;
-                s.priority = o.Action_Priority__c == null ? 0 : o.Action_Priority__c;
+                Decimal pri;
+                try { pri = (Decimal) o.get('Action_Priority__c'); } catch (Exception e) { pri = 0; }
+                s.priority = pri == null ? 0 : pri;
                 s.carried = carriedIds.contains(o.Id);
                 if (s.carried) s.priority += boost;
                 scored.add(s);
@@ -69,7 +86,9 @@ public with sharing class PipelineReviewFocusLockService {
             Integer rank = 1;
             for (Scored s : scored) {
                 if (rank > cap) break;
-                upserts.add(focusRow(s.opp, uid, monday, rank, s.priority, s.opp.Action_Priority_Reason__c,
+                String reason;
+                try { reason = (String) s.opp.get('Action_Priority_Reason__c'); } catch (Exception e) { reason = null; }
+                upserts.add(focusRow(s.opp, uid, monday, rank, s.priority, reason,
                     PipelineReviewConstants.FOCUS_OPEN, s.carried));
                 kept.add(s.opp.Id);
                 if (s.carried) result.carried++;
