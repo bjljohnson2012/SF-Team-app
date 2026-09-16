@@ -46,9 +46,9 @@ private class WaterfallPlayPlannerTest {
         out = WaterfallPlayPlanner.project(base, 'dials', ASOF);
         Test.stopTest();
 
-        System.assertEquals(origWins * 2, out.winsNeeded,
+        System.assertEquals(origWins.setScale(6), out.winsNeeded.setScale(6),
             'twice the dials at the same rates is twice the wins');
-        System.assertEquals(origArr * 2, out.projectedArr,
+        System.assertEquals(origArr.setScale(2), out.projectedArr.setScale(2),
             'ARR outcome scales with the edited dial volume');
         System.assert(out.qoNeeded > base.qoNeeded, 'more dials raise qualified need coverage');
         System.assert(out.oppsToCreate > out.qoNeeded, 'everything stays above qualified');

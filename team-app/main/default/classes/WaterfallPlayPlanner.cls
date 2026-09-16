@@ -155,6 +155,12 @@ public with sharing class WaterfallPlayPlanner {
     public static Map<Id, PlayDraft> loadSaved(Set<Id> ownerIds, String product, Date periodStart) {
         Map<Id, PlayDraft> out = new Map<Id, PlayDraft>();
         if (ownerIds == null || ownerIds.isEmpty() || periodStart == null) return out;
+        if (!Schema.sObjectType.Waterfall_Target__c.isAccessible()
+            || !Schema.sObjectType.Waterfall_Target__c.fields.AE__c.isAccessible()
+            || !Schema.sObjectType.Waterfall_Target__c.fields.Metric__c.isAccessible()
+            || !Schema.sObjectType.Waterfall_Target__c.fields.Target_Value__c.isAccessible()) {
+            return out;
+        }
         String sol = String.isBlank(product) ? WaterfallConstants.SOLUTION_ALL : product;
         List<Waterfall_Target__c> rows = [
             SELECT AE__c, Metric__c, Target_Value__c, Solution__c

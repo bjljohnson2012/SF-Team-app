@@ -116,6 +116,10 @@ private class WaterfallControllerTest {
             Quota_Amount__c = 60000,
             Start_Date__c = WaterfallConstants.periodStart(Date.today())
         );
+        PermissionSet access = [
+            SELECT Id FROM PermissionSet WHERE Name = 'GTM_Team_Johnson_Access' LIMIT 1
+        ];
+        insert new PermissionSetAssignment(AssigneeId = dir.Id, PermissionSetId = access.Id);
 
         Test.startTest();
         WaterfallController.PagePayload page;
