@@ -198,6 +198,39 @@ private class PricingReviewControllerTest {
             'table row carries Product Interest from EUNA_Solution__c');
     }
 
+    @isTest
+    static void findReviewFiles_finds_checklist_on_opportunity() {
+        System.assert(PricingReviewController.isReviewFileTitle('Pricing Review - City Of Nashua - 9/15/2026'),
+            'standard checklist title is recognized');
+        System.assert(PricingReviewController.isReviewFileTitle('Euna_Pricing_Review_City_Of_Nashua.docx'),
+            'PathOnClient-style title is recognized');
+        System.assert(!PricingReviewController.isReviewFileTitle('RFP0619-093026'),
+            'an RFP zip is not a checklist file');
+
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User dir = usr(p.Id, null, 'Director');
+        insert dir;
+        Id rtId = [SELECT Id FROM RecordType WHERE SobjectType = 'Opportunity' AND DeveloperName = 'Euna_Sale' LIMIT 1].Id;
+        System.runAs(dir) {
+            Account a = new Account(Name = 'File County');
+            insert a;
+            Opportunity o = new Opportunity(
+                Name = 'File Deal', AccountId = a.Id, OwnerId = dir.Id, RecordTypeId = rtId,
+                Type = 'New Sale', StageName = 'Proposal', CloseDate = Date.today().addDays(30),
+                LeadSource = 'Web');
+            insert o;
+            Test.startTest();
+            System.assertEquals(0, PricingReviewController.findReviewFiles(o.Id).size(),
+                'no checklist file before Complete');
+            PricingReviewController.createReview(o.Id, new Map<String, String>{ 'Q1' => 'ok' });
+            List<PricingReviewController.ReviewFile> files = PricingReviewController.findReviewFiles(o.Id);
+            Test.stopTest();
+            System.assertEquals(1, files.size(), 'Complete attaches a searchable checklist file');
+            System.assert(files[0].title.contains('Pricing Review'), 'file title is a Pricing Review');
+            System.assert(files[0].url.contains('/lightning/r/ContentDocument/'), 'file URL opens the document');
+        }
+    }
+
     static Integer seq = 0;
     static User usr(Id profileId, Id mgr, String title) {
         seq++;

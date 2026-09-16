@@ -10,7 +10,7 @@ public with sharing class PricingReviewEvidence {
     @TestVisible static final Integer EVENT_LIMIT = 15;
     @TestVisible static final Integer GONG_SCAN = 20;
     @TestVisible static final Integer GONG_KEEP = 8;
-    @TestVisible static final Integer COMP_SCAN = 40;
+    @TestVisible static final Integer COMP_SCAN = 80;
     @TestVisible static final Integer COMP_KEEP = 8;
     @TestVisible static final Integer CONTEXT_CAP = 48000;
 
@@ -112,6 +112,79 @@ public with sharing class PricingReviewEvidence {
     }
 
     @TestVisible
+    static Boolean isGrantDeal(Opportunity o) {
+        String p = dealProduct(o).toLowerCase();
+        return p.contains('grant') || p.contains('amplifund');
+    }
+
+    @TestVisible
+    static Decimal grantFunds(Opportunity o) {
+        if (o == null || o.Account == null) return null;
+        if (o.Account.Grant_Funds_Managed__c != null && o.Account.Grant_Funds_Managed__c > 0) {
+            return o.Account.Grant_Funds_Managed__c;
+        }
+        return null;
+    }
+
+    @TestVisible
+    static Boolean budgetWide(Decimal prospect, Decimal comparable) {
+        if (prospect == null || comparable == null || prospect <= 0 || comparable <= 0) return false;
+        return comparable >= (prospect * 0.25) && comparable <= (prospect * 4);
+    }
+
+    @TestVisible
+    static Boolean hasErp(String erp) {
+        if (String.isBlank(erp)) return false;
+        String e = erp.trim().toLowerCase();
+        return e != 'n/a' && e != 'na' && e != 'other' && e != 'none' && e != 'unknown';
+    }
+
+    @TestVisible
+    static Boolean erpMatches(String dealErp, String peerErp) {
+        return hasErp(dealErp) && hasErp(peerErp) && dealErp.trim().equalsIgnoreCase(peerErp.trim());
+    }
+
+    /** Fallback entity types: Special Districts, or a county / town / city / village / borough. */
+    @TestVisible
+    static Boolean isNeighborEntity(String industry, String subVertical) {
+        if (String.isNotBlank(industry) && industry.trim().equalsIgnoreCase('Special Districts')) return true;
+        if (String.isBlank(subVertical)) return false;
+        String s = subVertical.trim().toLowerCase();
+        return s == 'county' || s == 'town' || s == 'city' || s == 'village' || s == 'borough';
+    }
+
+    /**
+     * 1 = same vertical + product + 0.5x-2x
+     * 2 = same product + special district/county/town + 0.5x-2x
+     * 3 = same product + neighbor + 0.25x-4x
+     * 4 = same product + any vertical + 0.25x-4x
+     * 0 = reject (wrong product, or budget still too far)
+     */
+    @TestVisible
+    static Integer comparableTier(String dealVertical, String dealProduct, Decimal dealBudget,
+            String peerVertical, String peerSub, String peerProduct, Decimal peerBudget) {
+        if (!productMatches(dealProduct, peerProduct)) return 0;
+        Boolean sameVert = String.isNotBlank(dealVertical) && dealVertical == peerVertical;
+        Boolean neighbor = isNeighborEntity(peerVertical, peerSub);
+        Boolean tight = (dealBudget == null) || budgetSameOrder(dealBudget, peerBudget);
+        Boolean wide = (dealBudget == null) || budgetWide(dealBudget, peerBudget);
+        if (sameVert && tight) return 1;
+        if (neighbor && tight) return 2;
+        if ((sameVert || neighbor) && wide) return 3;
+        if (wide) return 4;
+        return 0;
+    }
+
+    @TestVisible
+    static String tierLabel(Integer tier) {
+        if (tier == 1) return 'exact: vertical + product + 0.5x-2x';
+        if (tier == 2) return 'fallback: same product + special district/county/town + 0.5x-2x';
+        if (tier == 3) return 'fallback: same product + neighbor + 0.25x-4x budget';
+        if (tier == 4) return 'fallback: same product + any vertical + 0.25x-4x budget';
+        return 'rejected';
+    }
+
+    @TestVisible
     static List<String> questionKeywords(String question) {
         Set<String> stop = new Set<String>{
             'this', 'that', 'they', 'them', 'have', 'been', 'from', 'with', 'what', 'when',
@@ -142,8 +215,15 @@ public with sharing class PricingReviewEvidence {
                 'files on the opportunity', 'has rfp attached'
             };
         }
+        if (questionNum == 1) {
+            return new List<String>{
+                'grant funds', 'annual grants', 'operating budget', 'current erp', 'entity profile'
+            };
+        }
         if (questionNum == 6) {
-            return new List<String>{ 'comparable', 'operating-budget', '0.5x-2x', 'active arr' };
+            return new List<String>{
+                'comparable', 'operating-budget', '0.5x-2x', 'active arr', 'fallback', 'erp'
+            };
         }
         return new List<String>();
     }
@@ -176,56 +256,91 @@ public with sharing class PricingReviewEvidence {
 
     private static String profile(Opportunity o) {
         if (o.Account == null) return '';
-        return '\nEntity profile (from the Account record \u2014 authoritative for Q1):\n'
+        Boolean grant = isGrantDeal(o);
+        String s = '\nEntity profile (from the Account record \u2014 authoritative for Q1):\n'
             + '  Vertical / Sub-Vertical: ' + safe(o.Account.Industry) + ' / ' + safe(o.Account.Sub_Vertical__c) + '\n'
             + '  Latest Operating Budget: ' + fmtCur(o.Account.AnnualRevenue) + '\n'
             + '  Total Budget: ' + fmtCur(o.Account.Total_Budget_bf__c) + '\n'
+            + '  Grant funds managed (Annual Grants Revenue): ' + fmtCur(o.Account.Grant_Funds_Managed__c) + '\n'
+            + '  Grant funds sources: ' + clip(safe(o.Account.Grant_Funds_Managed_Sources__c), 400) + '\n'
+            + '  Grant funds rationale: ' + clip(safe(o.Account.Grant_Funds_Managed_Rationale__c), 400) + '\n'
+            + '  Government Grants: ' + fmtCur(o.Account.Government_Grants__c) + '\n'
+            + '  Amplifund annual grant revenue band: ' + safe(o.Account.Annual_Grant_Revenue_Amplifund__c) + '\n'
             + '  Operating Budget Year: ' + num(o.Account.Operating_Budget_Year__c) + '\n'
             + '  Fiscal Year Start Month: ' + safe(o.Account.Fiscal_Year_Start_Month__c) + '\n'
             + '  Student Count: ' + num(o.Account.Student_Count__c) + '\n'
             + '  Population Served: ' + num(o.Account.Total_Population_bf__c) + '\n'
             + '  Employees: ' + num(o.Account.NumberOfEmployees) + '\n'
             + '  Current Budgeting System: ' + safe(o.Account.Current_Budgeting_system__c) + '\n'
+            + '  Current ERP system: ' + safe(o.Account.Current_ERP_system__c) + '\n'
+            + '  Current Grants Management System: ' + safe(o.Account.Current_Grants_Management_System__c) + '\n'
             + '  Recent Budget Trends: ' + clip(safe(o.Account.Recent_Budget_Trends__c), 1400) + '\n';
+        if (grant) {
+            s += '  GRANT DEAL: For Q1, evaluate TOTAL GRANT FUNDS MANAGED by the agency '
+                + '(Grant funds managed / Annual Grants Revenue above), not just the operating budget. '
+                + 'Still mention operating budget as context.\n';
+        }
+        return s;
     }
 
     private static String comparables(Opportunity o) {
         String product = dealProduct(o);
         Decimal budget = dealBudget(o);
         String vertical = (o.Account != null) ? o.Account.Industry : null;
-        String s = '\nComparable Euna customers (must match vertical + product type + operating-budget range 0.5x-2x; closest budget first):\n'
+        String dealErp = (o.Account != null) ? o.Account.Current_ERP_system__c : null;
+        String s = '\nComparable Euna customers (same product only \u2014 never an adjacent product):\n'
+            + '  Prefer exact: same vertical + product + operating-budget 0.5x-2x.\n'
+            + '  Fallback (same product only): expand to Special Districts / County / Town / City, '
+            + 'then widen the operating-budget band to 0.25x-4x. Prefer peers on the same ERP.\n'
             + '  Filter: vertical=' + safe(vertical) + ' product=' + safe(product)
-            + ' operating-budget=' + fmtCur(budget) + ' (band 0.5x-2x)\n';
-        if (o.Account == null || String.isBlank(vertical) || String.isBlank(product)) {
-            return s + '  (skipped \u2014 need vertical and product type on the deal)\n';
+            + ' operating-budget=' + fmtCur(budget)
+            + ' ERP=' + safe(dealErp)
+            + (isGrantDeal(o) ? ' grant-funds=' + fmtCur(grantFunds(o)) : '') + '\n';
+        if (o.Account == null || String.isBlank(product)) {
+            return s + '  (skipped \u2014 need product type on the deal)\n';
         }
         List<Contract> rows = [
-            SELECT AccountId, Account.Name, Account.Industry, Account.AnnualRevenue, Account.Student_Count__c,
+            SELECT AccountId, Account.Name, Account.Industry, Account.Sub_Vertical__c,
+                   Account.AnnualRevenue, Account.Grant_Funds_Managed__c, Account.Current_ERP_system__c,
                    ARR_Rollup__c, Active_ARR__c, Active_ARR_Rollup__c,
                    EUNA_Solution_Name_Formula__c, EUNA_Solution_Lookup__r.Name
             FROM Contract
             WHERE Status = 'Activated'
-              AND Account.Industry = :vertical AND AccountId != :o.AccountId
+              AND AccountId != :o.AccountId
               AND Account.RecordType.DeveloperName = 'Customer_EUNA'
               AND (ARR_Rollup__c > 0 OR Active_ARR__c > 0 OR Active_ARR_Rollup__c > 0)
             LIMIT :COMP_SCAN
         ];
         List<CompRow> ranked = new List<CompRow>();
+        Integer bestTier = 99;
         for (Contract c : rows) {
             String cProd = contractProduct(c);
+            String cVert = (c.Account != null) ? c.Account.Industry : null;
+            String cSub = (c.Account != null) ? c.Account.Sub_Vertical__c : null;
             Decimal cBudget = (c.Account != null) ? c.Account.AnnualRevenue : null;
-            if (!isComparable(product, budget, cProd, cBudget)) continue;
-            ranked.add(new CompRow(c, cProd, cBudget, budget, effectiveArr(c)));
+            Integer tier = comparableTier(vertical, product, budget, cVert, cSub, cProd, cBudget);
+            if (tier == 0) continue;
+            if (tier < bestTier) bestTier = tier;
+            String cErp = (c.Account != null) ? c.Account.Current_ERP_system__c : null;
+            Decimal cGrant = (c.Account != null) ? c.Account.Grant_Funds_Managed__c : null;
+            ranked.add(new CompRow(c, cProd, cBudget, budget, effectiveArr(c), tier, cErp,
+                erpMatches(dealErp, cErp), cGrant, cVert, cSub));
         }
         ranked.sort();
         Integer shown = 0;
+        Integer shownExact = 0;
         for (CompRow row : ranked) {
+            if (bestTier == 1 && row.tier > 1 && shownExact >= 3) break;
             s += '  - ' + row.line() + ' | Account: ' + accountUrl(row.accountId) + '\n';
             shown++;
+            if (row.tier == 1) shownExact++;
             if (shown >= COMP_KEEP) break;
         }
         if (shown == 0) {
-            s += '  (none matched vertical + product type + operating-budget range 0.5x-2x)\n';
+            s += '  (none matched this product, even after special-district/county/town and a wider budget band)\n';
+        } else if (bestTier > 1) {
+            s += '  Note: no exact vertical + 0.5x-2x peers; showing same-product fallbacks ('
+                + tierLabel(bestTier) + ').\n';
         }
         return s;
     }
@@ -241,26 +356,42 @@ public with sharing class PricingReviewEvidence {
 
     private class CompRow implements Comparable {
         Id accountId;
-        String name, product;
-        Decimal budget, arr, distance;
-        CompRow(Contract c, String product, Decimal budget, Decimal dealBudget, Decimal arr) {
+        String name, product, erp, vertical, subVertical;
+        Decimal budget, arr, distance, grantFunds;
+        Integer tier;
+        Boolean sameErp;
+        CompRow(Contract c, String product, Decimal budget, Decimal dealBudget, Decimal arr,
+                Integer tier, String erp, Boolean sameErp, Decimal grantFunds,
+                String vertical, String subVertical) {
             this.accountId = c.AccountId;
             this.name = (c.Account != null) ? c.Account.Name : '';
             this.product = product;
             this.budget = budget;
             this.arr = arr;
+            this.tier = tier;
+            this.erp = erp;
+            this.sameErp = sameErp == true;
+            this.grantFunds = grantFunds;
+            this.vertical = vertical;
+            this.subVertical = subVertical;
             this.distance = (dealBudget != null && dealBudget > 0 && budget != null)
                 ? (budget - dealBudget).abs() : Decimal.valueOf(999999999);
         }
         public Integer compareTo(Object other) {
             CompRow oth = (CompRow) other;
+            if (tier != oth.tier) return tier < oth.tier ? -1 : 1;
+            if (sameErp != oth.sameErp) return sameErp ? -1 : 1;
             if (distance == oth.distance) return 0;
             return distance < oth.distance ? -1 : 1;
         }
         String line() {
             return safe(name) + ' | product=' + safe(product)
+                + ' | vertical=' + safe(vertical) + '/' + safe(subVertical)
                 + ' | operating budget=' + fmtCur(budget)
-                + ' | Active ARR=' + fmtCur(arr);
+                + (grantFunds != null && grantFunds > 0 ? ' | grant funds=' + fmtCur(grantFunds) : '')
+                + ' | ERP=' + safe(erp) + (sameErp ? ' [same ERP]' : '')
+                + ' | Active ARR=' + fmtCur(arr)
+                + ' | match=' + tierLabel(tier);
         }
     }
 

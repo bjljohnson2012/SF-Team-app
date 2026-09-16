@@ -45,8 +45,8 @@ private class PricingReviewEvidenceTest {
             'RFP questions hoist explicit due dates');
         System.assert(PricingReviewEvidence.extraKeywords(6).contains('0.5x-2x'),
             'Q6 hoists the operating-budget band');
-        System.assertEquals(0, PricingReviewEvidence.extraKeywords(1).size(),
-            'Q1 has no extra domain tokens');
+        System.assert(PricingReviewEvidence.extraKeywords(1).contains('grant funds'),
+            'Q1 hoists grant-funds lines on grant deals');
     }
 
     @isTest
@@ -162,8 +162,10 @@ private class PricingReviewEvidenceTest {
             'Q6-focused section searches the comparable keyword');
         System.assert(pack.contains('Existing Euna book'), 'Q3 book section is always present');
         System.assert(pack.contains('RFP and opportunity Files'), 'RFP / Files section is always present');
-        System.assert(pack.contains('operating-budget range 0.5x-2x'),
-            'comparables state the tighter operating-budget band');
+        System.assert(pack.contains('same product only'),
+            'comparables never fall back to an adjacent product');
+        System.assert(pack.contains('Grant funds managed'), 'Q1 profile includes grant funds');
+        System.assert(pack.contains('Current ERP system'), 'profile includes the ERP');
         System.assert(q3.contains('Active Contracts / Active ARR'),
             'Q3 focus tells the model to search Active ARR');
         System.assert(q11.contains('RFP Details'), 'Q11 focus searches RFP Details');
@@ -274,13 +276,75 @@ private class PricingReviewEvidenceTest {
         System.assert(qli.contains('OpenBook') && qli.contains('Phase 1'), 'formatQli keeps module and phase');
     }
 
+    @isTest
+    static void grant_deal_and_comparable_fallback_tiers() {
+        Opportunity grant = new Opportunity(EUNA_Solution__c = 'Amplifund');
+        grant.Account = new Account(Grant_Funds_Managed__c = 1140000000, AnnualRevenue = 4700000000);
+        System.assert(PricingReviewEvidence.isGrantDeal(grant), 'Amplifund is a grant deal');
+        System.assertEquals(1140000000, PricingReviewEvidence.grantFunds(grant), 'grant funds come from the account');
+        System.assert(PricingReviewEvidence.isGrantDeal(new Opportunity(EUNA_Solution__c = 'Grants')), 'Grants is a grant deal');
+        System.assert(PricingReviewEvidence.isGrantDeal(new Opportunity(EUNA_Solution__c = 'GrantExec')), 'GrantExec is a grant deal');
+        System.assert(!PricingReviewEvidence.isGrantDeal(new Opportunity(EUNA_Solution__c = 'Budget Professional')),
+            'Budget Professional is not a grant deal');
+
+        System.assert(PricingReviewEvidence.budgetWide(383000000, 96000000),
+            '96M is inside the 0.25x-4x widened band of 383M');
+        System.assert(!PricingReviewEvidence.budgetWide(383000000, 5000000),
+            '5M is still outside the widened band');
+        System.assert(PricingReviewEvidence.isNeighborEntity('Special Districts', 'Water'),
+            'Special Districts is a neighbor vertical');
+        System.assert(PricingReviewEvidence.isNeighborEntity('Municipalities', 'County'),
+            'County sub-vertical is a neighbor');
+        System.assert(PricingReviewEvidence.isNeighborEntity('Municipalities', 'Town'),
+            'Town sub-vertical is a neighbor');
+        System.assert(!PricingReviewEvidence.isNeighborEntity('K12', 'Charter Schools'),
+            'a K12 charter is not the special-district/county/town fallback');
+        System.assert(PricingReviewEvidence.hasErp('Tyler Munis'), 'named ERP counts');
+        System.assert(!PricingReviewEvidence.hasErp('N/A'), 'N/A is not a usable ERP');
+        System.assert(PricingReviewEvidence.erpMatches('Tyler Munis', 'Tyler Munis'), 'same ERP matches');
+        System.assert(!PricingReviewEvidence.erpMatches('Tyler Munis', 'Workday'), 'different ERP does not match');
+
+        System.assertEquals(1, PricingReviewEvidence.comparableTier(
+            'K12', 'Budget Professional', 965000000, 'K12', 'Charter Schools', 'Budget Professional', 700000000),
+            'exact vertical + product + tight budget is tier 1');
+        System.assertEquals(2, PricingReviewEvidence.comparableTier(
+            'K12', 'Budget Professional', 965000000, 'Municipalities', 'Town', 'Budget Professional', 700000000),
+            'same product + town + tight budget is the first fallback');
+        System.assertEquals(0, PricingReviewEvidence.comparableTier(
+            'K12', 'Budget Professional', 965000000, 'K12', 'Charter Schools', 'Payments', 700000000),
+            'adjacent product is never a comparable');
+        System.assertEquals(4, PricingReviewEvidence.comparableTier(
+            'K12', 'Budget Professional', 965000000, 'Federal', 'Civilian Agencies', 'Budget Professional', 400000000),
+            'same product + far vertical + still in 0.25x-4x is last-resort fallback');
+        System.assertEquals(0, PricingReviewEvidence.comparableTier(
+            'K12', 'Budget Professional', 965000000, 'Federal', 'Civilian Agencies', 'Budget Professional', 5000000),
+            'same product with a budget still outside 0.25x-4x is rejected');
+
+        Id saleRt = [SELECT Id FROM RecordType WHERE SobjectType = 'Opportunity' AND DeveloperName = 'Euna_Sale' LIMIT 1].Id;
+        Account agency = new Account(Name = 'Grant Agency', Industry = 'States & State Agencies',
+            AnnualRevenue = 4721368768L, Grant_Funds_Managed__c = 1140000000);
+        insert agency;
+        Opportunity go = new Opportunity(
+            Name = 'Grant Lifecycle', AccountId = agency.Id, RecordTypeId = saleRt,
+            Type = 'New Sale', StageName = 'Proposal', CloseDate = Date.today().addDays(40),
+            EUNA_Solution__c = 'Amplifund');
+        insert go;
+        String pack = PricingReviewEvidence.build(loadOpp(go.Id));
+        System.assert(pack.contains('GRANT DEAL'), 'grant deal Q1 instruction is in the pack');
+        System.assert(pack.contains('1,140,000,000') || pack.contains('1140000000') || pack.contains('Grant funds managed'),
+            'grant funds managed appear for Q1');
+    }
+
     static Opportunity loadOpp(Id opportunityId) {
         return [
             SELECT Id, Name, AccountId, Account.Name, Account.BillingState, Account.BillingCity,
                    Account.Industry, Account.Sub_Vertical__c, Account.AnnualRevenue, Account.Total_Budget_bf__c,
                    Account.Operating_Budget_Year__c, Account.Fiscal_Year_Start_Month__c, Account.Total_Population_bf__c,
                    Account.Student_Count__c, Account.NumberOfEmployees, Account.Current_Budgeting_system__c,
-                   Account.Recent_Budget_Trends__c,
+                   Account.Current_ERP_system__c, Account.Current_Grants_Management_System__c,
+                   Account.Grant_Funds_Managed__c, Account.Grant_Funds_Managed_Sources__c,
+                   Account.Grant_Funds_Managed_Rationale__c, Account.Government_Grants__c,
+                   Account.Annual_Grant_Revenue_Amplifund__c, Account.Recent_Budget_Trends__c,
                    Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
                    EUNA_Solution__c, Euna_Solutions_Lookup__r.Name, EUNA_Competitors__c,
                    Has_RFP_Attached__c, RFP_bf__c, RFP_Type__c,

@@ -44,9 +44,17 @@ public with sharing class PricingReviewController {
     public class ReviewDeal {
         @AuraEnabled public Id id;
         @AuraEnabled public String account, ae, stage, productInterest, leadSource, director, statusOverride;
+        @AuraEnabled public String reviewFileTitle, reviewFileUrl;
         @AuraEnabled public Decimal arr;
         @AuraEnabled public Date closeDate;
-        @AuraEnabled public Boolean reviewDone;
+        @AuraEnabled public Boolean reviewDone, hasReviewFile;
+        @AuraEnabled public Integer reviewFileCount;
+    }
+
+    public class ReviewFile {
+        @AuraEnabled public Id documentId;
+        @AuraEnabled public String title, url;
+        @AuraEnabled public Datetime lastModified;
     }
 
     public class ReviewData {
@@ -94,7 +102,68 @@ public with sharing class PricingReviewController {
             r.director = String.isNotBlank(o.Sales_Director__c) ? o.Sales_Director__c : DEFAULT_DIRECTOR;
             r.statusOverride = o.Pricing_Review_Override__c;
             r.reviewDone = isDone(o.Pricing_Review_Answers__c, o.Pricing_Review_Override__c);
+            r.hasReviewFile = false;
+            r.reviewFileCount = 0;
             out.deals.add(r);
+        }
+        stampReviewFiles(out.deals);
+        return out;
+    }
+
+    /**
+     * Searches the opportunity Files for an existing Pricing Review checklist document.
+     */
+    @AuraEnabled
+    public static List<ReviewFile> findReviewFiles(Id opportunityId) {
+        if (opportunityId == null) throw new AuraHandledException('An opportunity is required.');
+        return reviewFilesFor(new Set<Id>{ opportunityId }).get(opportunityId);
+    }
+
+    @TestVisible
+    static Boolean isReviewFileTitle(String title) {
+        if (String.isBlank(title)) return false;
+        String t = title.toLowerCase();
+        return t.contains('pricing review') || t.contains('euna_pricing_review');
+    }
+
+    private static void stampReviewFiles(List<ReviewDeal> deals) {
+        if (deals == null || deals.isEmpty()) return;
+        Map<Id, ReviewDeal> byId = new Map<Id, ReviewDeal>();
+        for (ReviewDeal d : deals) byId.put(d.id, d);
+        Map<Id, List<ReviewFile>> found = reviewFilesFor(byId.keySet());
+        for (Id oppId : found.keySet()) {
+            List<ReviewFile> files = found.get(oppId);
+            ReviewDeal d = byId.get(oppId);
+            if (d == null || files == null || files.isEmpty()) continue;
+            d.hasReviewFile = true;
+            d.reviewFileCount = files.size();
+            d.reviewFileTitle = files[0].title;
+            d.reviewFileUrl = files[0].url;
+        }
+    }
+
+    private static Map<Id, List<ReviewFile>> reviewFilesFor(Set<Id> oppIds) {
+        Map<Id, List<ReviewFile>> out = new Map<Id, List<ReviewFile>>();
+        if (oppIds == null || oppIds.isEmpty()) return out;
+        for (Id i : oppIds) out.put(i, new List<ReviewFile>());
+        try {
+            for (ContentDocumentLink l : [
+                SELECT LinkedEntityId, ContentDocumentId, ContentDocument.Title, SystemModstamp
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId IN :oppIds
+                ORDER BY SystemModstamp DESC
+            ]) {
+                String title = (l.ContentDocument != null) ? l.ContentDocument.Title : '';
+                if (!isReviewFileTitle(title)) continue;
+                ReviewFile f = new ReviewFile();
+                f.documentId = l.ContentDocumentId;
+                f.title = title;
+                f.url = '/lightning/r/ContentDocument/' + l.ContentDocumentId + '/view';
+                f.lastModified = l.SystemModstamp;
+                out.get(l.LinkedEntityId).add(f);
+            }
+        } catch (Exception e) {
+            // File visibility varies by user; leave empty rather than failing the tool.
         }
         return out;
     }
@@ -188,8 +257,10 @@ public with sharing class PricingReviewController {
             + 'the source URL. If the context has direct evidence, use it. If not, PREFIX with "INFERRED: ". '
             + 'For Q3, use Active ARR on contracts and LinkSquares; do not say there is no ARR if a figure exists '
             + 'for any current product. For an RFP, only report a timeline that is explicit in RFP Details or '
-            + 'a dated RFP file. For Q6, only cite comparables matching vertical + product + operating-budget '
-            + '0.5x-2x; name the product and include the Account URL. '
+            + 'a dated RFP file. For Q1 on a GRANT deal (Amplifund / Grants / GrantExec), evaluate total grant '
+            + 'funds managed, not just operating budget. For Q6, prefer exact vertical + same product + '
+            + 'operating-budget 0.5x-2x; if none, keep the SAME product (never adjacent) and fall back to '
+            + 'Special Districts / County / Town, then a wider 0.25x-4x budget; prefer the same ERP. '
             + 'Return ONLY the answer text \u2014 no preamble, no question restatement, no JSON.\n\n'
             + ask + '\n\nCONTEXT:\n' + PricingReviewEvidence.buildForQuestion(o, questionNum, q);
         String raw;
@@ -207,7 +278,10 @@ public with sharing class PricingReviewController {
                    Account.Industry, Account.Sub_Vertical__c, Account.AnnualRevenue, Account.Total_Budget_bf__c,
                    Account.Operating_Budget_Year__c, Account.Fiscal_Year_Start_Month__c, Account.Total_Population_bf__c,
                    Account.Student_Count__c, Account.NumberOfEmployees, Account.Current_Budgeting_system__c,
-                   Account.Recent_Budget_Trends__c,
+                   Account.Current_ERP_system__c, Account.Current_Grants_Management_System__c,
+                   Account.Grant_Funds_Managed__c, Account.Grant_Funds_Managed_Sources__c,
+                   Account.Grant_Funds_Managed_Rationale__c, Account.Government_Grants__c,
+                   Account.Annual_Grant_Revenue_Amplifund__c, Account.Recent_Budget_Trends__c,
                    Owner.Name, StageName, CloseDate, Amount, ARR_Opportunity_Amount_USD_Num__c,
                    EUNA_Solution__c, Euna_Solutions_Lookup__r.Name, EUNA_Competitors__c,
                    Has_RFP_Attached__c, RFP_bf__c, RFP_Type__c,
@@ -229,11 +303,15 @@ public with sharing class PricingReviewController {
             + 'For EVERY question, search the whole evidence pack: quote, opportunity, account, contacts, '
             + 'activity, emails, calls, Gong transcripts + briefs (Unknown scope included), Active Contracts '
             + '(Active ARR), LinkSquares agreements, RFP Details, and opportunity Files. Prefer the newest dated evidence.\n'
-            + 'Map sources: ENTITY PROFILE for Q1 and Q7; EXISTING EUNA BOOK (Active ARR, contracts, '
+            + 'Map sources: ENTITY PROFILE for Q1 and Q7 \u2014 if this is a GRANT deal (Amplifund / Grants / '
+            + 'GrantExec), Q1 must evaluate TOTAL GRANT FUNDS MANAGED (Annual Grants Revenue), not just the '
+            + 'operating budget. EXISTING EUNA BOOK (Active ARR, contracts, '
             + 'LinkSquares, solution relationships) for Q3 \u2014 cite the actual Active ARR even when it is a '
             + 'different product than this deal; never say there is no ARR if a contract or agreement has a figure. '
-            + 'COMPARABLE CUSTOMERS for Q6 (vertical + product type + operating-budget 0.5x-2x only, closest '
-            + 'budget first \u2014 name the product and include the Account URL). RFP Details + Files for Q2, '
+            + 'COMPARABLE CUSTOMERS for Q6: same product only (never an adjacent product). Prefer exact vertical '
+            + '+ 0.5x-2x operating budget; if none, fall back to Special Districts / County / Town, then widen '
+            + 'to 0.25x-4x; prefer peers on the same ERP; name the product and include the Account URL. '
+            + 'RFP Details + Files for Q2, '
             + 'Q10, Q11, Q19, Q23: if this is an RFP, a timeline is known ONLY when the RFP states it explicitly '
             + '(submission due, questions due, partner due, or a dated RFP file title); otherwise say the RFP '
             + 'does not state a timeline. QUOTES for Q21/Q24; Gong + emails + activity for Q4, Q5/Q17, Q9, Q16.\n'
