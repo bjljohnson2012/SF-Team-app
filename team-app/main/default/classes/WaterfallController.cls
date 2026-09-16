@@ -58,6 +58,8 @@ public with sharing class WaterfallController {
         @AuraEnabled public Integer meetingsHeld;
         @AuraEnabled public Plan closePlan;
         @AuraEnabled public Plan createPlan;
+        @AuraEnabled public WaterfallPlayPlanner.PlayDraft recommended;
+        @AuraEnabled public WaterfallPlayPlanner.PlayDraft planned;
     }
 
     public class PagePayload {
@@ -66,12 +68,28 @@ public with sharing class WaterfallController {
         @AuraEnabled public String periodLabel;
         @AuraEnabled public String createPeriodLabel;
         @AuraEnabled public String teamCaption;
+        @AuraEnabled public Date asOf;
+        @AuraEnabled public Date periodStart;
+        @AuraEnabled public Date periodEnd;
+        @AuraEnabled public Integer remainingWorkingDays;
+        @AuraEnabled public Integer elapsedWorkingDays;
+        @AuraEnabled public Integer workingDaysInPeriod;
         @AuraEnabled public List<AeCard> rows = new List<AeCard>();
     }
 
     @AuraEnabled
     public static PagePayload load(Id directorId, String teamMode, String productType, String sizeBand) {
         return build(directorId, teamMode, productType, sizeBand, Date.today());
+    }
+
+    @AuraEnabled
+    public static WaterfallPlayPlanner.PlayDraft previewPlays(WaterfallPlayPlanner.PlayDraft draft, String editedField) {
+        return WaterfallPlayPlanner.project(draft, editedField, Date.today());
+    }
+
+    @AuraEnabled
+    public static void savePlays(Id ownerId, String productType, String reason, WaterfallPlayPlanner.PlayDraft planned) {
+        WaterfallPlayPlanner.save(ownerId, productType, reason, planned);
     }
 
     public static PagePayload build(
@@ -82,6 +100,15 @@ public with sharing class WaterfallController {
         String size = String.isBlank(sizeBand) ? CockpitConstants.SIZE_ALL : sizeBand;
         CockpitRosterService.ScopeResult scope = CockpitRosterService.resolveScope(directorId, teamMode);
         PagePayload page = new PagePayload();
+        page.asOf = asOfDay;
+        page.periodStart = WaterfallConstants.periodStart(asOfDay);
+        page.periodEnd = WaterfallConstants.periodEnd(asOfDay);
+        page.workingDaysInPeriod = WaterfallConstants.workingDaysBetween(page.periodStart, page.periodEnd);
+        page.remainingWorkingDays = WaterfallConstants.workingDaysBetween(asOfDay, page.periodEnd);
+        Date prior = asOfDay.addDays(-1);
+        page.elapsedWorkingDays = prior < page.periodStart
+            ? 0
+            : WaterfallConstants.workingDaysBetween(page.periodStart, prior);
         page.scopeCaption = 'Team of ' + scope.directorName
             + ' · ' + CockpitConstants.productGroupLabel(product)
             + ' · ' + WaterfallConstants.sizeLabel(size);
@@ -99,6 +126,8 @@ public with sharing class WaterfallController {
             WaterfallRateEngine.calibrate(ownerIds, product, size, asOfDay);
         WaterfallActualEngine.ActualSet actuals =
             WaterfallActualEngine.measure(ownerIds, product, size, asOfDay);
+        Map<Id, WaterfallPlayPlanner.PlayDraft> saved =
+            WaterfallPlayPlanner.loadSaved(ownerIds, product, page.periodStart);
 
         Integer teamLands = rates.team == null ? 2 : rates.team.landsQuarters;
         Date createAsOf = WaterfallConstants.shiftPeriod(asOfDay, teamLands);
@@ -114,7 +143,8 @@ public with sharing class WaterfallController {
         for (Id oid : ownerIds) {
             page.rows.add(cardFor(
                 oid, names.get(oid), rates.byOwner.get(oid), actuals.byOwner.get(oid),
-                asOfDay, createAsOf, page.periodLabel, page.createPeriodLabel
+                asOfDay, createAsOf, page.periodLabel, page.createPeriodLabel,
+                saved.get(oid)
             ));
         }
         return page;
@@ -180,7 +210,7 @@ public with sharing class WaterfallController {
     static AeCard cardFor(
         Id ownerId, String name, WaterfallRateEngine.RateRow rate,
         WaterfallActualEngine.ActualRow actual, Date asOfDay, Date createAsOf,
-        String closeLabel, String createLabel
+        String closeLabel, String createLabel, WaterfallPlayPlanner.PlayDraft saved
     ) {
         AeCard c = new AeCard();
         c.ownerId = ownerId;
@@ -231,6 +261,8 @@ public with sharing class WaterfallController {
             c.createPlan.periodLabel = WaterfallConstants.periodLabel(
                 WaterfallConstants.shiftPeriod(asOfDay, lands));
         }
+        c.recommended = WaterfallPlayPlanner.recommended(quota, rate, actual, asOfDay);
+        c.planned = WaterfallPlayPlanner.mergeSaved(c.recommended, saved, asOfDay);
         return c;
     }
 

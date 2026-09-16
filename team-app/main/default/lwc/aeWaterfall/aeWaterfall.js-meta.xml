@@ -3,7 +3,7 @@
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>AE Waterfall</masterLabel>
-    <description>Per-AE close plan and create plan. Consumes gtmScopeFilters and the four product families.</description>
+    <description>Per-AE close plan, create plan, and play planner. Consumes gtmScopeFilters and the four product families.</description>
     <targets>
         <target>lightning__AppPage</target>
         <target>lightning__HomePage</target>

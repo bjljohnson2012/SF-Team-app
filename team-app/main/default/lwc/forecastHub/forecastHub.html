@@ -144,6 +144,16 @@
                 <div class="chartbox"><canvas data-id="cvOpen"></canvas></div>
             </template>
 
+            <!-- PIPELINE > Review (owned by pipelineReview; do not inline) -->
+            <template lwc:if={vReview}>
+                <c-pipeline-review></c-pipeline-review>
+            </template>
+
+            <!-- PIPELINE > This Week (owned by pipelineThisWeek) -->
+            <template lwc:if={vWeek}>
+                <c-pipeline-this-week></c-pipeline-this-week>
+            </template>
+
             <!-- PIPELINE > Closed-Won -->
             <template lwc:if={vWon}>
                 <h2>Closed-won pipeline</h2>

@@ -20,7 +20,10 @@
         <template lwc:if={page}>
             <p class="caption">{scopeCaption}</p>
             <p class="note">{teamCaption}</p>
-            <p class="note">Close period {periodLabel}. Create period {createPeriodLabel} (this period plus median cycle).</p>
+            <p class="note">
+                Close period {periodLabel}. Create period {createPeriodLabel} (this period plus median cycle).
+                {remainingDaysLabel}
+            </p>
 
             <template lwc:if={emptyReason}>
                 <div class="box">{emptyReason}</div>
@@ -33,6 +36,13 @@
                             <h3>{c.name}</h3>
                             <span class={c.pillClass}>{c.sampleConfidence}</span>
                             <span class="meta">{c.closedCount} gated closes · quota {c.quota}</span>
+                            <button
+                                type="button"
+                                class="plan-btn"
+                                data-owner={c.ownerId}
+                                aria-expanded={c.plannerOpen}
+                                onclick={togglePlanner}
+                            >Help plan the plays needed</button>
                         </header>
 
                         <div class="plans">
@@ -100,6 +110,147 @@
                                 Activity rows are indicative only — disposition coverage {c.activityComplete} is below 70%.
                             </template>
                         </p>
+
+                        <template lwc:if={c.plannerOpen}>
+                            <section class="plays" aria-label="Play plan">
+                                <h4>Play plan</h4>
+                                <p class="lever">
+                                    Dials cover the create clock — the self-sourced slice of everything that must
+                                    be created. They do not close the qualified book that already exists.
+                                </p>
+
+                                <div class="play-grid">
+                                    <div class="play-box">
+                                        <p class="plan-tag">Their normal</p>
+                                        <p class="play-big">{c.plan.normalDialsWeek}</p>
+                                        <p class="op">dials / week so far · connect rate {c.plan.normalConnectRate}</p>
+                                        <p class="op">{c.dials} dispositioned dials · {c.connects} connects · {c.created} created</p>
+                                    </div>
+                                    <div class="play-box">
+                                        <p class="plan-tag">How often — edit dials</p>
+                                        <div class="dial-edit">
+                                            <label>
+                                                <span>Dials this period</span>
+                                                <input class="plan-in big" type="number" min="0" step="1" name="dials" value={c.plan.dials} data-owner={c.ownerId} data-field="dials" onchange={handlePlanField}>
+                                            </label>
+                                            <label>
+                                                <span>Dials / week</span>
+                                                <input class="plan-in big" type="number" min="0" step="0.1" name="dialsWeek" value={c.plan.dialsWeekIn} data-owner={c.ownerId} data-field="dialsWeek" onchange={handlePlanField}>
+                                            </label>
+                                        </div>
+                                        <p class="op">{c.plan.dialsDay} / day · {c.plan.remainingDays} working days left · {c.plan.remainingWeeks} weeks · vs normal {c.plan.paceGap}</p>
+                                    </div>
+                                </div>
+
+                                <div class="lanes">
+                                    <div class="lane">
+                                        <p class="plan-tag">Qualified opps · this period</p>
+                                        <p class="play-big">{c.plan.qoNeeded}</p>
+                                        <p class="op">Need {c.plan.qoNeeded} QO · have {c.have} open qualified ({c.haveArr})</p>
+                                        <p class={c.plan.qoGapClass}>{c.plan.qoGapLabel}</p>
+                                    </div>
+                                    <div class="lane live">
+                                        <p class="plan-tag">Everything to create · lands {createPeriodLabel}</p>
+                                        <p class="play-big">{c.plan.oppsToCreate}</p>
+                                        <p class="op">All opps {c.plan.oppsToCreate} · self-sourced {c.plan.selfSourced} · channel {c.plan.channelOpps}</p>
+                                        <p class="op">Channel remainder is marketing, BDR and partners — not this AE’s dials.</p>
+                                    </div>
+                                </div>
+
+                                <p class="note">Edit a recommended number. The rest of the cascade and the outcome move with it.</p>
+                                <div class="tw">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Number</th>
+                                                <th class="num">Engine</th>
+                                                <th class="num">Your plan</th>
+                                                <th>What this is</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Dials</td>
+                                                <td class="num">{c.rec.dials}</td>
+                                                <td><input class="plan-in" type="number" min="0" step="1" name="dialsTable" value={c.plan.dials} data-owner={c.ownerId} data-field="dials" onchange={handlePlanField}></td>
+                                                <td class="op">Dispositioned Salesloft calls only</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Connects</td>
+                                                <td class="num">{c.rec.connects}</td>
+                                                <td><input class="plan-in" type="number" min="0" step="0.1" value={c.plan.connects} data-owner={c.ownerId} data-field="connects" onchange={handlePlanField}></td>
+                                                <td class="op">Connected dispositions</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Connect rate %</td>
+                                                <td class="num">{c.rec.connectRate}</td>
+                                                <td><input class="plan-in" type="number" min="0" max="100" step="0.1" value={c.plan.connectRate} data-owner={c.ownerId} data-field="connectRate" data-kind="pct" onchange={handlePlanField}></td>
+                                                <td class="op">Their normal is {c.plan.normalConnectRate}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Opps per connect</td>
+                                                <td class="num">{c.rec.oppsPerConnect}</td>
+                                                <td><input class="plan-in" type="number" min="0" step="0.01" value={c.plan.oppsPerConnect} data-owner={c.ownerId} data-field="oppsPerConnect" onchange={handlePlanField}></td>
+                                                <td class="op">Self-sourced creates ÷ connects</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Self mix %</td>
+                                                <td class="num">{c.rec.selfShare}</td>
+                                                <td><input class="plan-in" type="number" min="0" max="100" step="0.1" value={c.plan.selfShare} data-owner={c.ownerId} data-field="selfShare" data-kind="pct" onchange={handlePlanField}></td>
+                                                <td class="op">AE Outbound + AM share of everything</td>
+                                            </tr>
+                                            <tr>
+                                                <td>All opps to create</td>
+                                                <td class="num">{c.rec.oppsToCreate}</td>
+                                                <td><input class="plan-in" type="number" min="0" step="0.1" value={c.plan.oppsToCreate} data-owner={c.ownerId} data-field="oppsToCreate" onchange={handlePlanField}></td>
+                                                <td class="op">Everything, every source</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Qualified opps</td>
+                                                <td class="num">{c.rec.qoNeeded}</td>
+                                                <td><input class="plan-in" type="number" min="0" step="0.1" value={c.plan.qoNeeded} data-owner={c.ownerId} data-field="qoNeeded" onchange={handlePlanField}></td>
+                                                <td class="op">SQL-stamped book for the close clock</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Qual rate %</td>
+                                                <td class="num">{c.rec.qualRate}</td>
+                                                <td><input class="plan-in" type="number" min="0" max="100" step="0.1" value={c.plan.qualRate} data-owner={c.ownerId} data-field="qualRate" data-kind="pct" onchange={handlePlanField}></td>
+                                                <td class="op">CreatedDate cohort that ever got a SQL stamp</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Win rate %</td>
+                                                <td class="num">{c.rec.winRate}</td>
+                                                <td><input class="plan-in" type="number" min="0" max="100" step="0.1" value={c.plan.winRate} data-owner={c.ownerId} data-field="winRate" data-kind="pct" onchange={handlePlanField}></td>
+                                                <td class="op">Blended, gated</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="outcomes">
+                                    <div class="play-box">
+                                        <p class="plan-tag">If they hit your plan</p>
+                                        <p class="play-big">{c.plan.projectedArr}</p>
+                                        <p class="op">{c.plan.winsNeeded} wins · {c.plan.coverage} of quota {c.quota}</p>
+                                    </div>
+                                    <div class="play-box">
+                                        <p class="plan-tag">Versus engine recommended</p>
+                                        <p class={c.plan.deltaClass}>{c.plan.arrDelta}</p>
+                                        <p class="op">{c.plan.dialDelta} dials · {c.plan.qoDelta} qualified opps</p>
+                                    </div>
+                                </div>
+
+                                <div class="play-actions">
+                                    <label class="reason">
+                                        <span>Reason</span>
+                                        <input type="text" maxlength="255" placeholder="Why these numbers" data-owner={c.ownerId} value={c.plan.reason} onchange={handleReason}>
+                                    </label>
+                                    <button type="button" class="plan-btn ghost" data-owner={c.ownerId} onclick={resetPlanner} disabled={c.plan.saving}>Reset to engine</button>
+                                    <button type="button" class="plan-btn" data-owner={c.ownerId} onclick={savePlanner} disabled={c.plan.saving}>Save recommended numbers</button>
+                                    <span class="note">{c.plan.saveMsg}</span>
+                                </div>
+                            </section>
+                        </template>
                     </article>
                 </template>
             </template>

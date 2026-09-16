@@ -116,6 +116,10 @@ private class WaterfallControllerTest {
             Quota_Amount__c = 60000,
             Start_Date__c = WaterfallConstants.periodStart(Date.today())
         );
+        PermissionSet access = [
+            SELECT Id FROM PermissionSet WHERE Name = 'GTM_Team_Johnson_Access' LIMIT 1
+        ];
+        insert new PermissionSetAssignment(AssigneeId = dir.Id, PermissionSetId = access.Id);
 
         Test.startTest();
         WaterfallController.PagePayload page;
@@ -131,6 +135,10 @@ private class WaterfallControllerTest {
         System.assertEquals(1, page.rows[0].haveQo, 'open SQL-stamped Budget deal is Have');
         System.assertNotEquals(null, page.rows[0].closePlan, 'close plan is present');
         System.assertNotEquals(null, page.rows[0].createPlan, 'create plan is present');
+        System.assertNotEquals(null, page.rows[0].recommended, 'each AE has a recommended play plan');
+        System.assertNotEquals(null, page.rows[0].planned, 'planned starts as the recommended numbers');
+        System.assert(page.remainingWorkingDays != null && page.remainingWorkingDays >= 0,
+            'remaining weekdays drive dial cadence');
         System.assert(page.scopeCaption.contains('Budget'), 'caption names the product family');
     }
 

@@ -26,6 +26,44 @@ public with sharing class WaterfallConstants {
     public static final String CONFIDENCE_LOW = 'Low';
     public static final String SOLUTION_ALL = 'ALL';
 
+    public static final String METRIC_WIN_RATE = 'WinRate';
+    public static final String METRIC_QUAL_RATE = 'QualRate';
+    public static final String METRIC_SELF_SHARE = 'SelfShare';
+    public static final String METRIC_OPPS_PER_CONNECT = 'OppsPerConnect';
+    public static final String METRIC_CONNECT_RATE = 'ConnectRate';
+    public static final String METRIC_QO = 'QoNeeded';
+    public static final String METRIC_OPPS = 'OppsToCreate';
+    public static final String METRIC_CONNECTS = 'Connects';
+    public static final String METRIC_DIALS = 'Dials';
+
+    /** Monday = 0. 1900-01-01 was a Monday. */
+    public static Integer weekdayIndex(Date day) {
+        if (day == null) return null;
+        Integer delta = Date.newInstance(1900, 1, 1).daysBetween(day);
+        Integer raw = Math.mod(delta, 7);
+        return raw < 0 ? raw + 7 : raw;
+    }
+
+    /** Inclusive Monday–Friday count. Weekends contribute nothing. */
+    public static Integer workingDaysBetween(Date startDate, Date endDate) {
+        if (startDate == null || endDate == null || endDate < startDate) return 0;
+        Integer n = 0;
+        Date d = startDate;
+        while (d <= endDate) {
+            Integer dow = weekdayIndex(d);
+            if (dow != null && dow <= 4) n++;
+            d = d.addDays(1);
+        }
+        return n;
+    }
+
+    public static String targetKey(Id aeId, String product, Date periodStart, String metric) {
+        return String.valueOf(aeId) + '|'
+            + (String.isBlank(product) ? SOLUTION_ALL : product) + '|'
+            + String.valueOf(periodStart) + '|'
+            + metric;
+    }
+
     /** blended = (n * personal + K * baseline) / (n + K) */
     public static Decimal blend(Decimal personal, Integer n, Decimal baseline) {
         Decimal p = personal == null ? 0 : personal;

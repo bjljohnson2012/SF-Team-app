@@ -45,7 +45,7 @@ const CLASS_CHIPS = [['ALL', 'All'], ['PICK', 'In call'], ['HI', 'High'], ['MD',
 
 const SECTIONS = [
     { id: 'forecast', label: 'Forecast', subs: [['summary', 'Call Summary'], ['current', 'Current Qtr'], ['next', 'Next Qtr'], ['pull', 'Pull-Ins'], ['hygiene', 'Hygiene & Risks']] },
-    { id: 'pipeline', label: 'Pipeline', subs: [['created', 'Created'], ['open', 'Open'], ['won', 'Closed-Won']] },
+    { id: 'pipeline', label: 'Pipeline', subs: [['created', 'Created'], ['open', 'Open'], ['won', 'Closed-Won'], ['review', 'Review'], ['week', 'This Week']] },
     { id: 'conversion', label: 'Conversion Metrics', subs: [['win', 'Win Rate Truth'], ['ae', 'AE by AE'], ['problems', 'Problems'], ['metrics', 'Metrics'], ['waterfall', 'Waterfall']] }
 ];
 
@@ -266,6 +266,8 @@ export default class ForecastHub extends LightningElement {
     get vCreated() { return this.isPipeline && this.subPipeline === 'created'; }
     get vOpen() { return this.isPipeline && this.subPipeline === 'open'; }
     get vWon() { return this.isPipeline && this.subPipeline === 'won'; }
+    get vReview() { return this.isPipeline && this.subPipeline === 'review'; }
+    get vWeek() { return this.isPipeline && this.subPipeline === 'week'; }
     get vWin() { return this.isConversion && this.subConversion === 'win'; }
     get vAe() { return this.isConversion && this.subConversion === 'ae'; }
     get vProblems() { return this.isConversion && this.subConversion === 'problems'; }
