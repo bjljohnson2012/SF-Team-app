@@ -44,6 +44,10 @@
         <apexClass>WaterfallController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>WaterfallPlayPlanner</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <customMetadataTypeAccesses>
         <enabled>true</enabled>
         <name>Cockpit_Loss_Root__mdt</name>

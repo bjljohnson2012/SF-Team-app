@@ -54,6 +54,28 @@ private class WaterfallConstantsTest {
     }
 
     @isTest
+    static void workingDaysBetween_countsWeekdaysInclusive() {
+        Date mon = Date.newInstance(2026, 9, 14);
+        Date fri = Date.newInstance(2026, 9, 18);
+        Date sun = Date.newInstance(2026, 9, 20);
+        Date wed = Date.newInstance(2026, 9, 16);
+        Test.startTest();
+        Integer week = WaterfallConstants.workingDaysBetween(mon, fri);
+        Integer throughWeekend = WaterfallConstants.workingDaysBetween(mon, sun);
+        Integer weekendOnly = WaterfallConstants.workingDaysBetween(sun.addDays(-1), sun);
+        Integer oneDay = WaterfallConstants.workingDaysBetween(wed, wed);
+        Integer empty = WaterfallConstants.workingDaysBetween(fri, mon);
+        Test.stopTest();
+        System.assertEquals(5, week, 'Mon–Fri is five working days');
+        System.assertEquals(5, throughWeekend, 'Sat/Sun add nothing');
+        System.assertEquals(0, weekendOnly, 'a weekend span is zero working days');
+        System.assertEquals(1, oneDay, 'a Wednesday counts as one');
+        System.assertEquals(0, empty, 'end before start is zero');
+        System.assertEquals(0, WaterfallConstants.weekdayIndex(mon), '1900-01-01 alignment: 2026-09-14 is Monday');
+        System.assertEquals(2, WaterfallConstants.weekdayIndex(wed), 'Wednesday is index 2');
+    }
+
+    @isTest
     static void matchesSize_usesSharedBands() {
         System.assertEquals(true, WaterfallConstants.matchesSize(12000, CockpitConstants.SIZE_UNDER_50K), '12k is under 50k');
         System.assertEquals(false, WaterfallConstants.matchesSize(12000, CockpitConstants.SIZE_OVER_150K), '12k is not 150k+');
