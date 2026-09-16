@@ -29,6 +29,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>GtmTeamAccessController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>PricingReviewController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -49,6 +53,31 @@
         <name>Cockpit_Setting__mdt</name>
     </customMetadataTypeAccesses>
     <description>Grants access to the GTM - Team Johnson Lightning app and the Team Opportunity Insights Apex used by its home page. Navigation/inference only; no object or field permissions.</description>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>GTM_Team_Access__c.Activities__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>GTM_Team_Access__c.Role__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>GTM_Team_Access__c.Tabs__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>GTM_Team_Access__c.User_Key__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>GTM_Team_Access__c.User__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Opportunity.Cockpit_Class_Override__c</field>
@@ -293,6 +322,16 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Cockpit_Cohort_Snapshot__c</object>
+        <viewAllFields>false</viewAllFields>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>GTM_Team_Access__c</object>
         <viewAllFields>false</viewAllFields>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
