@@ -8,16 +8,17 @@ private class WaterfallRateEngineTest {
     @isTest
     static void tapClosed_gatesWinRate_andDropsZeroArrFromAsp() {
         Date sql = Date.today().addDays(-40);
-        List<Opportunity> opps = new List<Opportunity>{
-            closedMem(true, 20000, sql, null),
-            closedMem(true, 0, sql, null),
-            closedMem(false, 15000, sql, 'Strength of Competitor Relationship'),
-            closedMem(false, 15000, sql, 'Ghosted'),
-            closedMem(false, 15000, null, 'Product Related Reasons')
-        };
-
         Test.startTest();
-        WaterfallRateEngine.RateRow row = WaterfallRateEngine.applyClosedForTest(opps);
+        WaterfallRateEngine.RateRow row = WaterfallRateEngine.applyClosedForTest(
+            new List<Boolean>{ true, true, false, false, false },
+            new List<Decimal>{ 20000, 0, 15000, 15000, 15000 },
+            new List<Date>{ sql, sql, sql, sql, null },
+            new List<Decimal>{ 40, 40, 40, 40, null },
+            new List<String>{
+                null, null, 'Strength of Competitor Relationship',
+                'Ghosted', 'Product Related Reasons'
+            }
+        );
         Test.stopTest();
 
         System.assertEquals(3, row.closedCount, 'gated set is 2 wins + 1 competitive loss; Ghosted and ungated are out');
@@ -92,16 +93,6 @@ private class WaterfallRateEngineTest {
         System.assertEquals(1, [SELECT COUNT() FROM Waterfall_Rate__c WHERE AE__c = :ae.Id],
             'second persist upserts, it does not duplicate');
         System.assertEquals(first[0].Id, second[0].Id, 'upsert key is External_Id__c');
-    }
-
-    static Opportunity closedMem(Boolean won, Decimal arr, Date sql, String lostReason) {
-        Opportunity o = new Opportunity();
-        o.IsWon = won;
-        o.ARR_Opportunity_Amount_USD_Num__c = arr;
-        o.SQL_Datestamp_bf__c = sql;
-        o.Lost_Reason__c = lostReason;
-        o.Days_since_SQL__c = sql == null ? null : 40;
-        return o;
     }
 
     static Id eunaSaleRtId() {

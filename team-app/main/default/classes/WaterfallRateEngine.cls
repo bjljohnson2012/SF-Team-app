@@ -108,31 +108,49 @@ public with sharing class WaterfallRateEngine {
     }
 
     @TestVisible
-    static RateRow applyClosedForTest(List<Opportunity> opps) {
+    static RateRow applyClosedForTest(
+        List<Boolean> won, List<Decimal> arr, List<Date> sql,
+        List<Decimal> days, List<String> lostReason
+    ) {
         RateRow row = new RateRow();
-        if (opps != null) {
-            for (Opportunity o : opps) tapClosed(row, o);
+        Integer n = won == null ? 0 : won.size();
+        for (Integer i = 0; i < n; i++) {
+            tapClosed(
+                row,
+                won[i],
+                arr == null ? null : arr[i],
+                sql == null ? null : sql[i],
+                days == null ? null : days[i],
+                lostReason == null ? null : lostReason[i]
+            );
         }
         finish(row, null);
         return row;
     }
 
     static void tapClosed(RateRow row, Opportunity o) {
+        tapClosed(
+            row, o.IsWon, o.ARR_Opportunity_Amount_USD_Num__c,
+            o.SQL_Datestamp_bf__c, o.Days_since_SQL__c, o.Lost_Reason__c
+        );
+    }
+
+    static void tapClosed(
+        RateRow row, Boolean isWon, Decimal arr, Date sql, Decimal days, String lostReason
+    ) {
         row.ungatedClosed++;
-        if (o.IsWon) row.ungatedWins++;
-        Boolean gated = o.SQL_Datestamp_bf__c != null
-            && (o.IsWon || WaterfallConstants.isCompetitiveLoss(o.Lost_Reason__c));
+        if (isWon == true) row.ungatedWins++;
+        Boolean gated = sql != null
+            && (isWon == true || WaterfallConstants.isCompetitiveLoss(lostReason));
         if (!gated) return;
         row.closedCount++;
-        if (o.IsWon) {
+        if (isWon == true) {
             row.wins++;
-            Decimal arr = o.ARR_Opportunity_Amount_USD_Num__c == null
-                ? 0 : o.ARR_Opportunity_Amount_USD_Num__c;
-            if (arr > 0) {
+            Decimal amount = arr == null ? 0 : arr;
+            if (amount > 0) {
                 row.arrBearingWins++;
-                row.arrWon += arr;
+                row.arrWon += amount;
             }
-            Decimal days = o.Days_since_SQL__c;
             if (days != null && days >= 0) row.cycleDays.add(days);
         }
     }
