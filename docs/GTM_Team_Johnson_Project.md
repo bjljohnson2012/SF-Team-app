@@ -4,7 +4,7 @@ Living reference for the in-platform GTM/Sales tooling built on the `euna` **pro
 (`00D1I000001VBDGUA4`, user `benjamin.johnson@eunasolutions.com`). Read this first to pick up
 where the last session left off.
 
-Last updated: 2026-09-16 (grant-funds Q1, comparable fallbacks, Find checklist file).
+Last updated: 2026-09-16 (owner-authorized Pricing Review follow-up prod deploy).
 
 ---
 
@@ -79,6 +79,7 @@ Historical carve-out deploys are in `docs/EXCEPTIONS.md` on `cursor/record-deplo
 
 | Date | What | Quick-deploy job |
 |---|---|---|
+| 2026-09-16 | Pricing Review grant-funds Q1, same-product comparable fallbacks + ERP, Find checklist file, Product column (owner-authorized; validate `0AfOL000003TD6b0AG` → quick) | `0AfOL000003TDHt0AO` |
 | 2026-09-15 | Pricing Review newest-first retrieval + matched comparables + web-search fallback (owner-authorized after carve-out expiry; validate `0AfOL000003T0an0AC` → quick) | `0AfOL000003T0fd0AC` |
 | 2026-09-14 | Real `.docx` output + reference-intelligence context (Account budget, comparables, quotes) | `0AfOL000003SWEX0A4` |
 | 2026-09-14 | Fill all 24 with INFERRED marking + truncation-recovery | `0AfOL000003SU7t0AG` |
