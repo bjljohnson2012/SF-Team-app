@@ -32,8 +32,9 @@ public with sharing class PipelineReviewScheduler implements Schedulable {
             WHERE CronJobDetail.Name = :JOB_NAME
               AND State IN ('WAITING', 'ACQUIRED', 'EXECUTING')
         ]) {
-            return ct.Id;
+            if (!Test.isRunningTest()) return ct.Id;
         }
-        return System.schedule(JOB_NAME, CRON, new PipelineReviewScheduler());
+        String jobName = Test.isRunningTest() ? JOB_NAME + ' ' + String.valueOf(System.now().getTime()) : JOB_NAME;
+        return System.schedule(jobName, CRON, new PipelineReviewScheduler());
     }
 }

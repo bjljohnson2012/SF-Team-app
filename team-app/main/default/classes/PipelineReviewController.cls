@@ -396,7 +396,8 @@ public with sharing class PipelineReviewController {
         return out;
     }
 
-    private static RowDTO toRow(Opportunity o, String tag) {
+    @TestVisible
+    static RowDTO toRow(Opportunity o, String tag) {
         RowDTO r = new RowDTO();
         r.id = o.Id;
         r.name = o.Name;

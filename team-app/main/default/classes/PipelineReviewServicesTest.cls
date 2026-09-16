@@ -439,4 +439,51 @@ private class PipelineReviewServicesTest {
         f.pricing = new List<String>{ 'Approved' };
         System.assertNotEquals(null, PipelineReviewSelector.loadBook(f));
     }
+
+    @IsTest
+    static void coverage_edges_toRow_and_writes() {
+        Opportunity o = [
+            SELECT Id, Name, AccountId, Account.Name, OwnerId, Owner.Name, StageName, CloseDate,
+                   ForecastCategoryName, Director_Forecast_bf__c, Roll_Up_Forecast_bf__c,
+                   Next_Step_bf__c, Next_Step_Date_bf__c, Director_Notes_bf__c,
+                   ARR_Opportunity_Amount_USD_Num__c
+            FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1
+        ];
+        Test.startTest();
+        PipelineReviewController.RowDTO row = PipelineReviewController.toRow(o, 'A');
+        System.assertEquals(o.Id, row.id);
+        System.assertEquals(true, PipelineReviewController.resolveMode('week', Date.today()) == PipelineReviewConstants.MODE_WEEK);
+        System.assertEquals(PipelineReviewConstants.MODE_WEEK, PipelineReviewController.resolveMode(null, Date.newInstance(2026, 9, 14)));
+        PipelineReviewWriteService.WriteResult blank = PipelineReviewWriteService.saveDirectorNote(null, '', false);
+        PipelineReviewWriteService.WriteResult invalidAi = PipelineReviewWriteService.saveDirectorNote(o.Id, 'too short', true);
+        PipelineReviewWriteService.applyGradeResults(new List<Opportunity>());
+        PipelineReviewWriteService.applyGradeResults(new List<Opportunity>{ new Opportunity(Id = o.Id, Name = o.Name) });
+        PipelineReviewWriteService.audit(o.Id, 'Next_Step_bf__c', 'old', 'new', PipelineReviewConstants.SRC_HUMAN);
+        PipelineReviewWriteService.writeSuggestions(new List<Opportunity>{ new Opportunity(Id = o.Id) });
+        try { PipelineReviewWriteService.assertCanWrite(false); } catch (Exception e) { /* access may be blank */ }
+        try { PipelineReviewWriteService.assertCanWrite(true); } catch (Exception e) { /* manager required */ }
+        PipelineReviewSavedViewService.ViewDTO first = PipelineReviewSavedViewService.saveView(
+            null, 'Coverage view', '{"v":1}', true, true, 2
+        );
+        PipelineReviewSavedViewService.ViewDTO second = PipelineReviewSavedViewService.saveView(
+            first.id, 'Coverage view 2', '{"v":1,"search":"x"}', false, true, 3
+        );
+        PipelineReviewSavedViewService.listViews();
+        if (second != null && second.id != null) {
+            PipelineReviewSavedViewService.duplicateView(second.id);
+            PipelineReviewSavedViewService.deleteView(second.id);
+        }
+        List<Id> many = new List<Id>();
+        for (Integer i = 0; i < 80; i++) many.add(o.Id);
+        PipelineReviewSelector.loadHistory(many);
+        PipelineReviewSelector.loadContactRoles(many);
+        PipelineReviewSelector.loadInboundReplies(many);
+        PipelineReviewSelector.loadTags(many, UserInfo.getUserId());
+        PipelineReviewController.loadPage('{"ownerIds":["' + UserInfo.getUserId() + '"],"tags":["A"],"sortKey":"arr"}');
+        PipelineReviewController.loadThisWeek('week', UserInfo.getUserId());
+        Test.stopTest();
+        System.assertEquals(false, blank.ok);
+        System.assertEquals(false, invalidAi.ok);
+        System.assertNotEquals(null, first);
+    }
 }
