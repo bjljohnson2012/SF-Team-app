@@ -1,0 +1,248 @@
+<template>
+    <template lwc:if={showChrome}>
+    <div class="fh-header">
+        <h1>Conversion Metrics</h1>
+        <p class="sub">Sales Performance · Conversion Metrics · Metrics. What a forecast word turned out to mean.</p>
+    </div>
+    <div class="fh-bar"></div>
+    </template>
+
+    <div class="fh-ctl" onscopechange={handleScopeChange}>
+        <div class="fh-f wide">
+            <label>Sales team</label>
+            <select onchange={handleDirector}>
+                <template for:each={directorOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+        </div>
+        <div class="fh-f wide">
+            <label>Quarter</label>
+            <select onchange={handleQuarter}>
+                <template for:each={quarterOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+        </div>
+        <div class="fh-f wide">
+            <label>Product type</label>
+            <select onchange={handleProduct}>
+                <template for:each={productOptions} for:item="o">
+                    <option key={o.key} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+        </div>
+        <div class="fh-f wide">
+            <label>Size</label>
+            <select onchange={handleSize}>
+                <template for:each={sizeOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+        </div>
+        <span class="fh-status"><b>Live.</b> {scopeCaption}</span>
+    </div>
+
+    <div class="fh-body">
+        <template lwc:if={loading}><lightning-spinner size="small" alternative-text="Loading"></lightning-spinner></template>
+        <template lwc:if={error}><div class="err">{error}</div></template>
+        <template lwc:if={emptyScope}><div class="box"><p>{emptyMessage}</p></div></template>
+
+        <template lwc:if={hasPage}>
+            <p class="lede">{convention}</p>
+            <p class="note">{writerCaption}</p>
+
+            <div class="sec-head">
+                <h2>A. Forecast category accuracy</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="forecast" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">Of deals that sat in a forecast category in the first, second, or third month, where were they at quarter-end — funded in-quarter, lost, or pushed? In-quarter win rate scores only what actually closed that quarter. Include push counts slips against the word.</p>
+            <template lwc:if={showForecastExplain}><div class="box"><p>{forecastExplain}</p></div></template>
+            <template lwc:if={hasInterpretation}><div class="box warn"><p>{interpretation}</p></div></template>
+            <div class="toggle-row">
+                <div class="view-toggle" role="group" aria-label="Forecast category view">
+                    <button class={teamViewClass} type="button" data-view="team" onclick={handleView}>Team</button>
+                    <button class={aeViewClass} type="button" data-view="ae" onclick={handleView}>By AE</button>
+                </div>
+                <div class="view-toggle" role="group" aria-label="In-quarter or include push">
+                    <button class={inQuarterClass} type="button" data-outcome="inQuarter" onclick={handleOutcome}>In-quarter</button>
+                    <button class={inclPushClass} type="button" data-outcome="inclPush" onclick={handleOutcome}>Include push</button>
+                </div>
+            </div>
+            <div class="cards">
+                <div class="card"><div class="lab">On the book</div><div class="val">{onBook}</div><div class="note">Deals with a close date in or after this quarter</div></div>
+                <div class="card"><div class="lab">Closed in quarter</div><div class="val">{closedInWindow}</div><div class="note">Funded or lost by quarter-end</div></div>
+                <div class="card"><div class="lab">Pushed</div><div class="val">{pushedInWindow}</div><div class="note">Close date after the quarter</div></div>
+                <div class="card"><div class="lab">Funded</div><div class="val">{fundedInWindow}</div><div class="note">Closed won in-quarter</div></div>
+                <div class="card"><div class="lab">Median cycle</div><div class="val">{medianCycle}</div><div class="note">SQL datestamp → close, won deals</div></div>
+            </div>
+            <template for:each={checkpoints} for:item="cp">
+                <div key={cp.key} class="checkpoint">
+                    <h3>{cp.label}</h3>
+                    <p class="note">{cp.caption}</p>
+                    <template lwc:if={cp.hasInterpretation}><div class="box warn"><p>{cp.interpretation}</p></div></template>
+                    <div class="tw">
+                        <table>
+                            <thead><tr>
+                                <template lwc:if={cp.showAe}><th>AE</th></template>
+                                <th>Forecast category</th>
+                                <th class="num">Funded</th>
+                                <th class="num">Lost</th>
+                                <th class="num">Pushed</th>
+                                <th class="num">Open</th>
+                                <th class="num">On book</th>
+                                <th class="num">Accuracy</th>
+                                <th class="num">ARR funded</th>
+                                <th class="num">ARR accuracy</th>
+                            </tr></thead>
+                            <tbody>
+                                <template for:each={cp.rows} for:item="r">
+                                    <tr key={r.rowKey} class={r.gapClass}>
+                                        <template lwc:if={cp.showAe}><td>{r.aeName}</td></template>
+                                        <td><span class={r.pill}>{r.band}</span></td>
+                                        <td class="num">{r.won}</td>
+                                        <td class="num">{r.lost}</td>
+                                        <td class="num">{r.pushed}</td>
+                                        <td class="num">{r.stillOpen}</td>
+                                        <td class="num">{r.total}</td>
+                                        <td class="num">{r.winRateCount}</td>
+                                        <td class="num">{r.arrWon}</td>
+                                        <td class="num">{r.winRateArr}</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+
+            <div class="sec-head">
+                <h2>B. Funded accuracy</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="commit" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">By AE: of deals that sat in Commit or Most Likely during the quarter, what share funded (closed won in-quarter)? Same in-quarter / include-push toggle as above. Below 80% with at least 4 decided deals is flagged. Under 4 is a dash — never 0%.</p>
+            <template lwc:if={showCommitExplain}><div class="box"><p>{commitExplain}</p></div></template>
+            <div class="tw"><table>
+                <thead><tr>
+                    <th>AE</th>
+                    <th class="num">Funded</th>
+                    <th class="num">Lost</th>
+                    <th class="num">Pushed</th>
+                    <th class="num">Commit / ML book</th>
+                    <th class="num">Accuracy</th>
+                </tr></thead>
+                <tbody>
+                    <template for:each={commitRows} for:item="r">
+                        <tr key={r.ownerId} class={r.rowClass} title={r.title}>
+                            <td>{r.aeName}</td>
+                            <td class="num">{r.funded}</td>
+                            <td class="num">{r.lost}</td>
+                            <td class="num">{r.pushed}</td>
+                            <td class="num">{r.book}</td>
+                            <td class="num">{r.rate}</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table></div>
+
+            <div class="sec-head">
+                <h2>C. Root-cause loss matrix</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="loss" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">{lossFloor}</p>
+            <template lwc:if={showLossExplain}><div class="box"><p>{lossExplain}</p></div></template>
+            <div class="tw"><table>
+                <thead><tr>
+                    <th>Loss reason</th>
+                    <th>Root</th>
+                    <th class="num">Losses</th>
+                    <th class="num">Team share</th>
+                </tr></thead>
+                <tbody>
+                    <template for:each={lossRows} for:item="r">
+                        <tr key={r.reason} class={r.rowClass}>
+                            <td>{r.reason}</td>
+                            <td>{r.root}</td>
+                            <td class="num">{r.losses}</td>
+                            <td class="num">{r.share}</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table></div>
+            <template lwc:if={hasOverIndex}>
+                <h3>Over-indexed vs team</h3>
+                <div class="tw"><table>
+                    <thead><tr>
+                        <th>AE</th>
+                        <th>Reason</th>
+                        <th>Root</th>
+                        <th class="num">Losses</th>
+                        <th class="num">AE share</th>
+                        <th class="num">Team share</th>
+                    </tr></thead>
+                    <tbody>
+                        <template for:each={overIndexRows} for:item="r">
+                            <tr key={r.key} class="flag-row">
+                                <td>{r.aeName}</td>
+                                <td>{r.reason}</td>
+                                <td>{r.root}</td>
+                                <td class="num">{r.losses}</td>
+                                <td class="num">{r.share}</td>
+                                <td class="num">{r.teamShare}</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table></div>
+            </template>
+
+            <div class="sec-head">
+                <h2>D. Live-book leading indicators</h2>
+                <div class="sec-actions">
+                    <button class="fh-btn gh" type="button" data-explain="live" onclick={toggleExplain}>Explain what this means</button>
+                    <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
+                </div>
+            </div>
+            <p class="lede">Open book per AE. Flags fire only when the sample floor is met. Future-dated LastActivityDate is treated as silence, not a fresh touch. {meddpiccNote}</p>
+            <template lwc:if={showLiveExplain}><div class="box"><p>{liveExplain}</p></div></template>
+            <div class="tw"><table>
+                <thead><tr>
+                    <th>AE</th>
+                    <th class="num">Open ARR</th>
+                    <th class="num">Deals</th>
+                    <th class="num">Avg MEDDPICC</th>
+                    <th class="num">Share &lt;3/8</th>
+                    <th class="num">Silent 30d</th>
+                    <th class="num">Next step</th>
+                    <th class="num">Pushed 3+</th>
+                    <th class="num">Above Best Case</th>
+                    <th>Flags</th>
+                </tr></thead>
+                <tbody>
+                    <template for:each={liveRows} for:item="r">
+                        <tr key={r.ownerId} class={r.rowClass}>
+                            <td>{r.aeName}</td>
+                            <td class="num">{r.openArr}</td>
+                            <td class="num">{r.dealCount}</td>
+                            <td class="num">{r.avgMeddpicc}</td>
+                            <td class="num">{r.shareBelow3}</td>
+                            <td class="num">{r.silentShare}</td>
+                            <td class="num">{r.nextStepShare}</td>
+                            <td class="num">{r.pushedShare}</td>
+                            <td class="num">{r.aboveBestCaseShare}</td>
+                            <td class="small">{r.flags}</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table></div>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,369 @@
+import { LightningElement, api, wire } from 'lwc';
+import { refreshApex } from '@salesforce/apex';
+import load from '@salesforce/apex/CockpitConversionController.load';
+import getScopeOptions from '@salesforce/apex/CockpitConversionController.getScopeOptions';
+
+const SESSION_KEY = 'gtmScopeFilters';
+const DEFAULT_SCOPE = {
+    directorId: null,
+    teamMode: 'mine',
+    productType: '',
+    sizeBand: 'ALL',
+    closeQuarter: ''
+};
+
+export default class ConversionMetrics extends LightningElement {
+    @api embedded = false;
+    directorId = null;
+    teamMode = 'mine';
+    productType = '';
+    sizeBand = 'ALL';
+    closeQuarter = '';
+    options = { directors: [], productTypes: [], sizeBands: [], closeQuarters: [] };
+    page;
+    error;
+    loading = true;
+    viewByAe = false;
+    outcomeMode = 'inQuarter';
+    explainOpen = {};
+    wiredLoadResult;
+
+    connectedCallback() {
+        this.restoreScope();
+    }
+
+    @wire(getScopeOptions)
+    wiredOptions({ data, error }) {
+        if (data) {
+            this.options = data;
+            if (!this.closeQuarter) {
+                this.closeQuarter = this.defaultCloseQuarter(data.closeQuarters);
+            }
+        } else if (error) {
+            this.error = this.msg(error);
+        }
+    }
+
+    @wire(load, {
+        directorId: '$directorId',
+        teamMode: '$teamMode',
+        productType: '$productType',
+        sizeBand: '$sizeBand',
+        closeQuarter: '$closeQuarter'
+    })
+    wiredLoad(result) {
+        this.wiredLoadResult = result;
+        this.loading = false;
+        if (result.data) {
+            this.page = result.data;
+            this.error = undefined;
+        } else if (result.error) {
+            this.error = this.msg(result.error);
+        }
+    }
+
+    defaultCloseQuarter(quarters) {
+        const list = quarters || [];
+        const current = list.filter((q) => q.value && q.value !== 'ALL').slice(-1)[0];
+        return current ? current.value : 'ALL';
+    }
+
+    restoreScope() {
+        try {
+            const raw = sessionStorage.getItem(SESSION_KEY);
+            if (!raw) return;
+            const s = Object.assign({}, DEFAULT_SCOPE, JSON.parse(raw));
+            this.directorId = s.directorId || null;
+            this.teamMode = s.teamMode || 'mine';
+            this.productType = this.groupProduct(s.productType);
+            this.sizeBand = s.sizeBand || 'ALL';
+            this.closeQuarter = s.closeQuarter || '';
+        } catch (e) {
+            /* session is best-effort */
+        }
+    }
+
+    persistScope() {
+        const detail = {
+            directorId: this.directorId,
+            teamMode: this.teamMode,
+            productType: this.productType,
+            sizeBand: this.sizeBand,
+            closeQuarter: this.closeQuarter
+        };
+        try {
+            sessionStorage.setItem(SESSION_KEY, JSON.stringify(detail));
+        } catch (e) {
+            /* ignore quota */
+        }
+        return detail;
+    }
+
+    handleScopeChange(event) {
+        const d = (event && event.detail) || {};
+        if (d.directorId !== undefined) this.directorId = d.directorId || null;
+        if (d.teamMode !== undefined) this.teamMode = d.teamMode || 'mine';
+        if (d.productType !== undefined) this.productType = this.groupProduct(d.productType);
+        if (d.sizeBand !== undefined) this.sizeBand = d.sizeBand || 'ALL';
+        if (d.closeQuarter !== undefined) this.closeQuarter = d.closeQuarter || '';
+        this.persistScope();
+    }
+
+    handleDirector(event) {
+        const v = event.target.value;
+        if (v === 'mine') {
+            this.teamMode = 'mine';
+            this.directorId = null;
+        } else {
+            this.teamMode = 'director';
+            this.directorId = v;
+        }
+        this.emitScope();
+    }
+
+    handleProduct(event) {
+        this.productType = this.groupProduct(event.target.value);
+        this.emitScope();
+    }
+
+    groupProduct(raw) {
+        const v = raw || '';
+        if (!v || v === 'ALL') return '';
+        if (v === 'BUDGET' || v === 'GRANTS' || v === 'PROC_SOURCING' || v === 'PROC_MARKET') {
+            return v;
+        }
+        const u = v.toUpperCase();
+        if (u.includes('BUDGET')) return 'BUDGET';
+        if (u.includes('GRANT') || u.includes('AMPLIFUND')) return 'GRANTS';
+        if (u.includes('EQUALLEVEL') || u.includes('EL VENDOR')) return 'PROC_MARKET';
+        if (u.includes('BONFIRE') || u.includes('IONWAVE')) return 'PROC_SOURCING';
+        return '';
+    }
+
+    handleSize(event) {
+        this.sizeBand = event.target.value || 'ALL';
+        this.emitScope();
+    }
+
+    handleQuarter(event) {
+        this.closeQuarter = event.target.value || '';
+        this.emitScope();
+    }
+
+    handleView(event) {
+        this.viewByAe = event.currentTarget.dataset.view === 'ae';
+    }
+
+    handleOutcome(event) {
+        this.outcomeMode = event.currentTarget.dataset.outcome === 'inclPush' ? 'inclPush' : 'inQuarter';
+    }
+
+    toggleExplain(event) {
+        const key = event.currentTarget.dataset.explain;
+        this.explainOpen = { ...this.explainOpen, [key]: !this.explainOpen[key] };
+    }
+
+    handleRefresh() {
+        if (!this.wiredLoadResult) return;
+        this.loading = true;
+        refreshApex(this.wiredLoadResult).finally(() => {
+            this.loading = false;
+        });
+    }
+
+    emitScope() {
+        const detail = this.persistScope();
+        this.dispatchEvent(new CustomEvent('scopechange', { detail, bubbles: true, composed: true }));
+    }
+
+    get showChrome() {
+        return this.embedded !== true && this.embedded !== 'true' && this.embedded !== '';
+    }
+
+    get directorValue() {
+        return this.teamMode === 'director' && this.directorId ? this.directorId : 'mine';
+    }
+    get directorOptions() {
+        return (this.options.directors || []).map((o) => ({
+            value: o.value,
+            label: o.label,
+            selected: o.value === this.directorValue
+        }));
+    }
+    get productOptions() {
+        return (this.options.productTypes || []).map((o) => ({
+            value: o.value,
+            key: o.value || 'all-products',
+            label: o.label,
+            selected: (o.value || '') === (this.productType || '')
+        }));
+    }
+    get sizeOptions() {
+        return (this.options.sizeBands || []).map((o) => ({
+            value: o.value,
+            label: o.label,
+            selected: o.value === this.sizeBand
+        }));
+    }
+    get quarterOptions() {
+        return (this.options.closeQuarters || []).map((o) => ({
+            value: o.value,
+            label: o.label,
+            selected: o.value === this.closeQuarter
+        }));
+    }
+
+    get scopeCaption() { return this.page && this.page.scope ? this.page.scope.caption : ''; }
+    get emptyScope() { return this.page && this.page.scope && this.page.scope.emptyScope; }
+    get emptyMessage() { return this.emptyScope ? this.page.scope.emptyMessage : ''; }
+    get hasPage() { return this.page && !this.emptyScope && !this.loading && !this.error; }
+    get convention() { return this.page ? this.page.conventionCaption : ''; }
+    get writerCaption() { return this.page ? this.page.bandWriterCaption : ''; }
+    get lossFloor() { return this.page ? this.page.lossReasonFloorCaption : ''; }
+    get interpretation() { return this.page ? this.page.bandInterpretation : ''; }
+    get hasInterpretation() { return !!this.interpretation; }
+    get forecastExplain() { return this.page ? this.page.forecastExplain : ''; }
+    get commitExplain() { return this.page ? this.page.commitExplain : ''; }
+    get lossExplain() { return this.page ? this.page.lossExplain : ''; }
+    get liveExplain() { return this.page ? this.page.liveExplain : ''; }
+    get showForecastExplain() { return !!this.explainOpen.forecast; }
+    get showCommitExplain() { return !!this.explainOpen.commit; }
+    get showLossExplain() { return !!this.explainOpen.loss; }
+    get showLiveExplain() { return !!this.explainOpen.live; }
+    get teamViewClass() { return this.viewByAe ? 'chip' : 'chip on'; }
+    get aeViewClass() { return this.viewByAe ? 'chip on' : 'chip'; }
+    get inQuarterClass() { return this.outcomeMode === 'inclPush' ? 'chip' : 'chip on'; }
+    get inclPushClass() { return this.outcomeMode === 'inclPush' ? 'chip on' : 'chip'; }
+    get includePush() { return this.outcomeMode === 'inclPush'; }
+    get meddpiccNote() {
+        if (!this.page) return '';
+        return this.page.meddpiccAvailable
+            ? 'MEDDPICC is the materialized Cockpit_MEDDPICC__c score, not the eight rich-text sources.'
+            : 'Cockpit_MEDDPICC__c is not in the org yet — MEDDPICC columns stay a dash. This page does not read the eight rich-text fields.';
+    }
+    get medianCycle() {
+        return this.page && this.page.medianCycleDays != null ? this.page.medianCycleDays + ' days' : '—';
+    }
+    get closedInWindow() { return this.page && this.page.closedInWindow != null ? this.page.closedInWindow : 0; }
+    get onBook() { return this.page && this.page.onBook != null ? this.page.onBook : 0; }
+    get pushedInWindow() { return this.page && this.page.pushedInWindow != null ? this.page.pushedInWindow : 0; }
+    get fundedInWindow() { return this.page && this.page.fundedInWindow != null ? this.page.fundedInWindow : 0; }
+
+    get checkpoints() {
+        const tables = this.page && this.page.bandCheckpoints ? this.page.bandCheckpoints : [];
+        return tables.map((cp) => ({
+            key: cp.key,
+            label: cp.label,
+            caption: cp.caption,
+            interpretation: cp.interpretation,
+            hasInterpretation: !!cp.interpretation,
+            showAe: this.viewByAe,
+            rows: this.viewByAe
+                ? (cp.byAe || []).map((r) => this.bandDisplay(cp.key + ':' + r.ownerId + ':' + r.band, r, r.aeName))
+                : (cp.rows || []).map((r) => this.bandDisplay(cp.key + ':' + r.band, r, ''))
+        }));
+    }
+
+    bandDisplay(rowKey, r, aeName) {
+        const countRate = this.includePush
+            ? (r.winRateInclPush != null ? r.winRateInclPush : r.winRateCount)
+            : (r.winRateInQuarter != null ? r.winRateInQuarter : r.winRateCount);
+        const arrRate = this.includePush
+            ? (r.arrRateInclPush != null ? r.arrRateInclPush : r.winRateArr)
+            : (r.arrRateInQuarter != null ? r.arrRateInQuarter : r.winRateArr);
+        return {
+            rowKey: rowKey,
+            aeName: aeName,
+            band: r.band,
+            pill: 'pill ' + this.bandClass(r.band),
+            won: r.won,
+            lost: r.lost,
+            pushed: r.pushed || 0,
+            stillOpen: r.stillOpen || 0,
+            total: r.total,
+            winRateCount: this.pct(countRate),
+            arrWon: this.money(r.arrWon),
+            arrTotal: this.money(r.arrTotal),
+            winRateArr: this.pct(arrRate),
+            gapClass: r.largeDealsLose ? 'gap-warn' : ''
+        };
+    }
+
+    get commitRows() {
+        return (this.page && this.page.commitAccuracy ? this.page.commitAccuracy : []).map((r) => {
+            const rate = this.includePush
+                ? (r.rateInclPush != null ? r.rateInclPush : r.rate)
+                : (r.rateInQuarter != null ? r.rateInQuarter : r.rate);
+            return {
+                ownerId: r.ownerId,
+                aeName: r.aeName,
+                funded: r.funded != null ? r.funded : r.won,
+                lost: r.lost || 0,
+                pushed: r.pushed || 0,
+                book: r.book != null ? r.book : r.commitCloses,
+                rate: this.pct(rate),
+                title: r.sampleTooltip || '',
+                rowClass: r.flagged ? 'flag-row' : ''
+            };
+        });
+    }
+
+    get lossRows() {
+        return (this.page && this.page.lossMatrix ? this.page.lossMatrix : []).map((r) => ({
+            reason: r.reason,
+            root: r.root,
+            losses: r.losses,
+            share: this.pct(r.share),
+            rowClass: r.mapped ? '' : 'teamrow'
+        }));
+    }
+
+    get overIndexRows() {
+        return (this.page && this.page.overIndexed ? this.page.overIndexed : []).map((r) => ({
+            key: r.ownerId + r.reason,
+            aeName: r.aeName,
+            reason: r.reason,
+            root: r.root,
+            losses: r.losses,
+            share: this.pct(r.share),
+            teamShare: this.pct(r.teamShare)
+        }));
+    }
+    get hasOverIndex() { return this.overIndexRows.length > 0; }
+
+    get liveRows() {
+        return (this.page && this.page.liveBook ? this.page.liveBook : []).map((r) => ({
+            ownerId: r.ownerId,
+            aeName: r.aeName,
+            openArr: this.money(r.openArr),
+            dealCount: r.dealCount,
+            avgMeddpicc: r.avgMeddpicc == null ? '—' : Number(r.avgMeddpicc).toFixed(1),
+            shareBelow3: this.pct(r.shareBelow3),
+            silentShare: this.pct(r.silentShare),
+            nextStepShare: this.pct(r.nextStepShare),
+            pushedShare: this.pct(r.pushedShare),
+            aboveBestCaseShare: this.pct(r.aboveBestCaseShare),
+            flags: (r.flags || []).join(', ') || '—',
+            rowClass: r.flags && r.flags.length ? 'flag-row' : ''
+        }));
+    }
+
+    bandClass(band) {
+        if (band === 'Commit') return 'p-com';
+        if (band === 'Most Likely') return 'p-ml';
+        if (band === 'Best Case') return 'p-bc';
+        if (band === 'Omitted') return 'p-om';
+        if (band === 'Closed') return 'p-cl';
+        if (band === 'Not on forecast') return 'p-un';
+        return 'p-pipe';
+    }
+    money(n) {
+        return n == null || isNaN(n) ? '$0' : '$' + Math.round(Number(n)).toLocaleString('en-US');
+    }
+    pct(n) {
+        return n == null || isNaN(n) ? '—' : (Number(n) * 100).toFixed(1) + '%';
+    }
+    msg(e) {
+        return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
+    }
+}
