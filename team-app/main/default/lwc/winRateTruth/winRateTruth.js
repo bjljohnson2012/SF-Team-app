@@ -51,6 +51,17 @@ export default class WinRateTruth extends LightningElement {
     get ghostedConvention() { return this.page && this.page.ghostedConvention; }
     get scopeCaption() { return this.page && this.page.scopeCaption; }
     get meaning() { return this.page && this.page.meaning; }
+    get meaningSections() { return (this.page && this.page.meaningSections) || []; }
+    get closeMix() {
+        return ((this.page && this.page.closeMix) || []).map((m) => ({
+            cohortKey: m.cohortKey,
+            label: m.label,
+            won: m.won,
+            lost: m.lost,
+            share: this.pct(m.share)
+        }));
+    }
+    get hasCloseMix() { return this.closeMix.length > 0; }
     get snapshotAsOf() {
         return this.page && this.page.snapshotAsOf
             ? `Latest nightly snapshot for this director: ${this.page.snapshotAsOf}`
@@ -59,7 +70,9 @@ export default class WinRateTruth extends LightningElement {
     get cycleCaption() {
         const p50 = this.page && this.page.p50Days != null ? this.page.p50Days : '—';
         const p75 = this.page && this.page.p75Days != null ? this.page.p75Days : '—';
-        return `SQL→close cycle on resolved deals: median ${p50} days, three-quarters done by ${p75} days. Immature vintages stay listed; headlines wait until quarter-end is past that cycle and skip samples under 15 qualified deals.`;
+        const lag = this.page && this.page.cycleLagQuarters != null ? this.page.cycleLagQuarters : '—';
+        const matched = this.page && this.page.matchedCohortLabel ? this.page.matchedCohortLabel : '—';
+        return `This product’s SQL→close cycle: median ${p50} days (~${lag} quarters), three-quarters done by ${p75} days. Deals closing this quarter map to SQL vintage ${matched}. Grey rows are still inside that cycle; samples under 15 qualified are directional.`;
     }
     get purgeSilent() { return this.page ? this.page.purgeSilentCount : 0; }
     get purgeDump() { return this.page ? this.page.purgeDumpCount : 0; }
@@ -69,12 +82,57 @@ export default class WinRateTruth extends LightningElement {
     get headlines() {
         const h = this.page && this.page.headlines;
         if (!h) return [];
+        const matched = h.matchedLabel || 'matched vintage';
         return [
-            { key: 'cb', lab: 'Won / (won + lost)', val: this.pct(h.closureBased), note: 'What reports quote — close-date, not conversion', cls: 'card' },
-            { key: 'cwr', lab: 'Contested win rate', val: this.pct(h.contestedWR), note: 'Won / (won + worked) — selling ability', cls: 'card hero' },
-            { key: 'qy', lab: 'Qualified / created', val: this.pct(h.qualYield), note: 'Opened this quarter that reached SQL', cls: 'card' },
-            { key: 'di', lab: 'Distortion', val: this.pp(h.distortion), note: 'Contested minus won/(won+lost)', cls: 'card warn' }
+            {
+                key: 'tq',
+                lab: 'This-quarter close rate',
+                val: this.pct(h.thisQuarterCloseRate),
+                note: `${h.thisQuarterWon || 0} won / ${h.thisQuarterLost || 0} lost — close-date mix, not a cohort`,
+                cls: 'card'
+            },
+            {
+                key: 'mc',
+                lab: `Matched contested · ${matched}`,
+                val: this.pct(h.matchedContestedWR),
+                note: `Won / (won + worked) on the SQL vintage due to close now`,
+                cls: 'card hero'
+            },
+            {
+                key: 'mq',
+                lab: `Matched qualified / created · ${matched}`,
+                val: this.pct(h.matchedQualYield),
+                note: 'Funnel on that same vintage',
+                cls: 'card'
+            },
+            {
+                key: 'dx',
+                lab: 'The read',
+                val: this.diagnosisLabel(h.diagnosis),
+                note: this.diagnosisNote(h.diagnosis),
+                cls: this.diagnosisClass(h.diagnosis)
+            }
         ];
+    }
+
+    diagnosisLabel(code) {
+        if (code === 'FUNNEL') return 'Top of funnel';
+        if (code === 'EXECUTION') return 'Sales execution';
+        if (code === 'BOTH') return 'Funnel + execution';
+        if (code === 'HEALTHY') return 'Neither leak';
+        return 'Too thin to call';
+    }
+    diagnosisNote(code) {
+        if (code === 'FUNNEL') return 'Qualified volume or yield is the constraint';
+        if (code === 'EXECUTION') return 'Real contests on the matched vintage are losing';
+        if (code === 'BOTH') return 'Not enough real pipeline, and the pipeline that is real is losing';
+        if (code === 'HEALTHY') return 'Yield and contested on the matched vintage are holding';
+        return 'Matched vintage does not yet have enough at-bats';
+    }
+    diagnosisClass(code) {
+        if (code === 'HEALTHY') return 'card hero';
+        if (code === 'FUNNEL' || code === 'EXECUTION' || code === 'BOTH') return 'card warn';
+        return 'card';
     }
 
     get rows() {

@@ -2,11 +2,13 @@
     <div class="wrap">
         <h2>Win rate truth</h2>
         <p class="lede">
-            Two different questions. <strong>Created</strong> is opportunities opened this quarter.
-            <strong>Qualified</strong> is those that received an SQL datestamp — that is the cohort.
-            Worked and never-real stay visible. Ghosted is a third bucket, not never-real.
-            Compare <strong>contested</strong> (won / worked contests) to
-            <strong>won / (won + lost)</strong>, the close-date number reports quote.
+            A cohort is a product family plus that family’s SQL→close cycle.
+            Deals closing this quarter were typically qualified last quarter or the quarter before —
+            that matched vintage is the real win rate. <strong>Created</strong> is opened
+            (CreatedDate). <strong>Qualified</strong> is SQL. Compare
+            <strong>this-quarter close rate</strong> (a mix of older vintages) to
+            <strong>matched contested</strong> and <strong>matched qualified / created</strong>
+            to separate top-of-funnel from sales execution. Ghosted is not never-real.
         </p>
 
         <c-gtm-scope-filters grouped-products onscopechange={handleScope}></c-gtm-scope-filters>
@@ -42,7 +44,37 @@
             </div>
             <div class="box meaning" lwc:if={showMeaning}>
                 <h3>What this filter is saying</h3>
-                <p>{meaning}</p>
+                <template for:each={meaningSections} for:item="s">
+                    <section key={s.title} class="meaning-sec">
+                        <h4>{s.title}</h4>
+                        <p>{s.body}</p>
+                    </section>
+                </template>
+                <template lwc:if={hasCloseMix}>
+                    <h4>This quarter’s closes by SQL vintage</h4>
+                    <div class="tw mix">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SQL vintage</th>
+                                    <th class="num">Won</th>
+                                    <th class="num">Lost</th>
+                                    <th class="num">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={closeMix} for:item="m">
+                                    <tr key={m.cohortKey}>
+                                        <td>{m.label}</td>
+                                        <td class="num">{m.won}</td>
+                                        <td class="num">{m.lost}</td>
+                                        <td class="num">{m.share}</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
             </div>
 
             <div class="tw">

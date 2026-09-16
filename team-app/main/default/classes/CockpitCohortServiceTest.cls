@@ -1,7 +1,8 @@
 /**
  * Covers: CockpitCohortService
- * Seven behavioural cases: SQL cohort key, bucket sum, Ghosted canon,
- * blank never-real, unmapped worked, immature/thin headlines, purge detectors.
+ * Behavioural cases: SQL cohort key, bucket sum, Ghosted canon,
+ * blank never-real, unmapped worked, immature/thin headlines, purge detectors,
+ * cycle-lag meaning, funnel vs execution diagnosis.
  */
 @isTest
 private class CockpitCohortServiceTest {
@@ -101,6 +102,127 @@ private class CockpitCohortServiceTest {
             'page prints that Ghosted is separate from never-real');
         System.assert(page.meaning.contains('Ghosted'),
             'Tell me what this data means covers Ghosted');
+        System.assertEquals(6, page.meaningSections.size(),
+            'meaning always emits the same six sections');
+        System.assertEquals(CockpitConstants.MEANING_COHORT, page.meaningSections[0].title);
+        System.assertEquals(CockpitConstants.MEANING_CLOSING, page.meaningSections[1].title);
+        System.assertEquals(CockpitConstants.MEANING_FUNNEL, page.meaningSections[2].title);
+        System.assertEquals(CockpitConstants.MEANING_EXECUTION, page.meaningSections[3].title);
+        System.assertEquals(CockpitConstants.MEANING_READ, page.meaningSections[4].title);
+        System.assertEquals(CockpitConstants.MEANING_BUCKETS, page.meaningSections[5].title);
+        System.assert(page.meaningSections[5].body.contains('Ghosted'),
+            'buckets section names Ghosted');
+    }
+
+    @isTest
+    static void cycleLag_clampsRoundOfP50() {
+        System.assertEquals(1, CockpitCohortService.cycleLagQuarters(45));
+        System.assertEquals(1, CockpitCohortService.cycleLagQuarters(90));
+        System.assertEquals(2, CockpitCohortService.cycleLagQuarters(171));
+        System.assertEquals(3, CockpitCohortService.cycleLagQuarters(311));
+        System.assertEquals(3, CockpitCohortService.cycleLagQuarters(500));
+        System.assertEquals(1, CockpitCohortService.cycleLagQuarters(null));
+        Date q1 = Date.newInstance(2026, 2, 15);
+        Date back = CockpitConstants.shiftQuarters(q1, -1);
+        System.assertEquals(2025, back.year());
+        System.assertEquals(4, CockpitConstants.quarterOf(back));
+    }
+
+    @isTest
+    static void diagnose_separatesFunnelFromExecution() {
+        CockpitCohortService.Settings cfg = CockpitCohortService.settings();
+        CockpitCohortService.CohortRow matched = new CockpitCohortService.CohortRow();
+        CockpitCohortService.CohortRow prior = new CockpitCohortService.CohortRow();
+        prior.created = 20;
+        prior.qualified = 16;
+        matched.created = 20;
+        matched.qualified = 8;
+        matched.qualYield = 0.40;
+        matched.won = 1;
+        matched.worked = 6;
+        matched.contestedWR = CockpitCohortService.rate(1, 7);
+        System.assertEquals(CockpitConstants.DIAGNOSIS_BOTH,
+            CockpitCohortService.diagnose(matched, prior, cfg),
+            'low yield plus losing contests is both');
+
+        matched.qualYield = 0.70;
+        matched.qualified = 16;
+        System.assertEquals(CockpitConstants.DIAGNOSIS_EXECUTION,
+            CockpitCohortService.diagnose(matched, prior, cfg),
+            'healthy yield and losing contests is execution');
+
+        matched.won = 8;
+        matched.worked = 2;
+        matched.contestedWR = CockpitCohortService.rate(8, 10);
+        matched.qualYield = 0.40;
+        matched.qualified = 8;
+        System.assertEquals(CockpitConstants.DIAGNOSIS_FUNNEL,
+            CockpitCohortService.diagnose(matched, prior, cfg),
+            'low yield with holding contested is funnel');
+
+        matched.qualYield = 0.70;
+        matched.qualified = 16;
+        System.assertEquals(CockpitConstants.DIAGNOSIS_HEALTHY,
+            CockpitCohortService.diagnose(matched, prior, cfg),
+            'yield and contested both holding');
+
+        matched.created = 2;
+        matched.won = 1;
+        matched.worked = 1;
+        System.assertEquals(CockpitConstants.DIAGNOSIS_INSUFFICIENT,
+            CockpitCohortService.diagnose(matched, prior, cfg),
+            'too few created or contests is not a call');
+    }
+
+    @isTest
+    static void thisQuarterClose_mixesLegacySqlVintages() {
+        User dir = dir();
+        User ae = aeOf(dir.Id);
+        Id rt = rtId();
+        Account a = new Account(Name = 'Legacy mix');
+        insert a;
+        Date today = Date.today();
+        Date sqlLag2 = CockpitConstants.quarterStart(
+            CockpitConstants.shiftQuarters(today, -2).year(),
+            CockpitConstants.quarterOf(CockpitConstants.shiftQuarters(today, -2))
+        ).addDays(5);
+        Date sqlLag1 = CockpitConstants.quarterStart(
+            CockpitConstants.shiftQuarters(today, -1).year(),
+            CockpitConstants.quarterOf(CockpitConstants.shiftQuarters(today, -1))
+        ).addDays(5);
+        List<Opportunity> opps = new List<Opportunity>{
+            closed(a.Id, ae.Id, rt, 'Lag2 Win', sqlLag2, today, 'Closed Won', null),
+            closed(a.Id, ae.Id, rt, 'Lag2 Work', sqlLag2, today,
+                'Closed Lost', 'Perceived lack of ROI'),
+            closed(a.Id, ae.Id, rt, 'Lag1 Win', sqlLag1, today, 'Closed Won', null)
+        };
+        for (Integer i = 0; i < 5; i++) {
+            opps.add(closed(a.Id, ae.Id, rt, 'Cycle seed ' + i,
+                Date.newInstance(2025, 1, 10), Date.newInstance(2025, 7, 9),
+                'Closed Won', null));
+        }
+        insert opps;
+
+        Test.startTest();
+        CockpitCohortService.WinRatePage page = pageFor(dir.Id);
+        Test.stopTest();
+
+        String matchedKey = CockpitCohortService.cohortKeyOf(
+            CockpitConstants.shiftQuarters(today, -page.cycleLagQuarters)
+        );
+        System.assertEquals(2, page.cycleLagQuarters,
+            'p50 of ~90/180/180 days is two quarters');
+        System.assertEquals(matchedKey, page.matchedCohortKey,
+            'matched vintage is current quarter minus product cycle lag');
+        System.assertEquals(2, page.headlines.thisQuarterWon);
+        System.assertEquals(1, page.headlines.thisQuarterLost);
+        System.assertEquals(2, page.closeMix.size(),
+            'this-quarter closes split across two SQL vintages');
+        System.assertEquals(6, page.meaningSections.size());
+        System.assert(page.meaningSections[1].body.contains('SQL vintage mix'),
+            'closing section ties this quarter to legacy SQL vintages');
+        System.assert(page.meaning.contains(CockpitConstants.MEANING_READ),
+            'joined meaning still carries The read');
     }
 
     @isTest

@@ -91,6 +91,9 @@ public with sharing class CockpitConstants {
     public static final String SETTING_PURGE_DUMP_MIN = 'winrate.purge.dump.min';
     public static final String SETTING_SIZE_UNDER = 'winrate.size.under';
     public static final String SETTING_SIZE_MID = 'winrate.size.mid';
+    public static final String SETTING_FUNNEL_YIELD_FLOOR = 'winrate.funnel.yield.floor';
+    public static final String SETTING_FUNNEL_DROP_FLOOR = 'winrate.funnel.drop.floor';
+    public static final String SETTING_EXECUTION_CONTESTED_FLOOR = 'winrate.execution.contested.floor';
 
     public static final Date LOSS_REASON_RELIABLE_FROM = Date.newInstance(2026, 2, 5);
     public static final Integer DEFAULT_THIN_SAMPLE = 15;
@@ -98,6 +101,26 @@ public with sharing class CockpitConstants {
     public static final Integer DEFAULT_PURGE_DUMP_MIN = 5;
     public static final Decimal DEFAULT_SIZE_UNDER = 50000;
     public static final Decimal DEFAULT_SIZE_MID = 150000;
+    public static final Integer DAYS_PER_QUARTER = 91;
+    public static final Integer CYCLE_LAG_MIN = 1;
+    public static final Integer CYCLE_LAG_MAX = 3;
+    public static final Decimal DEFAULT_FUNNEL_YIELD_FLOOR = 0.55;
+    public static final Decimal DEFAULT_FUNNEL_DROP_FLOOR = 0.25;
+    public static final Decimal DEFAULT_EXECUTION_CONTESTED_FLOOR = 0.40;
+    public static final Integer DEFAULT_DIAGNOSIS_MIN_CREATED = 5;
+    public static final Integer DEFAULT_DIAGNOSIS_MIN_CONTESTS = 5;
+    public static final String CLOSE_MIX_UNQUALIFIED = 'UNQUALIFIED';
+    public static final String DIAGNOSIS_FUNNEL = 'FUNNEL';
+    public static final String DIAGNOSIS_EXECUTION = 'EXECUTION';
+    public static final String DIAGNOSIS_BOTH = 'BOTH';
+    public static final String DIAGNOSIS_HEALTHY = 'HEALTHY';
+    public static final String DIAGNOSIS_INSUFFICIENT = 'INSUFFICIENT';
+    public static final String MEANING_COHORT = 'This cohort';
+    public static final String MEANING_CLOSING = 'What is closing this quarter';
+    public static final String MEANING_FUNNEL = 'Top of funnel';
+    public static final String MEANING_EXECUTION = 'Sales execution';
+    public static final String MEANING_READ = 'The read';
+    public static final String MEANING_BUCKETS = 'How to read the buckets';
 
     // Phase B thresholds and modeled-call weights (Phase A: Cockpit_Setting__mdt).
     public static final Integer THRESHOLD_HIGH = 7;   // score >= : Include-High
@@ -114,6 +137,10 @@ public with sharing class CockpitConstants {
     }
     public static Integer quarterOf(Date d) {
         return ((d.month() - 1) / 3) + 1;
+    }
+    public static Date shiftQuarters(Date d, Integer delta) {
+        if (d == null || delta == null) return d;
+        return d.addMonths(3 * delta);
     }
 
     public static Set<String> solutionsInProductFilter(String productType) {
@@ -137,9 +164,7 @@ public with sharing class CockpitConstants {
         if (productType == PRODUCT_GROUP_GRANTS) return 'Grants';
         if (productType == PRODUCT_GROUP_PROC_SOURCING) return 'Procurement Sourcing';
         if (productType == PRODUCT_GROUP_PROC_MARKET) return 'Procurement Marketplace';
-        if (String.isBlank(productType) || productType == PRODUCT_ALL) {
-            return 'All families';
-        }
+        if (String.isBlank(productType) || productType == PRODUCT_ALL) return 'All products';
         return productType;
     }
 }
