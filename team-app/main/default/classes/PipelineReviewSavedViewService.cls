@@ -18,9 +18,9 @@ public with sharing class PipelineReviewSavedViewService {
         List<ViewDTO> out = new List<ViewDTO>();
         Id uid = UserInfo.getUserId();
         for (Pipeline_Saved_View__c row : [
-            SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, Owner__c
+            SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, OwnerId
             FROM Pipeline_Saved_View__c
-            WHERE Owner__c = :uid OR Is_Shared__c = true
+            WHERE OwnerId = :uid OR Is_Shared__c = true
             WITH USER_MODE
             ORDER BY Sort_Order__c NULLS LAST, View_Name__c
         ]) {
@@ -35,13 +35,13 @@ public with sharing class PipelineReviewSavedViewService {
         Pipeline_Saved_View__c row;
         if (viewId != null) {
             row = [
-                SELECT Id, Owner__c FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
+                SELECT Id, OwnerId FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
             ];
-            if (row.Owner__c != uid) {
+            if (row.OwnerId != uid) {
                 throw new AuraHandledException('Only the owner can edit this view.');
             }
         } else {
-            row = new Pipeline_Saved_View__c(Owner__c = uid);
+            row = new Pipeline_Saved_View__c(OwnerId = uid);
         }
         String jsonBody = normalizeJson(definitionJson);
         row.View_Name__c = name;
@@ -54,14 +54,14 @@ public with sharing class PipelineReviewSavedViewService {
             List<Pipeline_Saved_View__c> siblings = [
                 SELECT Id, Is_Default__c
                 FROM Pipeline_Saved_View__c
-                WHERE Owner__c = :uid AND Id != :row.Id AND Is_Default__c = true
+                WHERE OwnerId = :uid AND Id != :row.Id AND Is_Default__c = true
                 WITH USER_MODE
             ];
             for (Pipeline_Saved_View__c s : siblings) s.Is_Default__c = false;
             if (!siblings.isEmpty()) update siblings;
         }
         return toDto([
-            SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, Owner__c
+            SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, OwnerId
             FROM Pipeline_Saved_View__c WHERE Id = :row.Id WITH USER_MODE LIMIT 1
         ], uid);
     }
@@ -69,9 +69,9 @@ public with sharing class PipelineReviewSavedViewService {
     @AuraEnabled
     public static void deleteView(Id viewId) {
         Pipeline_Saved_View__c row = [
-            SELECT Id, Owner__c FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
+            SELECT Id, OwnerId FROM Pipeline_Saved_View__c WHERE Id = :viewId WITH USER_MODE LIMIT 1
         ];
-        if (row.Owner__c != UserInfo.getUserId()) {
+        if (row.OwnerId != UserInfo.getUserId()) {
             throw new AuraHandledException('Only the owner can delete this view.');
         }
         delete row;
@@ -108,7 +108,7 @@ public with sharing class PipelineReviewSavedViewService {
         d.isShared = row.Is_Shared__c;
         d.isDefault = row.Is_Default__c;
         d.sortOrder = row.Sort_Order__c;
-        d.canEdit = row.Owner__c == uid;
+        d.canEdit = row.OwnerId == uid;
         return d;
     }
 }

@@ -5,9 +5,9 @@
     <inlineHelpText>User who owns this tag.</inlineHelpText>
     <label>Tagged By</label>
     <type>Lookup</type>
-    <deleteConstraint>Restrict</deleteConstraint>
+    <deleteConstraint>SetNull</deleteConstraint>
     <referenceTo>User</referenceTo>
     <relationshipLabel>Tagged By</relationshipLabel>
     <relationshipName>Pipeline_Review_Tags</relationshipName>
-    <required>true</required>
+    <required>false</required>
 </CustomField>

@@ -5,9 +5,9 @@
     <inlineHelpText>Whose Monday list this row belongs to.</inlineHelpText>
     <label>User</label>
     <type>Lookup</type>
-    <deleteConstraint>Restrict</deleteConstraint>
+    <deleteConstraint>SetNull</deleteConstraint>
     <referenceTo>User</referenceTo>
     <relationshipLabel>User</relationshipLabel>
     <relationshipName>Pipeline_Week_Focus</relationshipName>
-    <required>true</required>
+    <required>false</required>
 </CustomField>
