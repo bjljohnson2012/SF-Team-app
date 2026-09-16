@@ -497,6 +497,11 @@ private class PipelineReviewServicesTest {
             threw = true;
         }
         PipelineReviewScheduler.scheduledCountOverride = 0;
+        Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1];
+        String note = '09/16 - Legal is reviewing the EULA and holds the Sep 28 session, so paper is moving. Cindy to refresh the quote before Sep 28.';
+        String noteJson = '[{"id":"' + o.Id + '","note":"' + note + '","forecast":"Commit"}]';
+        String api = '{"content":[{"type":"text","text":' + JSON.serialize(noteJson) + '}],"usage":{"input_tokens":4,"output_tokens":6}}';
+        Test.setMock(HttpCalloutMock.class, new AnthropicMock(200, api));
         Test.startTest();
         try {
             PipelineReviewController.enqueueGrade();
@@ -505,7 +510,6 @@ private class PipelineReviewServicesTest {
         }
         PipelineReviewController.loadPage('not-json');
         PipelineReviewController.loadPage('{"search":"PR Deal","directorForecasts":["Commit"],"rollupForecasts":["Commit"],"recommendedForecasts":["Commit"]}');
-        Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1];
         PipelineReviewController.generateNote(o.Id, true);
         Test.stopTest();
         System.assertEquals(true, threw, 'cap path throws');
