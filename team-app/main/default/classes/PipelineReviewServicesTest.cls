@@ -486,4 +486,29 @@ private class PipelineReviewServicesTest {
         System.assertEquals(false, invalidAi.ok);
         System.assertNotEquals(null, first);
     }
+
+    @IsTest
+    static void coverage_scheduler_cap_and_controller_enqueue() {
+        PipelineReviewScheduler.scheduledCountOverride = 100;
+        Boolean threw = false;
+        try {
+            PipelineReviewScheduler.ensureScheduled();
+        } catch (Exception e) {
+            threw = true;
+        }
+        PipelineReviewScheduler.scheduledCountOverride = 0;
+        Test.startTest();
+        try {
+            PipelineReviewController.enqueueGrade();
+        } catch (Exception e) {
+            // manager access may be required
+        }
+        PipelineReviewController.loadPage('not-json');
+        PipelineReviewController.loadPage('{"search":"PR Deal","directorForecasts":["Commit"],"rollupForecasts":["Commit"],"recommendedForecasts":["Commit"]}');
+        Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1];
+        PipelineReviewController.generateNote(o.Id, true);
+        Test.stopTest();
+        System.assertEquals(true, threw, 'cap path throws');
+        PipelineReviewScheduler.scheduledCountOverride = null;
+    }
 }

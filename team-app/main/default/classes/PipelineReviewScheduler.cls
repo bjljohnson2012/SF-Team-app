@@ -5,6 +5,7 @@
 public with sharing class PipelineReviewScheduler implements Schedulable {
     public static final String JOB_NAME = 'Pipeline Review Dispatcher';
     public static final String CRON = '0 0 * * * ?';
+    @TestVisible static Integer scheduledCountOverride;
 
     public void execute(SchedulableContext sc) {
         for (PipelineReviewJobConfig.JobSpec job : PipelineReviewJobConfig.due(System.now())) {
@@ -17,12 +18,14 @@ public with sharing class PipelineReviewScheduler implements Schedulable {
      * the org is already at the 100-job cap. Call from a manager action only.
      */
     public static Id ensureScheduled() {
-        Integer scheduled = [
-            SELECT COUNT()
-            FROM CronTrigger
-            WHERE State IN ('WAITING', 'ACQUIRED', 'EXECUTING')
-              AND CronJobDetail.JobType = '7'
-        ];
+        Integer scheduled = scheduledCountOverride != null
+            ? scheduledCountOverride
+            : [
+                SELECT COUNT()
+                FROM CronTrigger
+                WHERE State IN ('WAITING', 'ACQUIRED', 'EXECUTING')
+                  AND CronJobDetail.JobType = '7'
+            ];
         if (scheduled >= 100) {
             throw new AuraHandledException('Scheduled Apex is full (100). RevOps must reclaim a slot.');
         }
