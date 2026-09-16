@@ -115,10 +115,33 @@ private class PipelineReviewServicesTest {
         System.assertEquals(true, PipelineReviewJobConfig.dayMatches('*', 'Mon'));
         System.assertEquals(true, PipelineReviewJobConfig.dayMatches('Mon,Tue', 'Mon'));
         System.assertEquals(false, PipelineReviewJobConfig.dayMatches('Mon', 'Wed'));
+        PipelineReviewJobConfig.simulateQueryFailure = true;
+        System.assertEquals(0, PipelineReviewJobConfig.due(System.now()).size(), 'query miss is empty');
+        PipelineReviewJobConfig.simulateQueryFailure = false;
+        DateTime now = System.now();
+        Integer hour = Integer.valueOf(now.format('HH', 'America/New_York'));
+        PipelineReviewJobConfig.injectedRows = new List<Pipeline_Review_Job__mdt>{
+            new Pipeline_Review_Job__mdt(
+                DeveloperName = 'PR_Due_Hit',
+                Enabled__c = true,
+                Hour_ET__c = hour,
+                Days_Of_Week__c = '*',
+                Batch_Size__c = 50,
+                Job_Class__c = 'PipelineReviewFocusLock'
+            ),
+            new Pipeline_Review_Job__mdt(
+                DeveloperName = 'PR_Due_Skip',
+                Enabled__c = false,
+                Hour_ET__c = hour,
+                Days_Of_Week__c = '*',
+                Job_Class__c = 'PipelineReviewGradeBatch'
+            )
+        };
         Test.startTest();
-        List<PipelineReviewJobConfig.JobSpec> due = PipelineReviewJobConfig.due(System.now());
+        List<PipelineReviewJobConfig.JobSpec> due = PipelineReviewJobConfig.due(now);
         Test.stopTest();
-        System.assertNotEquals(null, due, 'due never null');
+        System.assertEquals(1, due.size(), 'only enabled matching hour is due');
+        System.assertEquals('PR_Due_Hit', due[0].developerName, 'due row kept');
     }
 
     @IsTest

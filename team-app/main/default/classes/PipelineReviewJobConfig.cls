@@ -12,6 +12,9 @@ public with sharing class PipelineReviewJobConfig {
         public String daysOfWeek;
     }
 
+    @TestVisible static Boolean simulateQueryFailure = false;
+    @TestVisible static List<Pipeline_Review_Job__mdt> injectedRows;
+
     public static List<JobSpec> due(Datetime nowUtc) {
         List<JobSpec> out = new List<JobSpec>();
         if (nowUtc == null) nowUtc = System.now();
@@ -20,7 +23,10 @@ public with sharing class PipelineReviewJobConfig {
         String dow = et.format('EEE', 'America/New_York'); // Mon
         List<Pipeline_Review_Job__mdt> rows;
         try {
-            rows = [
+            if (simulateQueryFailure) {
+                throw new QueryException('Pipeline_Review_Job__mdt unavailable');
+            }
+            rows = injectedRows != null ? injectedRows : [
                 SELECT DeveloperName, Enabled__c, Hour_ET__c, Days_Of_Week__c, Batch_Size__c, Job_Class__c
                 FROM Pipeline_Review_Job__mdt
             ];
