@@ -12,6 +12,7 @@ public with sharing class PipelineReviewController {
         @AuraEnabled public String accessLevel;
         @AuraEnabled public Boolean weekLocked;
         @AuraEnabled public List<UserDTO> aes;
+        @AuraEnabled public List<UserDTO> directors;
         @AuraEnabled public List<PipelineReviewSavedViewService.ViewDTO> views;
         @AuraEnabled public List<RunDTO> runs;
     }
@@ -23,6 +24,7 @@ public with sharing class PipelineReviewController {
         @AuraEnabled public String ae;
         @AuraEnabled public Id ownerId;
         @AuraEnabled public String stage;
+        @AuraEnabled public String solution;
         @AuraEnabled public Date closeDate;
         @AuraEnabled public Decimal arr;
         @AuraEnabled public String aeForecast;
@@ -38,6 +40,8 @@ public with sharing class PipelineReviewController {
         @AuraEnabled public Date nextStepDate;
         @AuraEnabled public String nextStepState;
         @AuraEnabled public String note;
+        @AuraEnabled public Date noteUpdatedOn;
+        @AuraEnabled public Datetime gradeComputedOn;
         @AuraEnabled public String suggestedNextStep;
         @AuraEnabled public Date suggestedNextStepDate;
         @AuraEnabled public String suggestionStatus;
@@ -126,6 +130,7 @@ public with sharing class PipelineReviewController {
             d.name = u.Name;
             page.aes.add(d);
         }
+        page.directors = listDirectors();
         String search = f == null ? null : f.search;
         for (Opportunity o : load.records) {
             RowDTO row = toRow(o, tags.get(o.Id));
@@ -368,6 +373,8 @@ public with sharing class PipelineReviewController {
             f.recommendedForecasts = toStrList(m.get('recommendedForecasts'));
             f.tags = toStrList(m.get('tags'));
             f.nextStepStates = toStrList(m.get('nextStepStates'));
+            f.staleness = toStrList(m.get('staleness'));
+            f.runStates = toStrList(m.get('runStates'));
             f.solutions = toStrList(m.get('solutions'));
             f.ownerIds = toIdList(m.get('ownerIds'));
             if (m.containsKey('arrMin') && m.get('arrMin') != null) f.arrMin = Decimal.valueOf(String.valueOf(m.get('arrMin')));
@@ -405,6 +412,7 @@ public with sharing class PipelineReviewController {
         r.ae = o.Owner == null ? '' : o.Owner.Name;
         r.ownerId = o.OwnerId;
         r.stage = o.StageName;
+        r.solution = (String) safeGet(o, 'EUNA_Solution__c');
         r.closeDate = o.CloseDate;
         r.arr = (Decimal) o.get('ARR_Opportunity_Amount_USD_Num__c');
         r.aeForecast = o.ForecastCategoryName;
@@ -420,6 +428,8 @@ public with sharing class PipelineReviewController {
         r.nextStepDate = o.Next_Step_Date_bf__c;
         r.nextStepState = (String) safeGet(o, 'Next_Step_State__c');
         r.note = o.Director_Notes_bf__c;
+        r.noteUpdatedOn = (Date) safeGet(o, 'Director_Note_Updated_On__c');
+        r.gradeComputedOn = (Datetime) safeGet(o, 'Grade_Computed_On__c');
         r.suggestedNextStep = (String) safeGet(o, 'Suggested_Next_Step__c');
         r.suggestedNextStepDate = (Date) safeGet(o, 'Suggested_Next_Step_Date__c');
         r.suggestionStatus = (String) safeGet(o, 'Suggestion_Status__c');
@@ -443,6 +453,51 @@ public with sharing class PipelineReviewController {
         return r;
     }
 
+    private static List<UserDTO> listDirectors() {
+        List<UserDTO> out = new List<UserDTO>();
+        Set<Id> ids = new Set<Id>{ UserInfo.getUserId() };
+        try {
+            for (User u : [
+                SELECT ManagerId
+                FROM User
+                WHERE IsActive = true AND ManagerId != null
+                WITH USER_MODE
+                LIMIT 500
+            ]) {
+                if (u.ManagerId != null) ids.add(u.ManagerId);
+            }
+        } catch (Exception e) {
+            try {
+                for (User u : [
+                    SELECT ManagerId
+                    FROM User
+                    WHERE IsActive = true AND ManagerId != null
+                    LIMIT 500
+                ]) {
+                    if (u.ManagerId != null) ids.add(u.ManagerId);
+                }
+            } catch (Exception e2) {
+                ids.add(UserInfo.getUserId());
+            }
+        }
+        try {
+            for (User u : [
+                SELECT Id, Name
+                FROM User
+                WHERE Id IN :ids AND IsActive = true
+                ORDER BY Name
+            ]) {
+                UserDTO d = new UserDTO();
+                d.id = u.Id;
+                d.name = u.Name;
+                out.add(d);
+            }
+        } catch (Exception e) {
+            return out;
+        }
+        return out;
+    }
+
     private static Object safeGet(SObject rec, String fieldName) {
         try {
             return rec.get(fieldName);
@@ -455,7 +510,8 @@ public with sharing class PipelineReviewController {
         String q = search.toLowerCase();
         return (row.account != null && row.account.toLowerCase().contains(q))
             || (row.name != null && row.name.toLowerCase().contains(q))
-            || (row.note != null && row.note.toLowerCase().contains(q));
+            || (row.note != null && row.note.toLowerCase().contains(q))
+            || (row.solution != null && row.solution.toLowerCase().contains(q));
     }
 
     public static String resolveMode(String mode, Date today) {

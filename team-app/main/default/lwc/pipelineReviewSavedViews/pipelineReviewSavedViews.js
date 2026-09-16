@@ -1,6 +1,7 @@
 import { LightningElement, api } from 'lwc';
 export default class PipelineReviewSavedViews extends LightningElement {
     @api views = [];
+    @api onlyChanged = false;
     selectedId;
     onPick(e) {
         this.selectedId = e.target.value;
@@ -8,6 +9,8 @@ export default class PipelineReviewSavedViews extends LightningElement {
         if (v) this.dispatchEvent(new CustomEvent('viewload', { detail: v }));
     }
     onSave() { this.dispatchEvent(new CustomEvent('viewsave')); }
-    onDup() { this.dispatchEvent(new CustomEvent('viewdup', { detail: this.selectedId })); }
     onDel() { this.dispatchEvent(new CustomEvent('viewdel', { detail: this.selectedId })); }
+    onReset() { this.dispatchEvent(new CustomEvent('viewreset')); }
+    onRefresh() { this.dispatchEvent(new CustomEvent('viewrefresh')); }
+    onChanged(e) { this.dispatchEvent(new CustomEvent('onlychanged', { detail: e.target.checked })); }
 }

@@ -1,13 +1,16 @@
 <template>
-    <div class="pr-filters">
-        <div class="pr-f"><label>Saved views</label>
+    <div class="bar">
+        <label class="chk"><input type="checkbox" checked={onlyChanged} onchange={onChanged}> Only changed</label>
+        <div class="f">
+            <label>Saved view</label>
             <select onchange={onPick}>
-                <option value="">—</option>
+                <option value="">— none —</option>
                 <template for:each={views} for:item="v"><option key={v.id} value={v.id}>{v.name}</option></template>
             </select>
         </div>
-        <button class="btn" onclick={onSave}>Save view</button>
-        <button class="btn ghost" onclick={onDup}>Duplicate</button>
-        <button class="btn ghost" onclick={onDel}>Delete</button>
+        <button class="btn" onclick={onSave}>Save</button>
+        <button class="btn" onclick={onDel}>Del</button>
+        <button class="btn" onclick={onReset}>Reset filters</button>
+        <button class="btn" onclick={onRefresh}>Refresh from Salesforce</button>
     </div>
 </template>

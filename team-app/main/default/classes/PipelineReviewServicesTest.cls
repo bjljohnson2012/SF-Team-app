@@ -509,7 +509,8 @@ private class PipelineReviewServicesTest {
             // manager access may be required
         }
         PipelineReviewController.loadPage('not-json');
-        PipelineReviewController.loadPage('{"search":"PR Deal","directorForecasts":["Commit"],"rollupForecasts":["Commit"],"recommendedForecasts":["Commit"]}');
+        PipelineReviewController.PageDTO dash = PipelineReviewController.loadPage('{"search":"PR Deal","directorForecasts":["Commit"],"rollupForecasts":["Commit"],"recommendedForecasts":["Commit"],"staleness":["current"],"runStates":["never"]}');
+        System.assertNotEquals(null, dash.directors);
         PipelineReviewController.generateNote(o.Id, true);
         Test.stopTest();
         System.assertEquals(true, threw, 'cap path throws');
