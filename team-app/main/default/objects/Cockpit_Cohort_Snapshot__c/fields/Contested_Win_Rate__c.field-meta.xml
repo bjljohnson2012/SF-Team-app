@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Contested_Win_Rate__c</fullName>
+    <label>Contested Win Rate</label>
+    <description>Stored won/(won+worked). Null when no contested deals. Not a formula.</description>
+    <inlineHelpText>Stored won/(won+worked). Null when no contested deals. Not a formula.</inlineHelpText>
+    <type>Number</type>
+    <precision>5</precision>
+    <scale>4</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

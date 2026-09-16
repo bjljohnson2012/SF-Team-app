@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Closure_Based_Rate__c</fullName>
+    <label>Closure Based Rate</label>
+    <description>Stored won/(won+lost) among CloseDate-in-quarter deals. Not a formula.</description>
+    <inlineHelpText>Stored won/(won+lost) among CloseDate-in-quarter deals. Not a formula.</inlineHelpText>
+    <type>Number</type>
+    <precision>5</precision>
+    <scale>4</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

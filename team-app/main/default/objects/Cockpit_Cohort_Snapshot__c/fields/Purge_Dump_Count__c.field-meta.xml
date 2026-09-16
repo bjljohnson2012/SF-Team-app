@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Purge_Dump_Count__c</fullName>
+    <label>Purge Dump Count</label>
+    <description>Closed-not-won sharing an owner and CloseDate in a group of 5+.</description>
+    <inlineHelpText>Closed-not-won sharing an owner and CloseDate in a group of 5+.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>0</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>

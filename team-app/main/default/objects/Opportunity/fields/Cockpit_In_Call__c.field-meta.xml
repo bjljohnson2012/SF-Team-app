@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Cockpit_In_Call__c</fullName>
+    <label>Cockpit In Call</label>
+    <description>Forecasting Hub: the director's persisted "in my call" pick for this opportunity. Written by the Forecasting Hub LWC via CockpitForecastController.setInCall.</description>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+    <trackHistory>false</trackHistory>
+</CustomField>

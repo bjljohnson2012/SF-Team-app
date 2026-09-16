@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ARR_Won__c</fullName>
+    <label>ARR Won</label>
+    <description>Won ARR as Number (not Currency) so snapshots stay USD-safe.</description>
+    <inlineHelpText>Won ARR as Number (not Currency) so snapshots stay USD-safe.</inlineHelpText>
+    <type>Number</type>
+    <precision>18</precision>
+    <scale>2</scale>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>
