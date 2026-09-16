@@ -85,3 +85,19 @@ Owner asked for the product type filter to be only Budget, Grants, Procurement S
 - **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
 - **Post-deploy smoke:** `getFilterOptions.productGroups` is exactly those four labels. Default page is Budget (14 rows, caption `Team of Ben Johnson · Budget · All sizes`). AE still uses raw SKUs.
 - **Rollback:** prior grouped picker from `0AfOL000003T1wf0AC`.
+
+## 2026-09-16 — Win Rate Truth cycle-matched meaning
+
+Owner authorized prod deploy (“Okay, deploy.”). Carve-out expired; this is an explicit exception. First quick on `0AfOL000003TCLp0AO` failed (`INVALID_ID_FIELD: There have been deploys since validation`) after a sibling 10-component deploy. Re-validated and quicked immediately.
+
+- **Org:** `euna` (production, `00D1I000001VBDGUA4`)
+- **Branch:** `cursor/win-rate-truth-4c8f` (PR #6)
+- **Components:** `CockpitCohortService` (+ test), `CockpitConstants`, `LightningComponentBundle:winRateTruth`. Did not deploy AE-by-AE or Conversion Metrics page files. Did not deploy `CockpitWinRateController` (sibling traffic).
+- **Validated job id:** `0AfOL000003TCgn0AG` — `RunSpecifiedTests` (WRT + batch + controller + roster); 20/20 tests, 0 failures. Check-only.
+- **Quick-deploy job id:** `0AfOL000003TCld0AG` — Succeeded, wrote prod.
+- **Earlier validate (not quicked):** `0AfOL000003TAK10AO` and `0AfOL000003TCLp0AO` (intervening deploys). Failed quick `0AfOL000003TCX70AO`.
+- **Command shape:** `sf project deploy validate` → `sf project deploy quick` (never `deploy start`).
+- **Review verdict:** Manual diligence — **PASS**. Formal `/sf-review` NOT run.
+- **Approved by:** org owner (benjamin.johnson), live-tab meaning follow-up.
+- **Post-deploy smoke (Ben / My team / All sizes):** six meaning sections on every family. Budget p50 74d / lag 1 / matched Q2 2026 / this-Q 5–6 / diagnosis too thin. Grants p50 143d / lag 2 / matched Q1 2026 / contested 25% / **execution**. Sourcing p50 203d / lag 2 / contested 42.9% / **execution**. Marketplace p50 197d / lag 2 / yield 52.6% / **funnel**. Budget this-Q mix: Never SQL’d 6, Q3 3 won, Q1 2 won.
+- **Rollback:** prior WRT meaning from `0AfOL000003T21V0AS`.
