@@ -109,7 +109,7 @@ public with sharing class PipelineReviewSelector {
         }
         tail += appendFilters(f);
         tail += ' ORDER BY ARR_Opportunity_Amount_USD_Num__c DESC NULLS LAST, CloseDate ASC NULLS LAST LIMIT 2000';
-        out.records = queryBook(core + extraFields + tail, core + tail);
+        out.records = queryBook(core + extraFields + tail, core + tail, f, owners, rt);
         out.loaded = out.records.size();
         out.expected = out.loaded;
         for (Opportunity o : out.records) {
@@ -316,7 +316,8 @@ public with sharing class PipelineReviewSelector {
         return w;
     }
 
-    private static List<Opportunity> queryBook(String enriched, String core) {
+    private static List<Opportunity> queryBook(String enriched, String core, Filter f, Set<Id> owners, Id rt) {
+        if (owners == null) owners = new Set<Id>();
         try {
             return Database.query(enriched, AccessLevel.USER_MODE);
         } catch (Exception e1) {

@@ -460,9 +460,8 @@ public with sharing class PipelineReviewController {
             for (User u : [
                 SELECT ManagerId
                 FROM User
-                WHERE IsActive = true AND ManagerId != null
+                WHERE Id IN :PipelineReviewSelector.teamOwnerIds(UserInfo.getUserId())
                 WITH USER_MODE
-                LIMIT 500
             ]) {
                 if (u.ManagerId != null) ids.add(u.ManagerId);
             }
@@ -471,8 +470,7 @@ public with sharing class PipelineReviewController {
                 for (User u : [
                     SELECT ManagerId
                     FROM User
-                    WHERE IsActive = true AND ManagerId != null
-                    LIMIT 500
+                    WHERE Id IN :PipelineReviewSelector.teamOwnerIds(UserInfo.getUserId())
                 ]) {
                     if (u.ManagerId != null) ids.add(u.ManagerId);
                 }
