@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tabs__c</fullName>
+    <description>Semicolon-separated tab keys this user may use in GTM - Team Johnson (for example main;sales_performance;admin). Edited as checkboxes on the Admin tab after a role is chosen.</description>
+    <inlineHelpText>Tabs this user can use. Role presets a starting set; uncheck any tab to hide it from their grant.</inlineHelpText>
+    <label>Tabs</label>
+    <length>1000</length>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>
