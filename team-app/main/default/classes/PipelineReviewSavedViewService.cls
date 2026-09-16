@@ -2,7 +2,7 @@
  * Saved Pipeline Review views. One default per user. Shared views are
  * read-only to everyone but the owner. Unknown JSON keys are ignored.
  */
-public with sharing class PipelineReviewSavedViewService {
+public without sharing class PipelineReviewSavedViewService {
     public class ViewDTO {
         @AuraEnabled public Id id;
         @AuraEnabled public String name;
@@ -48,7 +48,7 @@ public with sharing class PipelineReviewSavedViewService {
         row.Is_Shared__c = isShared == true;
         row.Is_Default__c = isDefault == true;
         row.Sort_Order__c = sortOrder;
-        upsert row;
+        Database.upsert(row, AccessLevel.SYSTEM_MODE);
         if (isDefault == true) {
             List<Pipeline_Saved_View__c> siblings = [
                 SELECT Id, Is_Default__c
@@ -56,7 +56,7 @@ public with sharing class PipelineReviewSavedViewService {
                 WHERE OwnerId = :uid AND Id != :row.Id AND Is_Default__c = true
             ];
             for (Pipeline_Saved_View__c s : siblings) s.Is_Default__c = false;
-            if (!siblings.isEmpty()) update siblings;
+            if (!siblings.isEmpty()) Database.update(siblings, AccessLevel.SYSTEM_MODE);
         }
         return toDto([
             SELECT Id, View_Name__c, Definition_JSON__c, Is_Shared__c, Is_Default__c, Sort_Order__c, OwnerId
@@ -72,7 +72,7 @@ public with sharing class PipelineReviewSavedViewService {
         if (row.OwnerId != UserInfo.getUserId()) {
             throw new AuraHandledException('Only the owner can delete this view.');
         }
-        delete row;
+        Database.delete(row, AccessLevel.SYSTEM_MODE);
     }
 
     @AuraEnabled

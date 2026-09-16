@@ -13,8 +13,12 @@ public with sharing class PipelineReviewNoteBatch implements Database.Batchable<
             Started_At__c = System.now(),
             Async_Job_Id__c = bc == null ? null : bc.getJobId()
         );
-        insert run;
-        runId = run.Id;
+        try {
+            Database.insert(run, AccessLevel.SYSTEM_MODE);
+            runId = run.Id;
+        } catch (Exception e) {
+            runId = null;
+        }
         return Database.getQueryLocator([
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, ForecastCategoryName,
                    Director_Forecast_bf__c, Next_Step_bf__c, Next_Step_Date_bf__c, Director_Notes_bf__c,
@@ -55,7 +59,7 @@ public with sharing class PipelineReviewNoteBatch implements Database.Batchable<
             items.add(item);
             if (g.ok) regenerated++;
         }
-        if (!items.isEmpty()) Database.insert(items, false);
+        if (!items.isEmpty()) Database.insert(items, false, AccessLevel.SYSTEM_MODE);
     }
 
     public void finish(Database.BatchableContext bc) {
@@ -67,7 +71,7 @@ public with sharing class PipelineReviewNoteBatch implements Database.Batchable<
             Skipped__c = skipped,
             Completed__c = regenerated
         );
-        update run;
+        Database.update(run, AccessLevel.SYSTEM_MODE);
     }
 
     private Boolean isCancelled() {

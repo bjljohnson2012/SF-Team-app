@@ -30,6 +30,22 @@ private class PipelineReviewServicesTest {
 
     @TestSetup
     static void data() {
+        User runner = new User(Id = UserInfo.getUserId());
+        System.runAs(runner) {
+            try {
+                PermissionSet ps = [
+                    SELECT Id FROM PermissionSet
+                    WHERE Name = 'GTM_Pipeline_Review' OR Label = 'GTM Pipeline Review'
+                    LIMIT 1
+                ];
+                insert new PermissionSetAssignment(
+                    AssigneeId = UserInfo.getUserId(),
+                    PermissionSetId = ps.Id
+                );
+            } catch (Exception e) {
+                // already assigned in this org, or permset not visible yet
+            }
+        }
         Account a = new Account(Name = 'PR Test County');
         insert a;
         Id rt = Schema.SObjectType.Opportunity.getRecordTypeInfosByDeveloperName()
@@ -234,11 +250,11 @@ private class PipelineReviewServicesTest {
         );
         PipelineReviewWriteService.WriteResult rs = PipelineReviewWriteService.reschedule(o.Id, null, Date.today().addDays(6));
         Test.stopTest();
-        System.assertEquals(true, note.ok, note.error);
-        System.assertEquals(true, step.ok, step.error);
-        System.assertEquals(true, sn.ok, sn.error);
-        System.assertEquals(true, done.ok, done.error);
-        System.assertEquals(true, rs.ok, rs.error);
+        System.assertEquals(true, note.ok, String.valueOf(note.error));
+        System.assertEquals(true, step.ok, String.valueOf(step.error));
+        System.assertEquals(true, sn.ok, String.valueOf(sn.error));
+        System.assertEquals(true, done.ok, String.valueOf(done.error));
+        System.assertEquals(true, rs.ok, String.valueOf(rs.error));
         System.assertEquals(1, [SELECT COUNT() FROM Pipeline_Action_Snooze__c WHERE Opportunity__c = :o.Id]);
     }
 
@@ -306,6 +322,11 @@ private class PipelineReviewServicesTest {
         } catch (AuraHandledException e) {
             System.assert(e.getMessage() != null, 'cap refusal is ok');
         }
+        System.schedule(
+            'PR Test Dispatcher ' + String.valueOf(System.now().getTime()),
+            '0 0 * * * ?',
+            new PipelineReviewScheduler()
+        );
     }
 
     @IsTest
@@ -318,6 +339,7 @@ private class PipelineReviewServicesTest {
         String api = '{"content":[{"type":"text","text":' + JSON.serialize(noteJson) + '}],"usage":{"input_tokens":4,"output_tokens":6}}';
         Test.setMock(HttpCalloutMock.class, new AnthropicMock(200, api));
         Test.startTest();
+        PipelineReviewController.generateNote(oppId, false);
         PipelineReviewJobConfig.JobSpec spec = new PipelineReviewJobConfig.JobSpec();
         spec.jobClass = 'PipelineReviewNoteBatch';
         spec.batchSize = 15;
@@ -329,8 +351,8 @@ private class PipelineReviewServicesTest {
     @IsTest
     static void suggestionBatch_and_aiHelpers() {
         Opportunity o = [
-            SELECT Id, Name, Owner.Name, StageName, CloseDate, Next_Step_bf__c, Next_Step_Date_bf__c,
-                   ARR_Opportunity_Amount_USD_Num__c, Pricing_Approval_Status__c
+            SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, Next_Step_bf__c,
+                   Next_Step_Date_bf__c, ARR_Opportunity_Amount_USD_Num__c, Pricing_Approval_Status__c
             FROM Opportunity WHERE Name = 'PR Deal 1' LIMIT 1
         ];
         String stepJson = '[{"id":"' + o.Id + '","nextStep":"Send recap to Elaine","nextStepDate":"'
@@ -395,5 +417,15 @@ private class PipelineReviewServicesTest {
         System.assertEquals(false, accept.ok);
         System.assertNotEquals(null, PipelineReviewSelector.titlePatternInputs());
         System.assertNotEquals(null, PipelineReviewSelector.weightConfig());
+        System.assertEquals(0, PipelineReviewSelector.teamUsers(new Set<Id>()).size());
+        System.assert(PipelineReviewSelector.loadHistory(new List<Id>()).isEmpty());
+        System.assert(PipelineReviewSelector.loadTags(new List<Id>(), UserInfo.getUserId()).isEmpty());
+        f.recommendedForecasts = new List<String>{ 'Commit' };
+        f.directorForecasts = new List<String>{ 'Commit' };
+        f.rollupForecasts = new List<String>{ 'Commit' };
+        f.nextStepStates = new List<String>{ 'Healthy' };
+        f.solutions = new List<String>{ 'Finance' };
+        f.pricing = new List<String>{ 'Approved' };
+        System.assertNotEquals(null, PipelineReviewSelector.loadBook(f));
     }
 }

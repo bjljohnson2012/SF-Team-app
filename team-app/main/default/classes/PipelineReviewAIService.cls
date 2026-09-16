@@ -169,6 +169,14 @@ public with sharing class PipelineReviewAIService {
         return s.substring(start, last + 1);
     }
 
+    private static String accountName(Opportunity o) {
+        try {
+            return o.Account == null ? o.Name : o.Account.Name;
+        } catch (Exception e) {
+            return o.Name;
+        }
+    }
+
     public static Date parseIsoDate(String raw) {
         if (String.isBlank(raw)) return null;
         try {
@@ -200,7 +208,7 @@ public with sharing class PipelineReviewAIService {
             String ae = o.Owner == null ? '' : o.Owner.Name;
             blocks.add(
                 'Id=' + o.Id
-                + '\nAccount=' + (o.Account == null ? o.Name : o.Account.Name)
+                + '\nAccount=' + accountName(o)
                 + '\nAE=' + ae
                 + '\nStage=' + o.StageName
                 + '\nClose=' + String.valueOf(o.CloseDate)
