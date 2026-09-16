@@ -1,0 +1,114 @@
+-- ============================================================================
+-- ACTIVITY LAYER (SALESLOFT)
+--
+-- The Salesloft managed package IS installed in this org and writes to Task.
+-- Confirmed live on 2026-09-14. This matters because the standard fields are
+-- empty: Task.CallDisposition is null on every row for this team, and
+-- Task.CallType is populated on only 351 of 3,202 Call tasks. The package
+-- field is the only usable source of call outcome.
+--
+-- Package fields present on Task:
+--   SalesLoft1__Call_Disposition__c              Text(255)
+--   SalesLoft1__Call_Sentiment__c                Text(255)
+--   SalesLoft1__Call_Duration_in_Minutes__c      Formula (Number)
+--   SalesLoft1__SalesLoft_Cadence_Name__c        Text(255)
+--   SalesLoft1__SalesLoft_Connected_Count__c     Formula (Number)
+--   SalesLoft1__SalesLoft_Replies_Count__c       Number(18,0)
+--   SalesLoft1__SalesLoft_Unique_Reply_Count__c  Formula (Number)
+--   SalesLoft1__SalesLoft_View_Count__c          Number(18,0)
+--   SalesLoft1__SalesLoft_Type__c                Formula (Text)
+-- Plus org built SL fields: SL_Cadence_ID__c, SLCall_Start_Time__c,
+-- SLStep_Type__c, Step_Name__c, SLMeeting_Date__c, SLMeeting_Booked_By__c,
+-- SLMeeting_No_Show__c, Auto_Reply__c.
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- A. Dial outcomes. Live result for this team, 2026 YTD:
+--      Connected 611, No Answer 1451, Left Voicemail 412,
+--      Wrong Number 55, Not in Service 41, Busy 24, Rejected 3, null 29602
+--    2,597 dispositioned dials, 611 connects = 23.5% raw connect rate,
+--    24.4% once Wrong Number and Not in Service are removed as bad data.
+-- ---------------------------------------------------------------------------
+SELECT SalesLoft1__Call_Disposition__c disp, COUNT(Id) cnt
+FROM Task
+WHERE OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND TaskSubtype = 'Call'
+  AND Status = 'Completed'
+  AND ActivityDate >= 2026-01-01
+GROUP BY SalesLoft1__Call_Disposition__c
+ORDER BY COUNT(Id) DESC;
+
+-- ---------------------------------------------------------------------------
+-- B. Per AE version, the shape the nightly job writes.
+--    Note: group on OwnerId and the disposition text, both direct fields.
+--    GROUP BY on a relationship field is charged every SCANNED row against
+--    the 50,000 limit, which is how this query blows up at team scale.
+-- ---------------------------------------------------------------------------
+SELECT OwnerId, SalesLoft1__Call_Disposition__c disp, COUNT(Id) cnt
+FROM Task
+WHERE OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND TaskSubtype = 'Call'
+  AND Status = 'Completed'
+  AND ActivityDate >= 2026-07-01 AND ActivityDate <= 2026-09-30
+GROUP BY OwnerId, SalesLoft1__Call_Disposition__c;
+
+-- ---------------------------------------------------------------------------
+-- C. Emails sent. 28,198 completed Email tasks for this team in 2026 YTD.
+--    Auto_Reply__c excludes out of office noise.
+-- ---------------------------------------------------------------------------
+SELECT OwnerId, COUNT(Id) cnt
+FROM Task
+WHERE OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND TaskSubtype = 'Email'
+  AND Status = 'Completed'
+  AND ActivityDate >= 2026-07-01 AND ActivityDate <= 2026-09-30
+  AND Auto_Reply__c = false
+GROUP BY OwnerId;
+
+-- ---------------------------------------------------------------------------
+-- D. Replies. Taken from EmailMessage.Incoming, NOT from
+--    SalesLoft1__SalesLoft_Replies_Count__c. That field counts replies against
+--    the sent task, so summing it double counts a thread with several
+--    responses and misses replies to email sent outside a cadence.
+--    MessageDate is a dateTime: no quotes, and it needs the Z suffix.
+-- ---------------------------------------------------------------------------
+SELECT CreatedById, COUNT(Id) cnt
+FROM EmailMessage
+WHERE CreatedById IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                      '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND Incoming = true
+  AND MessageDate >= 2026-07-01T00:00:00Z
+  AND MessageDate <= 2026-09-30T23:59:59Z
+GROUP BY CreatedById;
+
+-- ---------------------------------------------------------------------------
+-- E. Cadence coverage. 5,044 tasks for this team carry a cadence name, which
+--    is the share of activity running through a structured play rather than
+--    ad hoc. This is the real "outbound at scale" denominator.
+-- ---------------------------------------------------------------------------
+SELECT COUNT()
+FROM Task
+WHERE OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND ActivityDate >= 2026-01-01
+  AND SalesLoft1__SalesLoft_Cadence_Name__c != null;
+
+-- ---------------------------------------------------------------------------
+-- F. Data quality gate. Run this BEFORE trusting any dial metric. Below 70%
+--    the activity rows are indicative only and the UI says so.
+-- ---------------------------------------------------------------------------
+SELECT COUNT() FROM Task
+WHERE OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND TaskSubtype = 'Call' AND Status = 'Completed'
+  AND ActivityDate >= 2026-01-01;
+-- divide the next result by the one above
+SELECT COUNT() FROM Task
+WHERE OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND TaskSubtype = 'Call' AND Status = 'Completed'
+  AND ActivityDate >= 2026-01-01
+  AND SalesLoft1__Call_Disposition__c != null;

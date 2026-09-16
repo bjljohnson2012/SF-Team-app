@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Activity_Data_Complete__c</fullName>
+    <description>Dispositioned Call tasks / all completed Call tasks this period.</description>
+    <inlineHelpText>Dispositioned Call tasks / all completed Call tasks this period.</inlineHelpText>
+    <label>Activity Data Complete</label>
+    <precision>8</precision>
+    <required>false</required>
+    <scale>4</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

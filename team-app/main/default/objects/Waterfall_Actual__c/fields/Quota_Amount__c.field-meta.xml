@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Quota_Amount__c</fullName>
+    <description>Sum of Sales_Plan__c.Quota_Amount__c for this AE and period. Number, not Currency.</description>
+    <inlineHelpText>Sum of Sales_Plan__c.Quota_Amount__c for this AE and period. Number, not Currency.</inlineHelpText>
+    <label>Quota Amount</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

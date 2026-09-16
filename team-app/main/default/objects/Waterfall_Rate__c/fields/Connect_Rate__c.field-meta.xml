@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Connect_Rate__c</fullName>
+    <description>Connected / (dispositioned Call tasks minus Wrong Number and Not in Service). Dispositioned tasks only.</description>
+    <inlineHelpText>Connected / (dispositioned Call tasks minus Wrong Number and Not in Service). Dispositioned tasks only.</inlineHelpText>
+    <label>Connect Rate</label>
+    <precision>8</precision>
+    <required>false</required>
+    <scale>4</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

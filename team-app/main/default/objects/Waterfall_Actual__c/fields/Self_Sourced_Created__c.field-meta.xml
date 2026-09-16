@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Self_Sourced_Created__c</fullName>
+    <description>Created opportunities whose Primary_Team_Source__c is AE Outbound or AM.</description>
+    <inlineHelpText>Created opportunities whose Primary_Team_Source__c is AE Outbound or AM.</inlineHelpText>
+    <label>Self Sourced Created</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

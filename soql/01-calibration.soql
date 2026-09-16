@@ -1,0 +1,171 @@
+-- ============================================================================
+-- CALIBRATION QUERIES
+-- Run these by hand to reproduce or audit anything the Apex engine computes.
+-- Every one was executed against euna-prod on 2026-09-14.
+--
+-- Replace the id list with the AE user ids in scope. The list below is
+-- Ben Johnson's team as of 2026-09-14, resolved from User.ManagerId.
+--
+--   Cindy Whitaker      005I9000000JMpKIAW
+--   Ian McMahon         005OL00000BO2bpYAD
+--   Kimber-Lee Pearl    005OL00000DRXejYAH
+--   Nick Fierke         005OL00000F0LTeYAN
+--   Rahaf Bataineh      0058W000008yfBcQAI
+--   Stephen Cook        005I9000000JDkzIAG
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- A. Roster. Never hard code the team; resolve it.
+-- ---------------------------------------------------------------------------
+SELECT Id, Name, Title, UserRole.Name
+FROM User
+WHERE Manager.Name = 'Ben Johnson' AND IsActive = true
+ORDER BY Name;
+
+-- ---------------------------------------------------------------------------
+-- B. Win rate and ASP per AE per quarter, trailing 8 quarters.
+--    Gated on SQL_Datestamp_bf__c: this is the win rate on QUALIFIED deals,
+--    which is the rate the waterfall divides by. Dropping the gate gives the
+--    Insights tab number instead, which is a few points lower.
+--    Disqualifications, duplicates and ghosting are out of the denominator.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName,
+       CALENDAR_YEAR(CloseDate) yr, CALENDAR_QUARTER(CloseDate) qtr,
+       IsWon, COUNT(Id) cnt, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+FROM Opportunity
+WHERE IsClosed = true
+  AND CloseDate >= 2024-10-01
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+  AND SQL_Datestamp_bf__c != null
+  AND (Lost_Reason__c = null
+       OR Lost_Reason__c NOT IN ('Opportunity not Qualified','Duplicate Opportunity','Ghosted'))
+GROUP BY Owner.Name, CALENDAR_YEAR(CloseDate), CALENDAR_QUARTER(CloseDate), IsWon
+ORDER BY Owner.Name, CALENDAR_YEAR(CloseDate), CALENDAR_QUARTER(CloseDate);
+
+-- ---------------------------------------------------------------------------
+-- C. Same, split by product. This is the query that proves a single blended
+--    per AE rate is the wrong denominator: on this team Budget Professional
+--    runs a 63% win rate at an $11K ASP while Procurement-Bonfire runs 23%
+--    at a $27K ASP. Pooling them describes neither.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName, EUNA_Solution__c sol, IsWon,
+       COUNT(Id) cnt, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+FROM Opportunity
+WHERE IsClosed = true
+  AND CloseDate >= 2024-10-01
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+  AND SQL_Datestamp_bf__c != null
+  AND (Lost_Reason__c = null
+       OR Lost_Reason__c NOT IN ('Opportunity not Qualified','Duplicate Opportunity','Ghosted'))
+GROUP BY Owner.Name, EUNA_Solution__c, IsWon
+ORDER BY Owner.Name, EUNA_Solution__c;
+
+-- ---------------------------------------------------------------------------
+-- D. ASP denominator correction. Some wins carry zero ARR (bundled or
+--    placeholder records). Count them in the win rate, exclude them from ASP.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName, COUNT(Id) arrBearingWins,
+       SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+FROM Opportunity
+WHERE IsWon = true
+  AND CloseDate >= 2024-10-01
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+  AND SQL_Datestamp_bf__c != null
+  AND ARR_Opportunity_Amount_USD_Num__c > 0
+GROUP BY Owner.Name;
+
+-- ---------------------------------------------------------------------------
+-- E. Sales cycle. AVG is shown here for a quick read, but the engine computes
+--    a MEDIAN from raw rows. The spread below is why: one AE's max is 1,084
+--    days, and a mean built on that produces a pipeline requirement aimed at
+--    the wrong quarter. Negative minimums are SQL stamps applied after close.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName, COUNT(Id) cnt,
+       AVG(Days_since_SQL__c) avgDays,
+       MIN(Days_since_SQL__c) minDays,
+       MAX(Days_since_SQL__c) maxDays
+FROM Opportunity
+WHERE IsWon = true
+  AND CloseDate >= 2024-10-01
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+  AND SQL_Datestamp_bf__c != null
+GROUP BY Owner.Name;
+
+-- ---------------------------------------------------------------------------
+-- F. Qualification rate as a TRUE COHORT. Both halves anchor on CreatedDate.
+--    Do not compare opps created by CreatedDate against opps qualified by
+--    SQL date: the two populations differ by up to 4x and the ratio is
+--    meaningless.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName, COUNT(Id) created
+FROM Opportunity
+WHERE CreatedDate >= 2025-01-01T00:00:00Z
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+GROUP BY Owner.Name;
+
+SELECT Owner.Name aeName, COUNT(Id) createdAndQualified
+FROM Opportunity
+WHERE CreatedDate >= 2025-01-01T00:00:00Z
+  AND SQL_Datestamp_bf__c != null
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+GROUP BY Owner.Name;
+
+-- ---------------------------------------------------------------------------
+-- G. Channel mix. Answers "how many opps created by them or a BDR".
+--    AE Outbound plus AM is the lane an AE can move with dials. Everything
+--    else is a capacity conversation with another team.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName, Primary_Team_Source__c src,
+       COUNT(Id) cnt, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+FROM Opportunity
+WHERE SQL_Datestamp_bf__c >= 2025-10-01
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+GROUP BY Owner.Name, Primary_Team_Source__c
+ORDER BY Owner.Name;
+
+-- ---------------------------------------------------------------------------
+-- H. Quotas. Sales_Plan__c replaced ForecastingQuota in July 2026.
+--    Fiscal_Year__c is a formula and cannot be grouped, so read raw and sum.
+-- ---------------------------------------------------------------------------
+SELECT Sales_Rep__r.Name, Quarter__c, Quota_Amount__c, Start_Date__c, Forecast_Type__c
+FROM Sales_Plan__c
+WHERE Sales_Rep__c IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                       '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND Start_Date__c >= 2026-01-01
+ORDER BY Sales_Rep__r.Name, Start_Date__c;
+
+-- ---------------------------------------------------------------------------
+-- I. Open qualified pipeline closing this quarter. The close plan denominator.
+-- ---------------------------------------------------------------------------
+SELECT Owner.Name aeName, COUNT(Id) cnt, SUM(ARR_Opportunity_Amount_USD_Num__c) arr
+FROM Opportunity
+WHERE IsClosed = false
+  AND OwnerId IN ('005I9000000JMpKIAW','005OL00000BO2bpYAD','005OL00000DRXejYAH',
+                  '005OL00000F0LTeYAN','0058W000008yfBcQAI','005I9000000JDkzIAG')
+  AND RecordType.DeveloperName = 'Euna_Sale'
+  AND Type IN ('New Sale','Upsell','Cross Sell')
+  AND SQL_Datestamp_bf__c != null
+  AND CloseDate >= 2026-07-01 AND CloseDate <= 2026-09-30
+GROUP BY Owner.Name
+ORDER BY Owner.Name;

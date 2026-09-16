@@ -1,0 +1,108 @@
+<template>
+    <div class="wrap">
+        <h2>Waterfall</h2>
+        <p class="lede">
+            Two clocks. The <strong>close plan</strong> is what has to convert from the book that already exists
+            to hit this period. The <strong>create plan</strong> is what has to be created now, aimed at the
+            quarter this quarter’s activity actually lands in. Dialling does not fix the first clock.
+        </p>
+
+        <c-gtm-scope-filters grouped-products onscopechange={handleScope}></c-gtm-scope-filters>
+
+        <template lwc:if={loading}>
+            <div class="box">
+                <lightning-spinner size="small" alternative-text="Loading waterfall"></lightning-spinner>
+                <p class="note">Calibrating rates and reading actuals…</p>
+            </div>
+        </template>
+        <template lwc:if={error}><div class="err">{error}</div></template>
+
+        <template lwc:if={page}>
+            <p class="caption">{scopeCaption}</p>
+            <p class="note">{teamCaption}</p>
+            <p class="note">Close period {periodLabel}. Create period {createPeriodLabel} (this period plus median cycle).</p>
+
+            <template lwc:if={emptyReason}>
+                <div class="box">{emptyReason}</div>
+            </template>
+
+            <template lwc:if={hasRows}>
+                <template for:each={cards} for:item="c">
+                    <article key={c.ownerId} class="ae">
+                        <header class="head">
+                            <h3>{c.name}</h3>
+                            <span class={c.pillClass}>{c.sampleConfidence}</span>
+                            <span class="meta">{c.closedCount} gated closes · quota {c.quota}</span>
+                        </header>
+
+                        <div class="plans">
+                            <div class={c.closePlan.kindClass}>
+                                <p class="plan-tag">Clock 1 · this period</p>
+                                <h4>Close plan</h4>
+                                <p class="lever">{c.closePlan.lever}</p>
+                                <template for:each={c.closePlan.rungs} for:item="r">
+                                    <div key={r.key} class={r.rungClass} data-depth={r.depth}>
+                                        <div>
+                                            <p class="name">{r.name}</p>
+                                            <p class="op">{r.op}</p>
+                                        </div>
+                                        <span class="val">{r.value}</span>
+                                    </div>
+                                </template>
+                                <p class="have">Have {c.have} open qualified · {c.haveArr}. Req QO {c.reqQo}.</p>
+                            </div>
+                            <div class={c.createPlan.kindClass}>
+                                <p class="plan-tag">Clock 2 · period + cycle</p>
+                                <h4>Create plan</h4>
+                                <p class="lever">{c.createPlan.lever}</p>
+                                <template for:each={c.createPlan.rungs} for:item="r">
+                                    <div key={r.key} class={r.rungClass} data-depth={r.depth}>
+                                        <div>
+                                            <p class="name">{r.name}</p>
+                                            <p class="op">{r.op}</p>
+                                        </div>
+                                        <span class="val">{r.value}</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="tw">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Win raw</th><th>Win blended</th>
+                                        <th>ASP raw</th><th>ASP blended</th>
+                                        <th>Cycle</th><th>Lands</th>
+                                        <th>Qual</th><th>Self mix</th><th>Connect</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="num">{c.winRateRaw}</td>
+                                        <td class="num">{c.winRateBlended}</td>
+                                        <td class="num">{c.aspRaw}</td>
+                                        <td class="num">{c.aspBlended}</td>
+                                        <td class="num">{c.cycle}</td>
+                                        <td class="num">{c.lands}</td>
+                                        <td class="num">{c.qualRate}</td>
+                                        <td class="num">{c.selfMix}</td>
+                                        <td class="num">{c.connectRate}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="note">
+                            This period: {c.created} created, {c.dials} dispositioned dials, {c.connects} connects,
+                            {c.emailsSent} emails, {c.replies} inbound replies (thread traffic, not cold reply rate),
+                            {c.meetingsHeld} meetings held.
+                            <template lwc:if={c.activityIndicative}>
+                                Activity rows are indicative only — disposition coverage {c.activityComplete} is below 70%.
+                            </template>
+                        </p>
+                    </article>
+                </template>
+            </template>
+        </template>
+    </div>
+</template>

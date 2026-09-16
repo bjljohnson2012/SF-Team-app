@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Wins__c</fullName>
+    <description>Won deals in the gated closed set. Zero-ARR wins count here.</description>
+    <inlineHelpText>Won deals in the gated closed set. Zero-ARR wins count here.</inlineHelpText>
+    <label>Wins</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
