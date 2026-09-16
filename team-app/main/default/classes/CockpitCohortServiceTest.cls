@@ -182,6 +182,9 @@ private class CockpitCohortServiceTest {
         Account a = new Account(Name = 'Legacy mix');
         insert a;
         Date today = Date.today();
+        Date closeThisQ = CockpitConstants.quarterStart(
+            today.year(), CockpitConstants.quarterOf(today)
+        ).addDays(14);
         Date sqlLag2 = CockpitConstants.quarterStart(
             CockpitConstants.shiftQuarters(today, -2).year(),
             CockpitConstants.quarterOf(CockpitConstants.shiftQuarters(today, -2))
@@ -191,10 +194,10 @@ private class CockpitCohortServiceTest {
             CockpitConstants.quarterOf(CockpitConstants.shiftQuarters(today, -1))
         ).addDays(5);
         List<Opportunity> opps = new List<Opportunity>{
-            closed(a.Id, ae.Id, rt, 'Lag2 Win', sqlLag2, today, 'Closed Won', null),
-            closed(a.Id, ae.Id, rt, 'Lag2 Work', sqlLag2, today,
+            closed(a.Id, ae.Id, rt, 'Lag2 Win', sqlLag2, closeThisQ, 'Closed Won', null),
+            closed(a.Id, ae.Id, rt, 'Lag2 Work', sqlLag2, closeThisQ,
                 'Closed Lost', 'Perceived lack of ROI'),
-            closed(a.Id, ae.Id, rt, 'Lag1 Win', sqlLag1, today, 'Closed Won', null)
+            closed(a.Id, ae.Id, rt, 'Lag1 Win', sqlLag1, closeThisQ, 'Closed Won', null)
         };
         for (Integer i = 0; i < 5; i++) {
             opps.add(closed(a.Id, ae.Id, rt, 'Cycle seed ' + i,
