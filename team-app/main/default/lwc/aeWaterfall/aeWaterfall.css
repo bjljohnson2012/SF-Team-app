@@ -118,6 +118,27 @@ th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: 
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
+.plan-in.big {
+    width: 110px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--indigo);
+    padding: 6px 8px;
+}
+.dial-edit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 6px 0 8px;
+}
+.dial-edit label { display: flex; flex-direction: column; gap: 3px; }
+.dial-edit span {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #667085;
+    font-weight: 700;
+}
 .play-actions {
     display: flex;
     flex-wrap: wrap;

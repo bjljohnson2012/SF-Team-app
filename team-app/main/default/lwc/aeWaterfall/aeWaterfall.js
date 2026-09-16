@@ -3,6 +3,26 @@ import load from '@salesforce/apex/WaterfallController.load';
 import savePlays from '@salesforce/apex/WaterfallController.savePlays';
 
 const RATE_FIELDS = new Set(['winRate', 'qualRate', 'selfShare', 'oppsPerConnect', 'connectRate']);
+/** UI data-field → PlayDraft property the cascade actually reads. */
+const FIELD_PROP = {
+    dials: 'dialsNeeded',
+    dialsWeek: 'dialsNeeded',
+    connects: 'connectsNeeded',
+    connectRate: 'connectRate',
+    oppsPerConnect: 'oppsPerConnect',
+    selfShare: 'selfShare',
+    oppsToCreate: 'oppsToCreate',
+    qoNeeded: 'qoNeeded',
+    qualRate: 'qualRate',
+    winRate: 'winRate'
+};
+const PROJECT_FROM = {
+    dials: 'dials',
+    dialsWeek: 'dials',
+    connects: 'connects',
+    oppsToCreate: 'oppsToCreate',
+    qoNeeded: 'qoNeeded'
+};
 
 export default class AeWaterfall extends LightningElement {
     loading = true;
@@ -66,15 +86,30 @@ export default class AeWaterfall extends LightningElement {
         const field = e.target.dataset.field;
         const kind = e.target.dataset.kind;
         const row = this.rowById(id);
-        if (!row) return;
+        if (!row || !field) return;
         const draft = this.clone(this.drafts[id] || row.planned || row.recommended);
         let n = e.target.value === '' ? null : Number(e.target.value);
         if (n != null && isNaN(n)) return;
         if (kind === 'pct' && n != null) n = n / 100;
-        draft[field] = n;
-        const edited = RATE_FIELDS.has(field) ? 'rate' : field;
+        const prop = FIELD_PROP[field] || field;
+        if (field === 'dialsWeek') {
+            const weeks = this.remainingWeeks();
+            draft.dialsNeeded = n == null ? null : (weeks > 0 ? n * weeks : n);
+        } else {
+            draft[prop] = n;
+        }
+        let edited = PROJECT_FROM[field] || 'rate';
+        if (RATE_FIELDS.has(prop) && draft.editedField === 'dials') {
+            edited = 'dials';
+        }
+        draft.editedField = edited;
         this.drafts = { ...this.drafts, [id]: this.project(draft, edited) };
         this.saveMsgs = { ...this.saveMsgs, [id]: '' };
+    }
+
+    remainingWeeks() {
+        const days = this.page && this.page.remainingWorkingDays != null ? this.page.remainingWorkingDays : 0;
+        return days / 5;
     }
 
     handleReason(e) {
@@ -234,6 +269,10 @@ export default class AeWaterfall extends LightningElement {
         if (n == null || isNaN(n)) return '—';
         return Number(n).toFixed(d);
     }
+    numIn(n, d) {
+        if (n == null || isNaN(n)) return '';
+        return Number(n).toFixed(d);
+    }
     signed(n, fmt) {
         if (n == null || isNaN(n)) return '—';
         const v = Number(n);
@@ -317,13 +356,14 @@ export default class AeWaterfall extends LightningElement {
                     winRate: this.pct(rec.winRate)
                 },
                 plan: {
-                    dials: this.num(plan.dialsNeeded, 0),
-                    connects: this.num(plan.connectsNeeded, 1),
+                    dials: this.numIn(plan.dialsNeeded, 0),
+                    dialsWeekIn: this.numIn(plan.dialsPerWeek, 1),
+                    connects: this.numIn(plan.connectsNeeded, 1),
                     connectRate: this.pctIn(plan.connectRate),
-                    oppsPerConnect: this.num(plan.oppsPerConnect, 2),
+                    oppsPerConnect: this.numIn(plan.oppsPerConnect, 2),
                     selfShare: this.pctIn(plan.selfShare),
-                    oppsToCreate: this.num(plan.oppsToCreate, 1),
-                    qoNeeded: this.num(plan.qoNeeded, 1),
+                    oppsToCreate: this.numIn(plan.oppsToCreate, 1),
+                    qoNeeded: this.numIn(plan.qoNeeded, 1),
                     qualRate: this.pctIn(plan.qualRate),
                     winRate: this.pctIn(plan.winRate),
                     selfSourced: this.num(plan.selfSourced, 1),
