@@ -46,9 +46,9 @@ public with sharing class WaterfallRateEngine {
     public static RateSet calibrate(Set<Id> ownerIds, String productType, String sizeBand, Date asOf) {
         RateSet out = new RateSet();
         if (ownerIds == null || ownerIds.isEmpty()) return out;
-        Date when = asOf == null ? Date.today() : asOf;
-        out.windowStart = WaterfallConstants.windowStart(when);
-        out.windowEnd = WaterfallConstants.periodEnd(when);
+        Date asOfDay = asOf == null ? Date.today() : asOf;
+        out.windowStart = WaterfallConstants.windowStart(asOfDay);
+        out.windowEnd = WaterfallConstants.periodEnd(asOfDay);
         Set<String> solutions = CockpitConstants.solutionsInProductFilter(productType);
         Map<Id, RateRow> rows = new Map<Id, RateRow>();
         for (Id oid : ownerIds) {

@@ -40,10 +40,10 @@ public with sharing class WaterfallActualEngine {
     public static ActualSet measure(Set<Id> ownerIds, String productType, String sizeBand, Date asOf) {
         ActualSet out = new ActualSet();
         if (ownerIds == null || ownerIds.isEmpty()) return out;
-        Date when = asOf == null ? Date.today() : asOf;
-        out.periodStart = WaterfallConstants.periodStart(when);
-        out.periodEnd = WaterfallConstants.periodEnd(when);
-        out.periodLabel = WaterfallConstants.periodLabel(when);
+        Date asOfDay = asOf == null ? Date.today() : asOf;
+        out.periodStart = WaterfallConstants.periodStart(asOfDay);
+        out.periodEnd = WaterfallConstants.periodEnd(asOfDay);
+        out.periodLabel = WaterfallConstants.periodLabel(asOfDay);
         Set<String> solutions = CockpitConstants.solutionsInProductFilter(productType);
         Map<Id, ActualRow> rows = new Map<Id, ActualRow>();
         for (Id oid : ownerIds) {
@@ -152,8 +152,8 @@ public with sharing class WaterfallActualEngine {
               AND TaskSubtype = 'Call'
               AND Status = 'Completed'
               AND ActivityDate >= :periodStart AND ActivityDate <= :periodEnd
-            GROUP BY OwnerId, SalesLoft1__Call_Disposition__c
             WITH USER_MODE
+            GROUP BY OwnerId, SalesLoft1__Call_Disposition__c
         ]) {
             Id oid = (Id) ar.get('oid');
             ActualRow row = rows.get(oid);
@@ -180,8 +180,8 @@ public with sharing class WaterfallActualEngine {
               AND Status = 'Completed'
               AND ActivityDate >= :periodStart AND ActivityDate <= :periodEnd
               AND Auto_Reply__c = false
-            GROUP BY OwnerId
             WITH USER_MODE
+            GROUP BY OwnerId
         ]) {
             ActualRow row = rows.get((Id) ar.get('oid'));
             if (row == null) continue;
@@ -198,8 +198,8 @@ public with sharing class WaterfallActualEngine {
             WHERE CreatedById IN :ownerIds
               AND Incoming = true
               AND MessageDate >= :fromDt AND MessageDate <= :toDt
-            GROUP BY CreatedById
             WITH USER_MODE
+            GROUP BY CreatedById
         ]) {
             ActualRow row = rows.get((Id) ar.get('oid'));
             if (row == null) continue;
@@ -218,8 +218,8 @@ public with sharing class WaterfallActualEngine {
             FROM Event
             WHERE OwnerId IN :ownerIds
               AND StartDateTime >= :fromDt AND StartDateTime <= :toDt
-            GROUP BY OwnerId
             WITH USER_MODE
+            GROUP BY OwnerId
         ]) {
             ActualRow row = rows.get((Id) ar.get('oid'));
             if (row == null) continue;

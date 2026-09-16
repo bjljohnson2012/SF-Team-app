@@ -77,7 +77,7 @@ public with sharing class WaterfallController {
     public static PagePayload build(
         Id directorId, String teamMode, String productType, String sizeBand, Date asOf
     ) {
-        Date when = asOf == null ? Date.today() : asOf;
+        Date asOfDay = asOf == null ? Date.today() : asOf;
         String product = String.isBlank(productType) ? CockpitConstants.PRODUCT_ALL : productType;
         String size = String.isBlank(sizeBand) ? CockpitConstants.SIZE_ALL : sizeBand;
         CockpitRosterService.ScopeResult scope = CockpitRosterService.resolveScope(directorId, teamMode);
@@ -85,7 +85,7 @@ public with sharing class WaterfallController {
         page.scopeCaption = 'Team of ' + scope.directorName
             + ' · ' + CockpitConstants.productGroupLabel(product)
             + ' · ' + WaterfallConstants.sizeLabel(size);
-        page.periodLabel = WaterfallConstants.periodLabel(when);
+        page.periodLabel = WaterfallConstants.periodLabel(asOfDay);
         if (scope.members == null || scope.members.isEmpty()) {
             page.emptyReason = scope.emptyMessage;
             return page;
@@ -96,12 +96,12 @@ public with sharing class WaterfallController {
         for (CockpitRosterService.Member m : scope.members) names.put(m.userId, m.name);
 
         WaterfallRateEngine.RateSet rates =
-            WaterfallRateEngine.calibrate(ownerIds, product, size, when);
+            WaterfallRateEngine.calibrate(ownerIds, product, size, asOfDay);
         WaterfallActualEngine.ActualSet actuals =
-            WaterfallActualEngine.measure(ownerIds, product, size, when);
+            WaterfallActualEngine.measure(ownerIds, product, size, asOfDay);
 
         Integer teamLands = rates.team == null ? 2 : rates.team.landsQuarters;
-        Date createAsOf = WaterfallConstants.shiftPeriod(when, teamLands);
+        Date createAsOf = WaterfallConstants.shiftPeriod(asOfDay, teamLands);
         page.createPeriodLabel = WaterfallConstants.periodLabel(createAsOf);
         if (rates.team != null) {
             page.teamCaption = 'Team baseline: '
@@ -114,7 +114,7 @@ public with sharing class WaterfallController {
         for (Id oid : ownerIds) {
             page.rows.add(cardFor(
                 oid, names.get(oid), rates.byOwner.get(oid), actuals.byOwner.get(oid),
-                when, createAsOf, page.periodLabel, page.createPeriodLabel
+                asOfDay, createAsOf, page.periodLabel, page.createPeriodLabel
             ));
         }
         return page;
@@ -170,7 +170,7 @@ public with sharing class WaterfallController {
                 dec(p.selfSourced, 1), 4, false));
             p.rungs.add(new Rung(
                 'Connects, then dials',
-                '÷ ' + pct(oppPerConnect) + ' opp per connect, ÷ ' + pct(connectRate) + ' connect rate',
+                '÷ ' + dec(oppPerConnect, 2) + ' opp per connect, ÷ ' + pct(connectRate) + ' connect rate',
                 (p.dialsNeeded == null ? '—' : dec(p.dialsNeeded, 0) + ' dials'),
                 5, indicative));
         }
@@ -179,7 +179,7 @@ public with sharing class WaterfallController {
 
     static AeCard cardFor(
         Id ownerId, String name, WaterfallRateEngine.RateRow rate,
-        WaterfallActualEngine.ActualRow actual, Date when, Date createAsOf,
+        WaterfallActualEngine.ActualRow actual, Date asOfDay, Date createAsOf,
         String closeLabel, String createLabel
     ) {
         AeCard c = new AeCard();
@@ -229,7 +229,7 @@ public with sharing class WaterfallController {
             actual);
         if (c.createPlan != null) {
             c.createPlan.periodLabel = WaterfallConstants.periodLabel(
-                WaterfallConstants.shiftPeriod(when, lands));
+                WaterfallConstants.shiftPeriod(asOfDay, lands));
         }
         return c;
     }

@@ -9,9 +9,9 @@ public with sharing class WaterfallActualSchedulable implements Schedulable {
     public static Integer run(Date asOf) {
         Set<Id> owners = allAeIds();
         if (owners.isEmpty()) return 0;
-        Date when = asOf == null ? Date.today() : asOf;
-        Integer n = persistPeriod(owners, when);
-        n += persistPeriod(owners, WaterfallConstants.shiftPeriod(when, 1));
+        Date asOfDay = asOf == null ? Date.today() : asOf;
+        Integer n = persistPeriod(owners, asOfDay);
+        n += persistPeriod(owners, WaterfallConstants.shiftPeriod(asOfDay, 1));
         return n;
     }
 

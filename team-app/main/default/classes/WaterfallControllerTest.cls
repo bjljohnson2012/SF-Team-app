@@ -33,6 +33,10 @@ private class WaterfallControllerTest {
             'self-sourced lane is ~3.2');
         System.assertEquals(17, createP.dialsNeeded.setScale(0), 'self-sourced / opp-per-connect / connect rate is 17 dials');
         System.assertEquals(6, createP.rungs.size(), 'create plan walks the full cascade');
+        System.assert(createP.rungs[5].op.contains('0.94'),
+            'opp per connect is a ratio, not a percent');
+        System.assert(!createP.rungs[5].op.contains('94.0%'),
+            '0.94 opp/connect must not render as 94%');
     }
 
     @isTest
