@@ -1,0 +1,33 @@
+<template>
+    <div class="card">
+        <div class="pr-head">
+            <span class="score" onclick={onScore} title="Open score breakdown">{score}</span>
+            <div>
+                <h3 style="margin:0">{row.account}</h3>
+                <p class="pr-sub">{row.ae} · {row.stage} · closes {row.closeDate} · {row.directorForecast}</p>
+            </div>
+            <div>{arr}</div>
+        </div>
+        <p><b>Why now</b> {row.priorityReason}</p>
+        <p><b>Contact</b> {row.contactName} · {row.contactTitle}<br>{row.contactReason}<br>
+            <a href={mailto}>{row.contactEmail}</a>
+        </p>
+        <template lwc:if={isSuggestion}>
+            <div class="suggest"><b>Suggested next step</b> {row.suggestedNextStep}
+                <button class="btn" onclick={onAccept}>Accept</button>
+            </div>
+        </template>
+        <template lwc:else>
+            <p><b>Do this</b> {row.nextStep} ({row.nextStepDate})</p>
+        </template>
+        <div class="row-acts">
+            <button class="btn" onclick={onDone}>Mark done</button>
+            <button class="btn ghost" onclick={onResched}>Reschedule</button>
+            <button class="btn ghost" onclick={onSnooze}>Snooze</button>
+            <a class="btn ghost" href={row.url} target="_blank">Open deal</a>
+        </div>
+        <template lwc:if={showBreak}>
+            <p class="pr-sub">Priority {score}. Reason names the two highest components. Weights live in Pipeline Priority Config.</p>
+        </template>
+    </div>
+</template>

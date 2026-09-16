@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Suggested_Next_Step__c</fullName>
+    <description>Job C next-step suggestion. Hygiene digest is unchanged because the real field is not written.</description>
+    <inlineHelpText>AI suggestion only. Does not overwrite Next_Step_bf__c until accepted.</inlineHelpText>
+    <label>Suggested Next Step</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>255</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

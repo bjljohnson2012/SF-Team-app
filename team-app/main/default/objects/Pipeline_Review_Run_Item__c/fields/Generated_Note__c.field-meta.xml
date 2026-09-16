@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Generated_Note__c</fullName>
+    <description>Director note from the model, held for review per write-safety rule 8.7.</description>
+    <inlineHelpText>Model output before human edit. Preview before bulk write.</inlineHelpText>
+    <label>Generated Note</label>
+    <type>LongTextArea</type>
+    <length>32768</length>
+    <visibleLines>25</visibleLines>
+</CustomField>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Suggestion_Generated_On__c</fullName>
+    <description>Timestamp of the last next-step suggestion write.</description>
+    <inlineHelpText>When Job C last wrote a next-step suggestion.</inlineHelpText>
+    <label>Suggestion Generated On</label>
+    <type>DateTime</type>
+    <required>false</required>
+</CustomField>

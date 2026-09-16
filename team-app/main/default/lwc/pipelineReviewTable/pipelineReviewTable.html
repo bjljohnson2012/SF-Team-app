@@ -1,0 +1,63 @@
+<template>
+    <div class="tw">
+        <table class="ord-table">
+            <thead>
+                <tr>
+                    <th class="cb"><input type="checkbox" checked={allSelected} onchange={onPickAll}></th>
+                    <th data-k="tag" onclick={onSort}>Tag</th>
+                    <th data-k="account" onclick={onSort}>Account / Opportunity</th>
+                    <th data-k="arr" onclick={onSort} class="num">ARR</th>
+                    <th data-k="stage" onclick={onSort}>Stage</th>
+                    <th data-k="closeDate" onclick={onSort}>Close</th>
+                    <th data-k="ae" onclick={onSort}>Owner</th>
+                    <th>Current director note</th>
+                    <th data-k="aeForecast" onclick={onSort}>AE call</th>
+                    <th data-k="recommendedForecast" onclick={onSort}>Director → Recommended</th>
+                    <th data-k="freshestAge" onclick={onSort}>Stale</th>
+                    <th data-k="nextStepDate" onclick={onSort}>Run</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template lwc:if={isEmpty}>
+                    <tr><td colspan="12" class="empty">No open deals match these filters.</td></tr>
+                </template>
+                <template for:each={rows} for:item="r">
+                    <tr key={r.id} class={r.rowClass} data-id={r.id} onclick={onOpen}>
+                        <td class="cb"><input type="checkbox" checked={r.selected} data-id={r.id} onclick={onPick}></td>
+                        <td>
+                            <button class={r.tagClass} data-id={r.id} onclick={onTagCycle}>{r.tagLabel}</button>
+                        </td>
+                        <td>
+                            <a href={r.url} target="_blank">{r.account}</a>
+                            <div class="sub">{r.subline}</div>
+                        </td>
+                        <td class="num">{r.arrLabel}</td>
+                        <td>{r.stage}</td>
+                        <td>
+                            <div>{r.closeLabel}</div>
+                            <div class="sub">{r.closeLeft}</div>
+                        </td>
+                        <td>{r.ae}</td>
+                        <td class="note">{r.noteLabel}</td>
+                        <td><span class={r.aePillClass}>{r.aeForecastLabel}</span></td>
+                        <td>
+                            <span class="fc-row">
+                                <span class={r.dirPillClass}>{r.directorForecastLabel}</span>
+                                <span class="arrow">→</span>
+                                <span class={r.recPillClass}>{r.recommendedForecastLabel}</span>
+                            </span>
+                        </td>
+                        <td class="stale">
+                            <span class={r.staleDotClass} title={r.staleTitle}></span>
+                            <span class={r.dueDotClass} title={r.dueTitle}></span>
+                        </td>
+                        <td>
+                            <div>{r.runLabel}</div>
+                            <div class="sub">{r.runSub}</div>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</template>

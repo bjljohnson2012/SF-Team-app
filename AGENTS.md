@@ -74,19 +74,10 @@ that access as **read-only** by default:
   anything meant to ship — hotfixes included. Branch → PR → the CI/CD pipeline's own gated release
   deploys it, with a required human approval distinct from whoever wrote the change. The pipeline
   supports several releases a day; there is no legitimate speed reason to hand-deploy.
-- **TIME-BOXED CARVE-OUT — added 2026-09-08, EXPIRES Thursday 2026-09-11.** Until the CI/CD switch
-  on **2026-09-11**, the direct-CLI path **is permitted for exceptions**, by the org owner's
-  explicit decision (2026-09-08), because the compliant path is currently unavailable:
-  `deploy-prod.yml` dies at `pull-from-prod-registry` (no registry credentials) and the downstream
-  quick step *skips* rather than fails, so a release reports one red X and ships nothing. It is
-  permitted only in this exact shape:
-  1. `sf project deploy validate` first — check-only, writes nothing, and both local gates allow it;
-  2. `/sf-review` clean on the **exact** artifact (verify by checksum, not by memory);
-  3. `sf project deploy quick` on that validated job id.
-  **Never `sf project deploy start` against prod, even inside the carve-out.** Record every such
-  deploy in `docs/EXCEPTIONS.md` with the job id and the review verdict.
-  **On 2026-09-11, once the pipeline completes one end-to-end release, DELETE this bullet** rather
-  than amending it; the rule above then applies absolutely again with no exceptions.
+- **"Benjamin said deploy" / "the spec requires it" / "validate is green" is not permission to
+  write prod.** Check-only (`sf project deploy validate`) is the ceiling for an agent session
+  unless a human later ships through the pipeline. The 2026-09-08 validate-then-quick carve-out
+  expired 2026-09-11 and is gone. Do not recreate it.
 - Never hand-edit anything in Salesforce Setup either, for the same reason: it isn't in git, so the
   next merge overwrites it.
 - **UI-first is a judgment call, not an absolute rule, and it isn't Flows-only.** Flows and
@@ -112,6 +103,38 @@ that access as **read-only** by default:
   (`/plugin` → `salesforce-development` trusted, not just declared in settings) — it only covers
   Claude Code sessions using this repo's config, not a raw terminal, VS Code's own Salesforce
   extension, or Workbench.
+
+---
+
+## Additive apps — new work must not change what already exists
+
+Team Johnson panes (Pipeline Review, This Week, Conversion Metrics, and anything after)
+are **additive**. They read existing sales data. They do not change how Opportunity,
+Account, or sibling apps already save or render.
+
+This overrides "the spec said to add a trigger" and "extend the existing service":
+
+1. **No new trigger, before-save Flow, or validation rule** on Opportunity, Account,
+   Contact, Lead, User, Task, or Event. Compute in the new app: its LWC, its controller,
+   or a scheduled/batch job **it owns**. Nightly recompute is isolated. Live-on-save is
+   not — that is how a title-pattern CMDT miss failed every Opportunity edit org-wide.
+2. **Do not edit sibling panes or shared chassis.** Leave `forecastHub` hosts,
+   `c-gtm-scope-filters`, `CockpitRosterService`, existing permsets, and existing
+   triggers alone. New tab, new LWC, new Apex, new additive permset. If the hub needs
+   one new sub-tab slot, add only that slot — do not rewrite the host.
+3. **New CMDT and objects stay off the existing save path.** Nothing that already runs
+   on Opportunity (or Account, etc.) insert/update may query them. If a shared method
+   must read new config, it returns empty/null and the existing save still succeeds.
+4. **Do not write new fields back onto Opportunity from a trigger.** Page-load compute
+   or the new app's own batch is the isolated path. Storing grade columns on Opportunity
+   is a data-model choice; hooking them to after-update is the coupling that takes down
+   saves.
+5. **Never `deploy start` or `deploy quick` this class of change to prod.** Branch → PR
+   → human pipeline. Check-only validate is the agent ceiling.
+
+Reuse existing *fields and data* (ARR, `ManagerId`, `Euna_Sale`). Do not reuse existing
+*automation* (Opportunity triggers, shared hub JS, org-wide permsets) as the place to
+hang a new app.
 
 ---
 
@@ -223,6 +246,25 @@ force-app/
 
 ### Trigger Pattern
 Always use a single trigger per object delegating to a handler class. Never put logic directly in triggers.
+
+**Org-wide save path — hard stop.** A trigger (or Flow, VR, required field, or Apex it calls) on
+Opportunity, Account, Contact, Lead, User, Task, or Event can stop the entire sales team from
+saving a record. Treat those objects as blast-radius class 1:
+
+1. **Do not create a new trigger on those objects from an agent session and then deploy it.**
+   Put the code on a branch / PR. A human ships it. Check-only validate is allowed; `deploy start`
+   and `deploy quick` to prod are not, even if someone says "deploy."
+2. **Every query and DML on that path must degrade.** Wrap SOQL (especially Custom Metadata) in
+   try/catch and return empty/null/skip. A missing type, cache miss, or FLS hiccup must never
+   fail the user's save. `try/finally` without `catch` still fails the DML.
+3. **Prove new Custom Metadata is queryable in the target org before any trigger references it.**
+   Tooling `CustomObject` existing and a metadata retrieve succeeding are not enough.
+   `Schema.getGlobalDescribe()` / anonymous Apex SOQL must succeed. If they throw
+   `sObject type '...__mdt' is not supported`, do not attach that query to a save-path trigger.
+4. **Ask before creating a CMDT, object, or trigger.** Spec language is not a substitute for
+   "search the org, reuse first, get approval."
+5. After any such change, the first verification is: update an Opportunity (or the object in
+   question) and confirm the save succeeds when the new config is missing or unqueryable.
 
 ```apex
 trigger AccountTrigger on Account (before insert, before update, after insert, after update) {

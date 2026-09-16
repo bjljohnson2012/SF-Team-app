@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Async_Job_Id__c</fullName>
+    <description>18-character AsyncApexJob Id for this run.</description>
+    <inlineHelpText>Batch Apex job id.</inlineHelpText>
+    <label>Async Job Id</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>18</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

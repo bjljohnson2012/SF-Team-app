@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Weight_Value__c</fullName>
+    <description>Value term weight.</description>
+    <inlineHelpText>wV default 0.30.</inlineHelpText>
+    <label>Weight Value</label>
+    <type>Number</type>
+    <precision>5</precision>
+    <required>false</required>
+    <scale>2</scale>
+</CustomField>

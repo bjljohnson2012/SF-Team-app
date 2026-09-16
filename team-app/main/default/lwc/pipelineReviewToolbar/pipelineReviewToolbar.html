@@ -1,0 +1,41 @@
+<template>
+    <div class="card">
+        <div class="th-row">
+            <div class="f pct"><label>Model-grade threshold</label>
+                <div class="inline">
+                    <input type="number" min="0" max="100" value={thresholdPct} onchange={onPct} class="w-sm">
+                    <span class="hint">% of quota</span>
+                    <input type="number" min="0" value={quota} onchange={onQuota} class="w-md">
+                    <select onchange={onPeriod}>
+                        <option value="thisNext" selected={periodThisNext}>this + next qtr</option>
+                        <option value="thisQ" selected={periodThis}>this quarter</option>
+                        <option value="nextQ" selected={periodNext}>next quarter</option>
+                    </select>
+                </div>
+            </div>
+            <p class="summary">{summary}</p>
+            <label class="chk"><input type="checkbox" checked={gradeOnRefresh} onchange={onGradeRefresh}> Grade on refresh</label>
+        </div>
+        <div class="act-row">
+            <button class="btn solid" onclick={onGradeKey}>Grade key deals</button>
+            <button class="btn solid" onclick={onGradeSelected}>Grade selected</button>
+            <button class="btn" onclick={onClear}>Clear grades</button>
+            <button class="btn" onclick={onExport}>Export CSV</button>
+            <span class="updated">Last updated {lastUpdatedLabel}. {skipLine}</span>
+        </div>
+        <template lwc:if={banner}><div class="banner">{banner}</div></template>
+        <div class="chips">
+            <button class="chip" data-k="" onclick={onChip}><b>Open ARR</b> {openArr}</button>
+            <button class="chip" data-k="" onclick={onChip}><b>Opps</b> {opps}</button>
+            <button class="chip" data-k="" onclick={onChip}><b>Loaded</b> {loadedLabel}</button>
+            <button class={chipA} data-k="A" onclick={onChip}><b>A</b> {countA}</button>
+            <button class={chipB} data-k="B" onclick={onChip}><b>B</b> {countB}</button>
+            <button class={chipC} data-k="C" onclick={onChip}><b>C</b> {countC}</button>
+            <button class={chipD} data-k="D" onclick={onChip}><b>D</b> {countD}</button>
+            <button class={chipM} data-k="mismatch" onclick={onChip}><b>Mismatches</b> {mismatches}</button>
+            <button class="chip" data-k="" onclick={onChip}><b>Changed</b> {changed}</button>
+            <button class="chip" data-k="" onclick={onChip}><b>Done today</b> {doneToday}</button>
+            <button class="chip" data-k="" onclick={onChip}><b>Pushed today</b> {pushedToday}</button>
+        </div>
+    </div>
+</template>

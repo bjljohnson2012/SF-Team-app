@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Hour_ET__c</fullName>
+    <description>Compared to America/New_York hour on the hourly tick.</description>
+    <inlineHelpText>0-23 Eastern hour when this job is due.</inlineHelpText>
+    <label>Hour (ET)</label>
+    <type>Number</type>
+    <precision>2</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>

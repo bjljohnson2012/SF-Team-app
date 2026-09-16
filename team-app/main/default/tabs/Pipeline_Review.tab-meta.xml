@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Pipeline Review book: stored grades, filters, tags, and director notes.</description>
+    <label>Pipeline Review</label>
+    <lwcComponent>pipelineReview</lwcComponent>
+    <motif>Custom53: Hands</motif>
+</CustomTab>

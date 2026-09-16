@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Suggested_Next_Step_Date__c</fullName>
+    <description>Date that travels with the suggested next step. Never written to Next_Step_Date_bf__c until accept.</description>
+    <inlineHelpText>Paired date for Suggested_Next_Step__c. On or after today and on or before Close Date.</inlineHelpText>
+    <label>Suggested Next Step Date</label>
+    <type>Date</type>
+    <required>false</required>
+</CustomField>

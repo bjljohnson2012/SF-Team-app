@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Generated_Forecast__c</fullName>
+    <description>Legal values only: Commit / Most Likely / Best Case / Pipeline / Omitted.</description>
+    <inlineHelpText>Model forecast recommendation for this item.</inlineHelpText>
+    <label>Generated Forecast</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>40</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

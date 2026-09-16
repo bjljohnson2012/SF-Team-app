@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Recommended_Contact__c</fullName>
+    <description>Contact to call this week. Null when nobody is attached (Fix First).</description>
+    <inlineHelpText>Highest-scoring attached contact. Prefers whoever last replied over IsPrimary.</inlineHelpText>
+    <label>Recommended Contact</label>
+    <type>Lookup</type>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <referenceTo>Contact</referenceTo>
+    <relationshipLabel>Recommended Contact</relationshipLabel>
+    <relationshipName>Pipeline_Recommended_Opps</relationshipName>
+    <required>false</required>
+</CustomField>

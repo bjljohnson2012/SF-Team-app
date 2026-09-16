@@ -1,0 +1,33 @@
+:host {
+    --navy: #0f172a;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --bg: #f8fafc;
+    --good: #166534;
+    --warn: #b45309;
+    --bad: #b91c1c;
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+    background: var(--bg);
+}
+.ord { padding: 8px 0 20px; }
+.ord-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; color: var(--navy); }
+.ord-sub { color: var(--muted); margin: 4px 0 10px; font-size: 12.5px; max-width: 920px; }
+.ord-banner { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
+.ord-status {
+    background: #1e2937;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin: 0 0 10px;
+}
+.ord-status .sep { width: 1px; height: 12px; background: #475569; }
+.ord-load { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 6px; padding: 6px 10px; margin: 0 0 8px; font-size: 12.5px; }

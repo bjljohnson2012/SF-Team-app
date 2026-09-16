@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Error__c</fullName>
+    <description>Per-row error. One bad row must not roll back the batch.</description>
+    <inlineHelpText>Failure reason, 255 characters.</inlineHelpText>
+    <label>Error</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>255</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

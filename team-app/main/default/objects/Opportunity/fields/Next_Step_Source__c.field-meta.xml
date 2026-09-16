@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Next_Step_Source__c</fullName>
+    <description>Who wrote Next_Step_bf__c: Rep, Rep-accepted-AI, AI-auto, or Director.</description>
+    <inlineHelpText>Provenance of the live next step. AI-authored values are never indistinguishable from rep text.</inlineHelpText>
+    <label>Next Step Source</label>
+    <type>Picklist</type>
+    <required>false</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Rep</fullName>
+                <default>true</default>
+                <label>Rep</label>
+            </value>
+            <value>
+                <fullName>Rep-accepted-AI</fullName>
+                <default>false</default>
+                <label>Rep-accepted-AI</label>
+            </value>
+            <value>
+                <fullName>AI-auto</fullName>
+                <default>false</default>
+                <label>AI-auto</label>
+            </value>
+            <value>
+                <fullName>Director</fullName>
+                <default>false</default>
+                <label>Director</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

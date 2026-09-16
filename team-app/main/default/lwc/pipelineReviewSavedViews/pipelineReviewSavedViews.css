@@ -1,0 +1,47 @@
+:host { display: block; color: #0f172a; font-size: 13px; }
+.bar {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin: 0 0 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+.f { display: flex; flex-direction: column; gap: 3px; min-width: 180px; }
+.f label, .chk {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #64748b;
+    font-weight: 700;
+}
+.f select {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12.5px;
+    background: #fff;
+}
+.chk {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: none;
+    font-size: 12px;
+    color: #334155;
+    padding-bottom: 6px;
+}
+.btn {
+    background: #fff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+.btn:hover { border-color: #0f172a; }

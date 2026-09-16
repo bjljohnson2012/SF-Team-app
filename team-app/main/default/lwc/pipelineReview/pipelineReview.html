@@ -1,0 +1,73 @@
+<template>
+    <div class="ord">
+        <div class="ord-head">
+            <h2>Opportunity Review Dashboard</h2>
+            <p class="ord-sub">Live Salesforce, read-only on load. Local tags, note edits, and forecast overrides stay in Salesforce. Export writes a CSV.</p>
+        </div>
+        <template lwc:if={loading}><div class="ord-load" role="status">Loading book…</div></template>
+        <template lwc:if={error}><div class="ord-banner">{error}</div></template>
+        <template lwc:if={truncated}><div class="ord-banner">Loaded {loaded} of {expected}. History fetch truncated — retry.</div></template>
+
+        <div class="ord-status">
+            <span>{runStatus}</span>
+            <span class="sep"></span>
+            <span>{loaded} loaded</span>
+            <span class="sep"></span>
+            <span>done today {doneToday}</span>
+            <span class="sep"></span>
+            <span>not run {notRun}</span>
+            <span class="sep"></span>
+            <span>pushed {pushedToday}</span>
+        </div>
+
+        <c-pipeline-review-filters
+            aes={aes}
+            directors={directors}
+            stages={stageOptions}
+            solutions={solutionOptions}
+            filter={filter}
+            onfilterchange={onFilter}>
+        </c-pipeline-review-filters>
+
+        <c-pipeline-review-saved-views
+            views={views}
+            changed-only={onlyChanged}
+            onviewload={onViewLoad}
+            onviewsave={onViewSave}
+            onviewdel={onViewDel}
+            onviewreset={onViewReset}
+            onviewrefresh={onViewRefresh}
+            onchangedonly={onOnlyChanged}>
+        </c-pipeline-review-saved-views>
+
+        <c-pipeline-review-toolbar
+            last-updated={lastUpdated}
+            banner={runBanner}
+            skip-line={skipLine}
+            stats={stats}
+            threshold-pct={thresholdPct}
+            quota={quota}
+            period={period}
+            grade-on-refresh={gradeOnRefresh}
+            ongradekey={onGradeKey}
+            ongradeselected={onGradeSelected}
+            oncleargrades={onClearGrades}
+            onexport={onExport}
+            onthreshold={onThreshold}
+            onchip={onChip}>
+        </c-pipeline-review-toolbar>
+
+        <c-pipeline-review-table
+            rows={displayRows}
+            onsort={onSort}
+            onpick={onPick}
+            onpickall={onPickAll}
+            ontag={onTag}
+            onopen={onOpen}>
+        </c-pipeline-review-table>
+
+        <c-pipeline-review-drawer row={drawer} preview={preview} error={drawerError}
+            onsavenote={onSaveNote} onregenone={onRegenOne} onclose={onClose}>
+        </c-pipeline-review-drawer>
+    </div>
+</template>

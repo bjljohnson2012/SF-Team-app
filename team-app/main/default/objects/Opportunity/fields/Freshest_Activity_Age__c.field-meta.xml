@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Freshest_Activity_Age__c</fullName>
+    <description>Age in days of the freshest motion signal used by grading and priority.</description>
+    <inlineHelpText>Days since the newest of history, director note, or LastActivityDate.</inlineHelpText>
+    <label>Freshest Activity Age (Days)</label>
+    <type>Number</type>
+    <precision>5</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>

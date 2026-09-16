@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Action_Bucket__c</fullName>
+    <description>This Week ranking bucket written by Job A. Focus membership is also selected at query time.</description>
+    <inlineHelpText>Exactly one of Focus, DueThisWeek, DecideOrKill, FixFirst, None.</inlineHelpText>
+    <label>Action Bucket</label>
+    <type>Picklist</type>
+    <required>false</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Focus</fullName>
+                <default>true</default>
+                <label>Focus</label>
+            </value>
+            <value>
+                <fullName>DueThisWeek</fullName>
+                <default>false</default>
+                <label>DueThisWeek</label>
+            </value>
+            <value>
+                <fullName>DecideOrKill</fullName>
+                <default>false</default>
+                <label>DecideOrKill</label>
+            </value>
+            <value>
+                <fullName>FixFirst</fullName>
+                <default>false</default>
+                <label>FixFirst</label>
+            </value>
+            <value>
+                <fullName>None</fullName>
+                <default>false</default>
+                <label>None</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

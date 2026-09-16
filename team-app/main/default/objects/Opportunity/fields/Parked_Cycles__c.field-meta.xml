@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Parked_Cycles__c</fullName>
+    <description>Count of consecutive similar next-step history entries. Written by the grading job.</description>
+    <inlineHelpText>Consecutive next-step restatements (Jaccard >= 0.6). Two or more means parked.</inlineHelpText>
+    <label>Parked Cycles</label>
+    <type>Number</type>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>

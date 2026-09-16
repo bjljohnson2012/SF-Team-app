@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Days_Of_Week__c</fullName>
+    <description>Which weekdays the hourly dispatcher may enqueue this job.</description>
+    <inlineHelpText>Comma list Mon,Tue,... or * for every day.</inlineHelpText>
+    <label>Days Of Week</label>
+    <type>Text</type>
+    <externalId>false</externalId>
+    <length>40</length>
+    <required>false</required>
+    <unique>false</unique>
+</CustomField>

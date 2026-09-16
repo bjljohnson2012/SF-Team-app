@@ -1,0 +1,23 @@
+<template>
+    <tr class={rowClass} onclick={onOpen}>
+        <td><input type="checkbox" checked={selected} data-id={row.id} onclick={onPick}></td>
+        <td><a href={row.url} target="_blank">{row.account}</a><div class="pr-sub">{row.name}</div></td>
+        <td>{row.ae}</td>
+        <td>{row.stage}</td>
+        <td class="num">{arr}</td>
+        <td>{row.closeDate}</td>
+        <td>{row.aeForecast}</td>
+        <td>{row.recommendedForecast}</td>
+        <td><span class={gradeClass}>{row.grade}</span></td>
+        <td>
+            <select data-id={row.id} onchange={onTag}>
+                <option value="">—</option>
+                <option value="A" selected={tagA}>A</option>
+                <option value="B" selected={tagB}>B</option>
+                <option value="C" selected={tagC}>C</option>
+                <option value="D" selected={tagD}>D</option>
+            </select>
+        </td>
+        <td class={mismatchClass}>{row.rationale}</td>
+    </tr>
+</template>

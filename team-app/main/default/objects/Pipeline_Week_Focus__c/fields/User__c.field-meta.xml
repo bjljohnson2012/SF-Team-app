@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>User__c</fullName>
+    <description>Per-user weekly commitment list.</description>
+    <inlineHelpText>Whose Monday list this row belongs to.</inlineHelpText>
+    <label>User</label>
+    <type>Lookup</type>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>User</relationshipLabel>
+    <relationshipName>Pipeline_Week_Focus</relationshipName>
+    <required>false</required>
+</CustomField>

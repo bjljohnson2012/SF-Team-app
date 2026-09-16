@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Case-insensitive title substrings for contact resolution. Role is null 80% of the time.</description>
+    <label>Pipeline Title Pattern</label>
+    <pluralLabel>Pipeline Title Patterns</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

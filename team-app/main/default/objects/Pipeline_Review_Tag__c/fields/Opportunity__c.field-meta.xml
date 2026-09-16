@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Opportunity__c</fullName>
+    <description>Master-detail to Opportunity. Tags never touch Opportunity fields.</description>
+    <inlineHelpText>Opportunity this tag belongs to.</inlineHelpText>
+    <label>Opportunity</label>
+    <type>MasterDetail</type>
+    <referenceTo>Opportunity</referenceTo>
+    <relationshipLabel>Opportunity</relationshipLabel>
+    <relationshipName>Pipeline_Review_Tags</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

@@ -1,0 +1,22 @@
+<template>
+    <template lwc:if={row}>
+        <div class="drawer">
+            <div class="dh">
+                <h3>{row.account}</h3>
+                <button class="btn" onclick={onClose}>Close</button>
+            </div>
+            <p class="sub">{row.ae} · {row.stage} · {row.arrLabel}</p>
+            <p class="why">{row.rationale}</p>
+            <div class="f"><label>Director note</label>
+                <textarea rows="7" oninput={onNote}>{note}</textarea>
+            </div>
+            <div class="acts">
+                <button class="btn solid" onclick={onSave}>Save note</button>
+                <button class="btn" onclick={onRegen}>Regenerate</button>
+                <a class="btn" href={row.url} target="_blank">Open deal</a>
+            </div>
+            <template lwc:if={preview}><div class="suggest"><b>Preview</b><p>{preview}</p></div></template>
+            <template lwc:if={error}><div class="banner">{error}</div></template>
+        </div>
+    </template>
+</template>

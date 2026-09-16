@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Scope_Filter_JSON__c</fullName>
+    <description>JSON of the filter scope so a resume uses the same set.</description>
+    <inlineHelpText>Serialized filter that defined this run.</inlineHelpText>
+    <label>Scope Filter JSON</label>
+    <type>LongTextArea</type>
+    <length>32768</length>
+    <visibleLines>25</visibleLines>
+</CustomField>

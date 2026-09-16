@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Quota_Basis__c</fullName>
+    <description>Used with Big Deal Percent for model routing.</description>
+    <inlineHelpText>Fallback quarterly quota if ForecastConfigService has none.</inlineHelpText>
+    <label>Quota Basis</label>
+    <type>Number</type>
+    <precision>12</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>

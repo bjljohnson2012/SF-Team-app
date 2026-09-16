@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Category__c</fullName>
+    <description>Late-stage prefers EconomicBuyer; early-stage prefers Practitioner.</description>
+    <inlineHelpText>EconomicBuyer, Practitioner, or Technical.</inlineHelpText>
+    <label>Category</label>
+    <type>Picklist</type>
+    <required>false</required>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>EconomicBuyer</fullName>
+                <default>true</default>
+                <label>EconomicBuyer</label>
+            </value>
+            <value>
+                <fullName>Practitioner</fullName>
+                <default>false</default>
+                <label>Practitioner</label>
+            </value>
+            <value>
+                <fullName>Technical</fullName>
+                <default>false</default>
+                <label>Technical</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

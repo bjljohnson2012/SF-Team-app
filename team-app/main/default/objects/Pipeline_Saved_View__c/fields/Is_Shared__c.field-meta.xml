@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Shared__c</fullName>
+    <description>Share-to-team flag. Editing another user's view is owner-only.</description>
+    <inlineHelpText>Visible to the rest of the team, read-only.</inlineHelpText>
+    <label>Shared</label>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>

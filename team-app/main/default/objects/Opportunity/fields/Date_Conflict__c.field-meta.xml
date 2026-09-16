@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Date_Conflict__c</fullName>
+    <description>True when Next_Step_Date_bf__c is after CloseDate.</description>
+    <inlineHelpText>Next step date is after Close Date. Warn, do not block.</inlineHelpText>
+    <label>Date Conflict</label>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>

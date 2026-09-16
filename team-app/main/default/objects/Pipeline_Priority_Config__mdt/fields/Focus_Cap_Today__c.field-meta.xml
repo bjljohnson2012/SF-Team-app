@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Focus_Cap_Today__c</fullName>
+    <description>Hard cap for Today Focus.</description>
+    <inlineHelpText>Default 5.</inlineHelpText>
+    <label>Focus Cap Today</label>
+    <type>Number</type>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>0</scale>
+</CustomField>
