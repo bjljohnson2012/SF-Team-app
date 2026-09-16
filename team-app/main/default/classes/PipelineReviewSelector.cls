@@ -286,6 +286,8 @@ public with sharing class PipelineReviewSelector {
                 FROM Pipeline_Title_Pattern__mdt
             ];
         } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR,
+                'Pipeline_Title_Pattern__mdt unavailable: ' + e.getTypeName() + ' ' + e.getMessage());
             return new List<Pipeline_Title_Pattern__mdt>();
         }
     }
@@ -304,6 +306,8 @@ public with sharing class PipelineReviewSelector {
             ];
             return rows.isEmpty() ? null : rows[0];
         } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR,
+                'Pipeline_Priority_Config__mdt unavailable: ' + e.getTypeName() + ' ' + e.getMessage());
             return null;
         }
     }

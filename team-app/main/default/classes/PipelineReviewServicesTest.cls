@@ -59,7 +59,7 @@ private class PipelineReviewServicesTest {
             Opportunity o = new Opportunity(
                 Name = 'PR Deal ' + i,
                 AccountId = a.Id,
-                StageName = 'Proposal',
+                StageName = 'Discovery',
                 CloseDate = Date.today().addDays(20 + i),
                 ForecastCategoryName = 'Pipeline'
             );
@@ -287,20 +287,17 @@ private class PipelineReviewServicesTest {
     @IsTest
     static void config_queries_degrade_without_failing_trigger() {
         PipelineReviewSelector.simulateConfigQueryFailure = true;
+        System.assertEquals(0, PipelineReviewSelector.titlePatterns().size(), 'patterns degrade');
+        System.assertEquals(null, PipelineReviewSelector.priorityConfig(), 'priority degrades');
+        System.assertEquals(0, PipelineReviewSelector.titlePatternInputs().size(), 'inputs degrade');
+        PipelineReviewGradeService.WeightConfig weights = PipelineReviewSelector.weightConfig();
+        PipelineReviewGradeService.WeightConfig defaults = PipelineReviewGradeService.defaultWeights();
+        System.assertEquals(defaults.wV, weights.wV, 'default weights when config missing');
+        Opportunity o = [SELECT Id FROM Opportunity WHERE Name = 'PR Deal 0' LIMIT 1];
         Test.startTest();
-        System.assertEquals(0, PipelineReviewSelector.titlePatterns().size());
-        System.assertEquals(null, PipelineReviewSelector.priorityConfig());
-        System.assertEquals(0, PipelineReviewSelector.titlePatternInputs().size());
-        Opportunity o = [
-            SELECT Id, StageName, CloseDate, ForecastCategoryName, Director_Forecast_bf__c,
-                   Next_Step_bf__c, Next_Step_Date_bf__c, LastActivityDate
-            FROM Opportunity
-            LIMIT 1
-        ];
-        PipelineReviewOpportunityHandler.afterChange(new List<Opportunity>{ o }, null);
+        update new Opportunity(Id = o.Id, Next_Step_bf__c = 'PR degrade probe');
         Test.stopTest();
-        PipelineReviewSelector.simulateConfigQueryFailure = false;
-        System.assertEquals(false, PipelineReviewOpportunityHandler.running);
+        System.assertEquals(false, PipelineReviewOpportunityHandler.running, 'running reset after save');
     }
 
     @IsTest

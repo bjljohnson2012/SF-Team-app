@@ -12,12 +12,16 @@ public with sharing class PipelineReviewOpportunityHandler {
             if (oldMap == null || relevantChange(oldMap.get(o.Id), o)) changed.add(o);
         }
         if (changed.isEmpty()) return;
+        // Leave the user save alone if this transaction is already near governor caps.
+        if (Limits.getLimitQueries() - Limits.getQueries() < 20) return;
         running = true;
         try {
             recompute(changed, Date.today());
         } catch (Exception e) {
-            // Title-pattern / priority CMDT (or any selector miss) must never
-            // fail Opportunity after-insert / after-update org-wide.
+            // Config miss or grade-path error must never fail Opportunity DML.
+            System.debug(LoggingLevel.ERROR,
+                'PipelineReviewOpportunityHandler.afterChange degraded: '
+                + e.getTypeName() + ' ' + e.getMessage());
         } finally {
             running = false;
         }

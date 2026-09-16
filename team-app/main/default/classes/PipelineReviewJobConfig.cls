@@ -18,11 +18,19 @@ public with sharing class PipelineReviewJobConfig {
         DateTime et = toEt(nowUtc);
         Integer hour = Integer.valueOf(et.format('HH', 'America/New_York'));
         String dow = et.format('EEE', 'America/New_York'); // Mon
+        List<Pipeline_Review_Job__mdt> rows;
         try {
-            for (Pipeline_Review_Job__mdt row : [
+            rows = [
                 SELECT DeveloperName, Enabled__c, Hour_ET__c, Days_Of_Week__c, Batch_Size__c, Job_Class__c
                 FROM Pipeline_Review_Job__mdt
-            ]) {
+            ];
+        } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR,
+                'Pipeline_Review_Job__mdt unavailable: ' + e.getTypeName() + ' ' + e.getMessage());
+            return out;
+        }
+        for (Pipeline_Review_Job__mdt row : rows) {
+            try {
                 if (row.Enabled__c != true) continue;
                 if (row.Hour_ET__c != null && Integer.valueOf(row.Hour_ET__c) != hour) continue;
                 if (!dayMatches(row.Days_Of_Week__c, dow)) continue;
@@ -34,9 +42,11 @@ public with sharing class PipelineReviewJobConfig {
                 spec.hourEt = row.Hour_ET__c == null ? null : Integer.valueOf(row.Hour_ET__c);
                 spec.daysOfWeek = row.Days_Of_Week__c;
                 out.add(spec);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.ERROR,
+                    'Pipeline_Review_Job__mdt row skipped: ' + row.DeveloperName + ' '
+                    + e.getTypeName() + ' ' + e.getMessage());
             }
-        } catch (Exception e) {
-            return out;
         }
         return out;
     }
