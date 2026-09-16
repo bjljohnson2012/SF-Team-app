@@ -76,10 +76,14 @@ public with sharing class PipelineReviewNoteBatch implements Database.Batchable<
 
     private Boolean isCancelled() {
         if (runId == null) return false;
-        Pipeline_Review_Run__c run = [
-            SELECT Status__c FROM Pipeline_Review_Run__c WHERE Id = :runId LIMIT 1
-        ];
-        return run.Status__c == PipelineReviewConstants.RUN_CANCELLED;
+        try {
+            Pipeline_Review_Run__c run = [
+                SELECT Status__c FROM Pipeline_Review_Run__c WHERE Id = :runId LIMIT 1
+            ];
+            return run.Status__c == PipelineReviewConstants.RUN_CANCELLED;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static String currentHash(Opportunity o) {

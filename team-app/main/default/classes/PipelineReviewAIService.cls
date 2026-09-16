@@ -177,6 +177,27 @@ public with sharing class PipelineReviewAIService {
         }
     }
 
+    private static String safeRelName(Opportunity o) {
+        try {
+            return o.Owner == null ? '' : o.Owner.Name;
+        } catch (Exception e) {
+            return '';
+        }
+    }
+
+    private static Object safeGet(SObject rec, String fieldName) {
+        try {
+            return rec.get(fieldName);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String safeStr(SObject rec, String fieldName) {
+        Object v = safeGet(rec, fieldName);
+        return v == null ? '' : String.valueOf(v);
+    }
+
     public static Date parseIsoDate(String raw) {
         if (String.isBlank(raw)) return null;
         try {
@@ -205,18 +226,17 @@ public with sharing class PipelineReviewAIService {
         List<String> blocks = new List<String>();
         String ds = today.month() + '/' + today.day();
         for (Opportunity o : opps) {
-            String ae = o.Owner == null ? '' : o.Owner.Name;
             blocks.add(
                 'Id=' + o.Id
                 + '\nAccount=' + accountName(o)
-                + '\nAE=' + ae
-                + '\nStage=' + o.StageName
-                + '\nClose=' + String.valueOf(o.CloseDate)
-                + '\nAEForecast=' + o.ForecastCategoryName
-                + '\nDirectorForecast=' + o.Director_Forecast_bf__c
-                + '\nNextStep=' + o.Next_Step_bf__c
-                + '\nNextStepDate=' + String.valueOf(o.Next_Step_Date_bf__c)
-                + '\nExistingNote=' + o.Director_Notes_bf__c
+                + '\nAE=' + safeRelName(o)
+                + '\nStage=' + safeStr(o, 'StageName')
+                + '\nClose=' + String.valueOf(safeGet(o, 'CloseDate'))
+                + '\nAEForecast=' + safeStr(o, 'ForecastCategoryName')
+                + '\nDirectorForecast=' + safeStr(o, 'Director_Forecast_bf__c')
+                + '\nNextStep=' + safeStr(o, 'Next_Step_bf__c')
+                + '\nNextStepDate=' + String.valueOf(safeGet(o, 'Next_Step_Date_bf__c'))
+                + '\nExistingNote=' + safeStr(o, 'Director_Notes_bf__c')
                 + '\nTodayPrefix=' + ds
             );
         }
