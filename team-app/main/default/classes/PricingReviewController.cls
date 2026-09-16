@@ -80,7 +80,8 @@ public with sharing class PricingReviewController {
 
         for (Opportunity o : [
             SELECT Id, Name, Account.Name, Owner.Name, StageName, CloseDate, LeadSource,
-                   EUNA_Solution__c, Sales_Director__c, ARR_Opportunity_Amount_USD_Num__c,
+                   EUNA_Solution__c, Euna_Solutions_Lookup__r.Name, Sales_Director__c,
+                   ARR_Opportunity_Amount_USD_Num__c,
                    Pricing_Review_Answers__c, Pricing_Review_Override__c
             FROM Opportunity
             WHERE IsClosed = false AND OwnerId IN :owners
@@ -95,7 +96,7 @@ public with sharing class PricingReviewController {
             r.account = (o.Account != null) ? o.Account.Name : o.Name;
             r.ae = (o.Owner != null) ? o.Owner.Name : null;
             r.stage = o.StageName;
-            r.productInterest = o.EUNA_Solution__c;
+            r.productInterest = productLabel(o);
             r.arr = o.ARR_Opportunity_Amount_USD_Num__c;
             r.closeDate = o.CloseDate;
             r.leadSource = o.LeadSource;
@@ -108,6 +109,16 @@ public with sharing class PricingReviewController {
         }
         stampReviewFiles(out.deals);
         return out;
+    }
+
+    @TestVisible
+    static String productLabel(Opportunity o) {
+        if (o == null) return '';
+        if (String.isNotBlank(o.EUNA_Solution__c)) return o.EUNA_Solution__c;
+        if (o.Euna_Solutions_Lookup__r != null && String.isNotBlank(o.Euna_Solutions_Lookup__r.Name)) {
+            return o.Euna_Solutions_Lookup__r.Name;
+        }
+        return '';
     }
 
     /**

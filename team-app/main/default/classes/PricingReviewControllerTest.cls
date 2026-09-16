@@ -195,7 +195,14 @@ private class PricingReviewControllerTest {
         r.stage = 'Alignment';
         r.productInterest = 'Budget Professional';
         System.assertEquals('Budget Professional', r.productInterest,
-            'table row carries Product Interest from EUNA_Solution__c');
+            'table row carries Product from EUNA_Solution__c');
+        Opportunity pick = new Opportunity(EUNA_Solution__c = 'Amplifund');
+        System.assertEquals('Amplifund', PricingReviewController.productLabel(pick),
+            'picklist product is what the Product column shows');
+        Opportunity blank = new Opportunity();
+        System.assertEquals('', PricingReviewController.productLabel(blank),
+            'no solution is a blank Product cell');
+        System.assertEquals('', PricingReviewController.productLabel(null), 'null opp has no product');
     }
 
     @isTest

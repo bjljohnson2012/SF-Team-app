@@ -78,7 +78,8 @@ export default class PricingReviewTool extends LightningElement {
         if (result.data) {
             this.isDirector = result.data.isDirector;
             this.rows = (result.data.deals || []).map((d) => ({
-                id: d.id, account: d.account, ae: d.ae, stage: d.stage, productInterest: d.productInterest,
+                id: d.id, account: d.account, ae: d.ae, stage: d.stage,
+                productInterest: d.productInterest || '\u2014',
                 leadSource: d.leadSource,
                 recordUrl: '/lightning/r/Opportunity/' + d.id + '/view',
                 arr: d.arr, arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
