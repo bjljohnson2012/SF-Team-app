@@ -6,6 +6,7 @@ import draftOne from '@salesforce/apex/PricingReviewController.draftOne';
 import createReview from '@salesforce/apex/PricingReviewController.createReview';
 import getReview from '@salesforce/apex/PricingReviewController.getReview';
 import setReviewStatus from '@salesforce/apex/PricingReviewController.setReviewStatus';
+import findReviewFiles from '@salesforce/apex/PricingReviewController.findReviewFiles';
 
 const QUESTIONS = [
     'Total Budget and Operating Budget, Population/Student Count + Employees',
@@ -58,6 +59,10 @@ export default class PricingReviewTool extends LightningElement {
     done;
     answers = {};
     busyQ;
+    findingId;
+    fileHits = [];
+    fileHitsAccount = '';
+    fileHitsEmpty = false;
     _scrollToBuilder = false;
 
     renderedCallback() {
@@ -73,12 +78,22 @@ export default class PricingReviewTool extends LightningElement {
         if (result.data) {
             this.isDirector = result.data.isDirector;
             this.rows = (result.data.deals || []).map((d) => ({
-                id: d.id, account: d.account, ae: d.ae, stage: d.stage, leadSource: d.leadSource,
+                id: d.id, account: d.account, ae: d.ae, stage: d.stage,
+                productInterest: d.productInterest || '\u2014',
+                leadSource: d.leadSource,
                 recordUrl: '/lightning/r/Opportunity/' + d.id + '/view',
                 arr: d.arr, arrFmt: this.money(d.arr), closeDate: d.closeDate, done: d.reviewDone,
                 statusPill: 'pill ' + (d.reviewDone ? 'p-hi' : 'p-ex'),
                 statusLabel: d.reviewDone ? 'Done' : 'Not done',
-                overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.statusOverride || '') === o[0] }))
+                overrideOptions: OVERRIDES.map((o) => ({ value: o[0], label: o[1], selected: (d.statusOverride || '') === o[0] })),
+                hasReviewFile: !!d.hasReviewFile,
+                reviewFileUrl: d.reviewFileUrl,
+                reviewFileTitle: d.reviewFileTitle,
+                reviewFileCount: d.reviewFileCount || 0,
+                filePill: 'pill ' + (d.hasReviewFile ? 'p-hi' : 'p-ex'),
+                fileLabel: d.hasReviewFile
+                    ? ((d.reviewFileCount > 1 ? d.reviewFileCount + ' files' : 'File on opp'))
+                    : 'No file yet'
             }));
             this.error = undefined;
         } else if (result.error) { this.error = this.msg(result.error); }
@@ -95,7 +110,7 @@ export default class PricingReviewTool extends LightningElement {
         const t = (this.searchTerm || '').trim().toLowerCase();
         if (!t) return this.rows;
         return this.rows.filter((r) =>
-            [r.account, r.ae, r.stage].some((v) => (v || '').toLowerCase().includes(t)));
+            [r.account, r.ae, r.stage, r.productInterest].some((v) => (v || '').toLowerCase().includes(t)));
     }
     // sorting by size (ARR), close date, review status, or stage
     get sortedRows() {
@@ -120,6 +135,7 @@ export default class PricingReviewTool extends LightningElement {
     get sClose() { return this.arrow('closeDate'); }
     get sDone() { return this.arrow('done'); }
     get sStage() { return this.arrow('stage'); }
+    get sProduct() { return this.arrow('productInterest'); }
 
     get hasFiltered() { return this.filteredRows.length > 0; }
     get scopeLabel() { return this.scope === 'team' ? 'Showing your team\u2019s deals' : 'Showing your deals'; }
@@ -210,4 +226,29 @@ export default class PricingReviewTool extends LightningElement {
             .catch((err) => { this.error = this.msg(err); });
     }
     closeView() { this.viewing = undefined; this.answers = {}; }
+
+    findFile(e) {
+        const id = e.currentTarget.dataset.id;
+        const row = this.rows.find((x) => x.id === id);
+        this.findingId = id;
+        this.fileHits = [];
+        this.fileHitsEmpty = false;
+        this.fileHitsAccount = row ? row.account : '';
+        this.error = undefined;
+        findReviewFiles({ opportunityId: id })
+            .then((files) => {
+                this.fileHits = (files || []).map((f) => ({
+                    id: f.documentId,
+                    title: f.title,
+                    url: f.url,
+                    when: f.lastModified
+                }));
+                this.fileHitsEmpty = this.fileHits.length === 0;
+            })
+            .catch((err) => { this.error = this.msg(err); })
+            .finally(() => { this.findingId = undefined; });
+    }
+    clearFileHits() { this.fileHits = []; this.fileHitsEmpty = false; this.fileHitsAccount = ''; }
+    get findingFiles() { return !!this.findingId; }
+    get hasFileHits() { return this.fileHits.length > 0; }
 }

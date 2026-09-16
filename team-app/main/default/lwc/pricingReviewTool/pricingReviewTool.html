@@ -1,19 +1,38 @@
 <template>
     <div class="pr-header">
         <h1>Pricing Review Checklist</h1>
-        <p class="sub">Pick an open opportunity and the tool reads its fields, activity and Gong calls to pre-fill the 24 pricing questions. Review, then Complete to save the responses and attach the Euna Word document to the opportunity's Files.</p>
+        <p class="sub">Pick an open opportunity and the tool searches the quote, opportunity, account, Active Contracts / Active ARR, LinkSquares, RFP Details and Files, contacts, activity, emails, calls and Gong transcripts (Unknown scope included), then the web if needed, to pre-fill the 24 pricing questions. Review, then Complete to save the responses and attach the Euna Word document to the opportunity's Files.</p>
     </div>
     <div class="pr-bar"></div>
 
     <div class="pr-body">
         <template lwc:if={error}><div class="err">{error}</div></template>
         <template lwc:if={done}><div class="box ok">{done}</div></template>
+        <template lwc:if={findingFiles}><div class="box"><p class="small"><span class="pr-spin"></span> Searching opportunity Files for a Pricing Review checklist&hellip;</p></div></template>
+        <template lwc:if={hasFileHits}>
+            <div class="box ok">
+                <h3>Checklist file on {fileHitsAccount}</h3>
+                <p class="small">A Pricing Review document is already attached to this opportunity&rsquo;s Files.</p>
+                <ul class="file-list">
+                    <template for:each={fileHits} for:item="f">
+                        <li key={f.id}><a href={f.url} target="_blank">{f.title}</a></li>
+                    </template>
+                </ul>
+                <div class="actions"><button class="pr-btn gh sm" onclick={clearFileHits}>Dismiss</button></div>
+            </div>
+        </template>
+        <template lwc:if={fileHitsEmpty}>
+            <div class="box">
+                <p>No Pricing Review checklist file was found on {fileHitsAccount}. Create one from the row, or it may be titled something else in Files.</p>
+                <div class="actions"><button class="pr-btn gh sm" onclick={clearFileHits}>Dismiss</button></div>
+            </div>
+        </template>
 
         <template lwc:if={selected}>
             <div class="box builder-box">
-                <h3>Pricing Review Checklist &mdash; <a href={selected.recordUrl} target="_blank" title="Open the opportunity">{selected.account}</a></h3>
+                <h3>Pricing Review Checklist &mdash; <a href={selected.recordUrl} target="_blank" title="Open the opportunity">{selected.account}</a><template lwc:if={selected.productInterest}> &middot; {selected.productInterest}</template></h3>
                 <template lwc:if={drafting}>
-                    <p class="small"><span class="pr-spin"></span> Analyzing the opportunity, activity and Gong records to pre-fill your answers&hellip; this can take up to ~30 seconds.</p>
+                    <p class="small"><span class="pr-spin"></span> Searching quote, account, contracts / Active ARR, LinkSquares, RFP Files, contacts, activity, emails, calls and Gong (web if needed) to pre-fill your answers&hellip; this can take up to ~30 seconds.</p>
                 </template>
                 <template lwc:else>
                     <p class="small">Pre-filled from Salesforce by Claude ({filledCount} of 24). Answers marked <b>INFERRED:</b> were reasoned from context rather than found in the data &mdash; verify those before submitting. Use <b>Try again</b> to regenerate a question or <b>Expand</b> to add detail.</p>
@@ -70,7 +89,7 @@
         </div>
 
         <div class="toolbar">
-            <input type="search" class="search" placeholder="Search opportunities by account, AE or stage&hellip;" value={searchTerm} oninput={handleSearch}>
+            <input type="search" class="search" placeholder="Search opportunities by account, AE, stage or product&hellip;" value={searchTerm} oninput={handleSearch}>
             <template lwc:if={isDirector}>
                 <div class="seg-wrap" title="Directors default to the team's deals">
                     <button class={teamActive} onclick={showTeam}>My team</button>
@@ -83,16 +102,21 @@
         <template lwc:if={hasRows}>
             <template lwc:if={hasFiltered}>
                 <div class="tw"><table>
-                    <thead><tr><th>Account</th><th>AE</th><th class="so" data-sort="stage" onclick={sortBy}>Stage{sStage}</th><th class="num so" data-sort="arr" onclick={sortBy}>ARR{sArr}</th><th class="so" data-sort="closeDate" onclick={sortBy}>Close{sClose}</th><th class="so" data-sort="done" onclick={sortBy}>Pricing review{sDone}</th><th>Override</th><th></th></tr></thead>
+                    <thead><tr><th>Account</th><th class="so" data-sort="productInterest" onclick={sortBy}>Product{sProduct}</th><th>AE</th><th class="so" data-sort="stage" onclick={sortBy}>Stage{sStage}</th><th class="num so" data-sort="arr" onclick={sortBy}>ARR{sArr}</th><th class="so" data-sort="closeDate" onclick={sortBy}>Close{sClose}</th><th class="so" data-sort="done" onclick={sortBy}>Pricing review{sDone}</th><th>Checklist file</th><th>Override</th><th></th></tr></thead>
                     <tbody><template for:each={sortedRows} for:item="d"><tr key={d.id}>
-                        <td><a href={d.recordUrl} target="_blank" title="Open the opportunity">{d.account}</a></td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
+                        <td><a href={d.recordUrl} target="_blank" title="Open the opportunity">{d.account}</a></td><td class="prod">{d.productInterest}</td><td>{d.ae}</td><td>{d.stage}</td><td class="num">{d.arrFmt}</td><td>{d.closeDate}</td>
                         <td><span class={d.statusPill}>{d.statusLabel}</span></td>
+                        <td>
+                            <span class={d.filePill}>{d.fileLabel}</span>
+                            <template lwc:if={d.hasReviewFile}><a class="file-open" href={d.reviewFileUrl} target="_blank" title={d.reviewFileTitle}>Open</a></template>
+                        </td>
                         <td><select class="ovsel" data-id={d.id} onchange={setStatus}><template for:each={d.overrideOptions} for:item="o"><option key={o.value} value={o.value} selected={o.selected}>{o.label}</option></template></select></td>
                         <td class="rowact">
                             <button class="pr-btn sm" data-id={d.id} onclick={pick}>
                                 <template lwc:if={d.done}>Redo review</template>
                                 <template lwc:else>Create pricing review checklist</template>
                             </button>
+                            <button class="pr-btn sm gh" data-id={d.id} onclick={findFile}>Find checklist file</button>
                             <template lwc:if={d.done}><button class="pr-btn sm gh" data-id={d.id} onclick={viewResponses}>View responses</button></template>
                         </td>
                     </tr></template></tbody>
