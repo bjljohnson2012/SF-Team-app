@@ -6,5 +6,6 @@
 - **Artifact:** Apex only — `PipelineReviewSelector`, `PipelineReviewOpportunityHandler`, `PipelineReviewJobConfig`, `PipelineReviewServicesTest`.
 - **Review:** Independent adversarial /sf-review of `7519ea9` (4 reviewers). Act-on: hollow test, silent catch, `due()` wrapping the whole loop. Addressed in the follow-up commit before validate.
 - **Path:** `sf project deploy validate` then `sf project deploy quick` on that job id. Never `deploy start`.
-- **Validate job:** (filled after validate)
-- **Quick job:** (filled after quick)
+- **Validate job:** `0AfOL000003TLdd0AG` — 32/32, Succeeded
+- **Quick job:** `0AfOL000003TLgr0AG` — Succeeded
+- **Live check:** `titlePatternInputs()` / `weightConfig()` throw `QueryException` internally, catch, return 0 patterns and default `wV=0.30`. Does not fail the transaction.
