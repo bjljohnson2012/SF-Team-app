@@ -40,7 +40,8 @@ h3 { font-size: 13.5px; color: var(--indigo); margin: 14px 0 8px; font-weight: 7
     padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .fh-btn:hover { background: #3a2699; }
 .fh-btn.gh { background: #fff; color: var(--indigo); border: 1px solid var(--gray); }
-.view-toggle { display: inline-flex; gap: 0; margin: 0 0 12px; border: 1px solid var(--gray); border-radius: 8px; overflow: hidden; }
+.toggle-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+.view-toggle { display: inline-flex; gap: 0; margin: 0; border: 1px solid var(--gray); border-radius: 8px; overflow: hidden; }
 .chip { background: #fff; border: none; padding: 6px 14px; font-size: 12px; font-weight: 700; color: #475467; cursor: pointer; }
 .chip.on { background: var(--indigo); color: #fff; }
 .checkpoint { margin: 0 0 18px; }

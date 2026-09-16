@@ -203,7 +203,7 @@ private class CockpitConversionServiceTest {
 
             System.assertEquals(false, page.scope.emptyScope, 'director with an AE is a valid scope');
             System.assertEquals('2026-Q3', page.scope.closeQuarter, 'selected close quarter is honored');
-            System.assertEquals(3, page.closedInWindow, 'Q1 close is excluded from Q3');
+            System.assertEquals(3, page.closedInWindow, 'Q1 close is excluded from the Q3 book');
             System.assertEquals(3, page.bandCheckpoints.size(), 'first, second, third month tables');
             System.assertEquals(CockpitConversionService.CP_M1, page.bandCheckpoints[0].key);
             System.assertEquals(CockpitConversionService.CP_M2, page.bandCheckpoints[1].key);
@@ -220,33 +220,25 @@ private class CockpitConversionServiceTest {
             System.assertEquals(true, bandHas(page.bandCheckpoints[2].rows, 'Best Case', 1),
                 'third month uses before-close when the deal closed that month and had no snapshot');
             for (CockpitConversionService.CheckpointTable t : page.bandCheckpoints) {
-                Integer bandSum = 0;
-                Boolean sawMissing = false;
-                for (CockpitConversionService.BandRow b : t.rows) {
-                    bandSum += b.total;
-                    if (b.band == CockpitConversionService.NOT_ON_FORECAST) {
-                        sawMissing = true;
-                        System.assert(b.lost >= 1, 'deals with no source stay Not on forecast');
-                    }
-                }
-                System.assertEquals(true, sawMissing, t.key + ' keeps Not on forecast');
-                System.assertEquals(page.closedInWindow, bandSum, t.key + ' sums to closed in window');
                 System.assert(!t.byAe.isEmpty(), t.key + ' flattens by AE');
                 System.assertNotEquals(null, t.explain, t.key + ' explains the table');
+                for (CockpitConversionService.BandRow b : t.rows) {
+                    System.assertNotEquals(CockpitConversionService.NOT_ON_FORECAST, b.band,
+                        t.key + ' leaves deals with no source off the table');
+                }
             }
             System.assertNotEquals(null, page.forecastExplain, 'forecast category accuracy is explained');
-            System.assert(page.forecastExplain.contains('first, second, and third month'),
-                'explain names the three months');
-            System.assertNotEquals(null, page.conventionCaption, 'page says it is closure-based');
+            System.assert(page.forecastExplain.contains('In-quarter'), 'explain names the in-quarter toggle');
+            System.assertNotEquals(null, page.conventionCaption, 'page explains the book-to-quarter-end comparison');
             System.assertNotEquals(null, page.liveBook, 'live book is computed');
             System.assert(!page.lossMatrix.isEmpty(), 'loss matrix includes floored closed-lost reasons');
-            System.assert(page.options.closeQuarters.size() > 1, 'close-quarter picker is served');
+            System.assert(page.options.closeQuarters.size() > 1, 'quarter picker is served');
             System.assertEquals(CockpitConversionService.QUARTER_ALL, page.options.closeQuarters[0].value);
 
             CockpitConversionService.PagePayload allQ = CockpitConversionService.load(
                 dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL,
                 CockpitConversionService.QUARTER_ALL);
-            System.assert(allQ.closedInWindow >= 4, 'All close quarters includes Q1 and Q3');
+            System.assertEquals(3, allQ.bandCheckpoints.size(), 'All quarters still builds the current-quarter book');
 
             CockpitConversionService.snapshotOverride = null;
             CockpitConversionService.PagePayload liveQuery = CockpitConversionService.load(
@@ -296,6 +288,82 @@ private class CockpitConversionServiceTest {
             System.assertEquals('Grants', opts.productTypes[2].label);
             System.assertEquals('Procurement Sourcing', opts.productTypes[3].label);
             System.assertEquals('Procurement Marketplace', opts.productTypes[4].label);
+        }
+    }
+
+    @isTest
+    static void fateOf_andRates_inQuarterVsPush() {
+        Date qStart = Date.newInstance(2026, 7, 1);
+        Date qEnd = Date.newInstance(2026, 9, 30);
+        System.assertEquals(CockpitConversionService.FATE_FUNDED,
+            CockpitConversionService.fateOf(true, true, Date.newInstance(2026, 8, 10), qStart, qEnd));
+        System.assertEquals(CockpitConversionService.FATE_LOST,
+            CockpitConversionService.fateOf(true, false, Date.newInstance(2026, 9, 10), qStart, qEnd));
+        System.assertEquals(CockpitConversionService.FATE_PUSHED,
+            CockpitConversionService.fateOf(false, false, Date.newInstance(2026, 10, 15), qStart, qEnd));
+        System.assertEquals(CockpitConversionService.FATE_OPEN,
+            CockpitConversionService.fateOf(false, false, Date.newInstance(2026, 9, 20), qStart, qEnd));
+        System.assertEquals(CockpitConversionService.FATE_PRIOR,
+            CockpitConversionService.fateOf(true, false, Date.newInstance(2026, 2, 10), qStart, qEnd));
+
+        CockpitConversionService.BandRow row = new CockpitConversionService.BandRow();
+        row.band = 'Commit';
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_FUNDED, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_FUNDED, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_LOST, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_LOST, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_PUSHED, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_PUSHED, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_PUSHED, 100000);
+        CockpitConversionService.applyFate(row, CockpitConversionService.FATE_PUSHED, 100000);
+        CockpitConversionService.finalizeBands(new List<CockpitConversionService.BandRow>{ row });
+        System.assertEquals(0.5000, row.winRateInQuarter, 'in-quarter is funded ÷ closed that quarter');
+        System.assertEquals(0.2500, row.winRateInclPush, 'include push puts slips in the denominator');
+        System.assertEquals(2, row.won);
+        System.assertEquals(2, row.lost);
+        System.assertEquals(4, row.pushed);
+    }
+
+    @isTest
+    static void forecastAccuracy_pushedDealIsNotInQuarterClose() {
+        User dir = setupDirectorWithRep();
+        User rep = [SELECT Id FROM User WHERE ManagerId = :dir.Id LIMIT 1];
+        Id rtId = eunaSaleRtId();
+        Date closeQ3 = Date.newInstance(2026, 9, 10);
+        System.runAs(dir) {
+            Account a = new Account(Name = 'Conv Push');
+            insert a;
+            Opportunity closed = closedDeal(a.Id, rep.Id, rtId, 'Closed Lost', 'Commit',
+                'Budget Professional', 40000, closeQ3, 'Ghosted');
+            Opportunity slipped = openDeal(a.Id, rep.Id, rtId, 'Budget Professional', 50000);
+            slipped.CloseDate = Date.newInstance(2026, 10, 20);
+            insert new List<Opportunity>{ closed, slipped };
+            CockpitConversionService.snapshotOverride = new Map<Id, List<CockpitConversionService.SnapPoint>>{
+                closed.Id => new List<CockpitConversionService.SnapPoint>{
+                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Commit')
+                },
+                slipped.Id => new List<CockpitConversionService.SnapPoint>{
+                    new CockpitConversionService.SnapPoint(Date.newInstance(2026, 7, 2), 'Most Likely')
+                }
+            };
+            Test.startTest();
+            CockpitConversionService.PagePayload page = CockpitConversionService.load(
+                dir.Id, CockpitConversionService.TEAM_DIRECTOR, null, CockpitConversionService.SIZE_ALL, '2026-Q3');
+            Test.stopTest();
+            CockpitConversionService.BandRow commit = bandOf(page.bandCheckpoints[0].rows, 'Commit');
+            CockpitConversionService.BandRow ml = bandOf(page.bandCheckpoints[0].rows, 'Most Likely');
+            System.assertNotEquals(null, commit, 'July Commit stays on the book');
+            System.assertEquals(1, commit.lost, 'in-quarter close is a loss');
+            System.assertEquals(0, commit.pushed, 'the Q3 close is not a push');
+            System.assertNotEquals(null, ml, 'July Most Likely stays on the book');
+            System.assertEquals(1, ml.pushed, 'Q4 close date is a push');
+            System.assertEquals(0, ml.lost, 'a push is not an in-quarter loss');
+            System.assertEquals(1, page.pushedInWindow, 'quarter tally counts the slip');
+            System.assertEquals(1, page.commitAccuracy.size(), 'Funded is by AE for Commit/Most Likely');
+            System.assertEquals(2, page.commitAccuracy[0].book, 'Commit close plus Most Likely slip');
+            System.assertEquals(1, page.commitAccuracy[0].lost);
+            System.assertEquals(1, page.commitAccuracy[0].pushed);
+            CockpitConversionService.snapshotOverride = null;
         }
     }
 
@@ -425,11 +493,16 @@ private class CockpitConversionServiceTest {
     }
 
     static Boolean bandHas(List<CockpitConversionService.BandRow> rows, String band, Integer minTotal) {
-        if (rows == null) return false;
+        CockpitConversionService.BandRow b = bandOf(rows, band);
+        return b != null && b.total >= minTotal;
+    }
+
+    static CockpitConversionService.BandRow bandOf(List<CockpitConversionService.BandRow> rows, String band) {
+        if (rows == null) return null;
         for (CockpitConversionService.BandRow b : rows) {
-            if (b.band == band && b.total >= minTotal) return true;
+            if (b.band == band) return b;
         }
-        return false;
+        return null;
     }
 
     static Integer seq = 0;

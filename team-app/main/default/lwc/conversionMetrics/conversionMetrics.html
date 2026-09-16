@@ -17,7 +17,7 @@
             </select>
         </div>
         <div class="fh-f wide">
-            <label>Close quarter</label>
+            <label>Quarter</label>
             <select onchange={handleQuarter}>
                 <template for:each={quarterOptions} for:item="o">
                     <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
@@ -59,15 +59,24 @@
                     <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
                 </div>
             </div>
-            <p class="lede">Of deals that closed in this quarter, what forecast category were they in during the first, second, and third month — and what share of those won? That conversion is the accuracy of the word the team used that month.</p>
+            <p class="lede">Of deals that sat in a forecast category in the first, second, or third month, where were they at quarter-end — funded in-quarter, lost, or pushed? In-quarter win rate scores only what actually closed that quarter. Include push counts slips against the word.</p>
             <template lwc:if={showForecastExplain}><div class="box"><p>{forecastExplain}</p></div></template>
             <template lwc:if={hasInterpretation}><div class="box warn"><p>{interpretation}</p></div></template>
-            <div class="view-toggle" role="group" aria-label="Forecast category view">
-                <button class={teamViewClass} type="button" data-view="team" onclick={handleView}>Team</button>
-                <button class={aeViewClass} type="button" data-view="ae" onclick={handleView}>By AE</button>
+            <div class="toggle-row">
+                <div class="view-toggle" role="group" aria-label="Forecast category view">
+                    <button class={teamViewClass} type="button" data-view="team" onclick={handleView}>Team</button>
+                    <button class={aeViewClass} type="button" data-view="ae" onclick={handleView}>By AE</button>
+                </div>
+                <div class="view-toggle" role="group" aria-label="In-quarter or include push">
+                    <button class={inQuarterClass} type="button" data-outcome="inQuarter" onclick={handleOutcome}>In-quarter</button>
+                    <button class={inclPushClass} type="button" data-outcome="inclPush" onclick={handleOutcome}>Include push</button>
+                </div>
             </div>
             <div class="cards">
-                <div class="card"><div class="lab">Closed in window</div><div class="val">{closedInWindow}</div><div class="note">Sum of every category, including Not on forecast</div></div>
+                <div class="card"><div class="lab">On the book</div><div class="val">{onBook}</div><div class="note">Deals with a close date in or after this quarter</div></div>
+                <div class="card"><div class="lab">Closed in quarter</div><div class="val">{closedInWindow}</div><div class="note">Funded or lost by quarter-end</div></div>
+                <div class="card"><div class="lab">Pushed</div><div class="val">{pushedInWindow}</div><div class="note">Close date after the quarter</div></div>
+                <div class="card"><div class="lab">Funded</div><div class="val">{fundedInWindow}</div><div class="note">Closed won in-quarter</div></div>
                 <div class="card"><div class="lab">Median cycle</div><div class="val">{medianCycle}</div><div class="note">SQL datestamp → close, won deals</div></div>
             </div>
             <template for:each={checkpoints} for:item="cp">
@@ -80,13 +89,14 @@
                             <thead><tr>
                                 <template lwc:if={cp.showAe}><th>AE</th></template>
                                 <th>Forecast category</th>
-                                <th class="num">Won</th>
+                                <th class="num">Funded</th>
                                 <th class="num">Lost</th>
-                                <th class="num">Total</th>
-                                <th class="num">WR by count</th>
-                                <th class="num">ARR won</th>
-                                <th class="num">ARR total</th>
-                                <th class="num">WR by $</th>
+                                <th class="num">Pushed</th>
+                                <th class="num">Open</th>
+                                <th class="num">On book</th>
+                                <th class="num">Accuracy</th>
+                                <th class="num">ARR funded</th>
+                                <th class="num">ARR accuracy</th>
                             </tr></thead>
                             <tbody>
                                 <template for:each={cp.rows} for:item="r">
@@ -95,10 +105,11 @@
                                         <td><span class={r.pill}>{r.band}</span></td>
                                         <td class="num">{r.won}</td>
                                         <td class="num">{r.lost}</td>
+                                        <td class="num">{r.pushed}</td>
+                                        <td class="num">{r.stillOpen}</td>
                                         <td class="num">{r.total}</td>
                                         <td class="num">{r.winRateCount}</td>
                                         <td class="num">{r.arrWon}</td>
-                                        <td class="num">{r.arrTotal}</td>
                                         <td class="num">{r.winRateArr}</td>
                                     </tr>
                                 </template>
@@ -109,27 +120,31 @@
             </template>
 
             <div class="sec-head">
-                <h2>B. Commit accuracy</h2>
+                <h2>B. Funded accuracy</h2>
                 <div class="sec-actions">
                     <button class="fh-btn gh" type="button" data-explain="commit" onclick={toggleExplain}>Explain what this means</button>
                     <button class="fh-btn" type="button" onclick={handleRefresh}>Refresh live data</button>
                 </div>
             </div>
-            <p class="lede">Won ÷ sat in Commit in the third month of the close quarter. Below 80% with at least 4 Commit closes is flagged. Under 4 is a dash — never 0%.</p>
+            <p class="lede">By AE: of deals that sat in Commit or Most Likely during the quarter, what share funded (closed won in-quarter)? Same in-quarter / include-push toggle as above. Below 80% with at least 4 decided deals is flagged. Under 4 is a dash — never 0%.</p>
             <template lwc:if={showCommitExplain}><div class="box"><p>{commitExplain}</p></div></template>
             <div class="tw"><table>
                 <thead><tr>
                     <th>AE</th>
-                    <th class="num">Won from Commit</th>
-                    <th class="num">Commit closes</th>
+                    <th class="num">Funded</th>
+                    <th class="num">Lost</th>
+                    <th class="num">Pushed</th>
+                    <th class="num">Commit / ML book</th>
                     <th class="num">Accuracy</th>
                 </tr></thead>
                 <tbody>
                     <template for:each={commitRows} for:item="r">
                         <tr key={r.ownerId} class={r.rowClass} title={r.title}>
                             <td>{r.aeName}</td>
-                            <td class="num">{r.won}</td>
-                            <td class="num">{r.commitCloses}</td>
+                            <td class="num">{r.funded}</td>
+                            <td class="num">{r.lost}</td>
+                            <td class="num">{r.pushed}</td>
+                            <td class="num">{r.book}</td>
                             <td class="num">{r.rate}</td>
                         </tr>
                     </template>

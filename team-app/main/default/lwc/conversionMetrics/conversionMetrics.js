@@ -24,6 +24,7 @@ export default class ConversionMetrics extends LightningElement {
     error;
     loading = true;
     viewByAe = false;
+    outcomeMode = 'inQuarter';
     explainOpen = {};
     wiredLoadResult;
 
@@ -153,6 +154,10 @@ export default class ConversionMetrics extends LightningElement {
         this.viewByAe = event.currentTarget.dataset.view === 'ae';
     }
 
+    handleOutcome(event) {
+        this.outcomeMode = event.currentTarget.dataset.outcome === 'inclPush' ? 'inclPush' : 'inQuarter';
+    }
+
     toggleExplain(event) {
         const key = event.currentTarget.dataset.explain;
         this.explainOpen = { ...this.explainOpen, [key]: !this.explainOpen[key] };
@@ -227,6 +232,9 @@ export default class ConversionMetrics extends LightningElement {
     get showLiveExplain() { return !!this.explainOpen.live; }
     get teamViewClass() { return this.viewByAe ? 'chip' : 'chip on'; }
     get aeViewClass() { return this.viewByAe ? 'chip on' : 'chip'; }
+    get inQuarterClass() { return this.outcomeMode === 'inclPush' ? 'chip' : 'chip on'; }
+    get inclPushClass() { return this.outcomeMode === 'inclPush' ? 'chip on' : 'chip'; }
+    get includePush() { return this.outcomeMode === 'inclPush'; }
     get meddpiccNote() {
         if (!this.page) return '';
         return this.page.meddpiccAvailable
@@ -237,6 +245,9 @@ export default class ConversionMetrics extends LightningElement {
         return this.page && this.page.medianCycleDays != null ? this.page.medianCycleDays + ' days' : '—';
     }
     get closedInWindow() { return this.page && this.page.closedInWindow != null ? this.page.closedInWindow : 0; }
+    get onBook() { return this.page && this.page.onBook != null ? this.page.onBook : 0; }
+    get pushedInWindow() { return this.page && this.page.pushedInWindow != null ? this.page.pushedInWindow : 0; }
+    get fundedInWindow() { return this.page && this.page.fundedInWindow != null ? this.page.fundedInWindow : 0; }
 
     get checkpoints() {
         const tables = this.page && this.page.bandCheckpoints ? this.page.bandCheckpoints : [];
@@ -254,6 +265,12 @@ export default class ConversionMetrics extends LightningElement {
     }
 
     bandDisplay(rowKey, r, aeName) {
+        const countRate = this.includePush
+            ? (r.winRateInclPush != null ? r.winRateInclPush : r.winRateCount)
+            : (r.winRateInQuarter != null ? r.winRateInQuarter : r.winRateCount);
+        const arrRate = this.includePush
+            ? (r.arrRateInclPush != null ? r.arrRateInclPush : r.winRateArr)
+            : (r.arrRateInQuarter != null ? r.arrRateInQuarter : r.winRateArr);
         return {
             rowKey: rowKey,
             aeName: aeName,
@@ -261,25 +278,34 @@ export default class ConversionMetrics extends LightningElement {
             pill: 'pill ' + this.bandClass(r.band),
             won: r.won,
             lost: r.lost,
+            pushed: r.pushed || 0,
+            stillOpen: r.stillOpen || 0,
             total: r.total,
-            winRateCount: this.pct(r.winRateCount),
+            winRateCount: this.pct(countRate),
             arrWon: this.money(r.arrWon),
             arrTotal: this.money(r.arrTotal),
-            winRateArr: this.pct(r.winRateArr),
+            winRateArr: this.pct(arrRate),
             gapClass: r.largeDealsLose ? 'gap-warn' : ''
         };
     }
 
     get commitRows() {
-        return (this.page && this.page.commitAccuracy ? this.page.commitAccuracy : []).map((r) => ({
-            ownerId: r.ownerId,
-            aeName: r.aeName,
-            won: r.won,
-            commitCloses: r.commitCloses,
-            rate: this.pct(r.rate),
-            title: r.sampleTooltip || '',
-            rowClass: r.flagged ? 'flag-row' : ''
-        }));
+        return (this.page && this.page.commitAccuracy ? this.page.commitAccuracy : []).map((r) => {
+            const rate = this.includePush
+                ? (r.rateInclPush != null ? r.rateInclPush : r.rate)
+                : (r.rateInQuarter != null ? r.rateInQuarter : r.rate);
+            return {
+                ownerId: r.ownerId,
+                aeName: r.aeName,
+                funded: r.funded != null ? r.funded : r.won,
+                lost: r.lost || 0,
+                pushed: r.pushed || 0,
+                book: r.book != null ? r.book : r.commitCloses,
+                rate: this.pct(rate),
+                title: r.sampleTooltip || '',
+                rowClass: r.flagged ? 'flag-row' : ''
+            };
+        });
     }
 
     get lossRows() {

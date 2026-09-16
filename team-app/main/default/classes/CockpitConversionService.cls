@@ -1,8 +1,8 @@
 /**
- * Live Conversion Metrics (closure-based). Answers what a forecast word
- * (Commit / Most Likely / Best Case) actually turned into, plus commit
- * accuracy, loss-root over-index, and live-book leading indicators.
- * Aggregates only — no snapshot, no Win Rate Truth batch pattern.
+ * Live Conversion Metrics. Forecast category accuracy scores the book that
+ * sat in a word during each month of the selected quarter, then asks what
+ * happened by quarter-end: funded (closed won in-quarter), lost, or pushed.
+ * Funded accuracy is Commit or Most Likely in-quarter, by AE.
  */
 public with sharing class CockpitConversionService {
 
@@ -47,6 +47,12 @@ public with sharing class CockpitConversionService {
         'Commit', 'Most Likely', 'Best Case', 'Pipeline', 'Omitted', 'Closed', NOT_ON_FORECAST
     };
     public static final Set<String> ABOVE_BEST_CASE = new Set<String>{ 'Commit', 'Most Likely' };
+    public static final Set<String> FUNDED_BANDS = new Set<String>{ 'Commit', 'Most Likely' };
+    public static final String FATE_FUNDED = 'FUNDED';
+    public static final String FATE_LOST = 'LOST';
+    public static final String FATE_PUSHED = 'PUSHED';
+    public static final String FATE_OPEN = 'OPEN';
+    public static final String FATE_PRIOR = 'PRIOR';
 
     private static final Map<String, String> LOSS_ROOT = new Map<String, String>{
         'Opportunity not Qualified' => 'QUAL',
@@ -122,12 +128,19 @@ public with sharing class CockpitConversionService {
         @AuraEnabled public String band;
         @AuraEnabled public Integer won = 0;
         @AuraEnabled public Integer lost = 0;
+        @AuraEnabled public Integer pushed = 0;
+        @AuraEnabled public Integer stillOpen = 0;
         @AuraEnabled public Integer total = 0;
         @AuraEnabled public Decimal arrWon = 0;
         @AuraEnabled public Decimal arrLost = 0;
+        @AuraEnabled public Decimal arrPushed = 0;
         @AuraEnabled public Decimal arrTotal = 0;
         @AuraEnabled public Decimal winRateCount;
         @AuraEnabled public Decimal winRateArr;
+        @AuraEnabled public Decimal winRateInQuarter;
+        @AuraEnabled public Decimal winRateInclPush;
+        @AuraEnabled public Decimal arrRateInQuarter;
+        @AuraEnabled public Decimal arrRateInclPush;
         @AuraEnabled public Decimal rateGap;
         @AuraEnabled public Boolean largeDealsLose = false;
     }
@@ -136,8 +149,15 @@ public with sharing class CockpitConversionService {
         @AuraEnabled public Id ownerId;
         @AuraEnabled public String aeName;
         @AuraEnabled public Integer won = 0;
+        @AuraEnabled public Integer funded = 0;
+        @AuraEnabled public Integer lost = 0;
+        @AuraEnabled public Integer pushed = 0;
+        @AuraEnabled public Integer stillOpen = 0;
+        @AuraEnabled public Integer book = 0;
         @AuraEnabled public Integer commitCloses = 0;
         @AuraEnabled public Decimal rate;
+        @AuraEnabled public Decimal rateInQuarter;
+        @AuraEnabled public Decimal rateInclPush;
         @AuraEnabled public Boolean flagged = false;
         @AuraEnabled public String sampleTooltip;
     }
@@ -181,11 +201,15 @@ public with sharing class CockpitConversionService {
         @AuraEnabled public String band;
         @AuraEnabled public Integer won = 0;
         @AuraEnabled public Integer lost = 0;
+        @AuraEnabled public Integer pushed = 0;
+        @AuraEnabled public Integer stillOpen = 0;
         @AuraEnabled public Integer total = 0;
         @AuraEnabled public Decimal arrWon = 0;
         @AuraEnabled public Decimal arrTotal = 0;
         @AuraEnabled public Decimal winRateCount;
         @AuraEnabled public Decimal winRateArr;
+        @AuraEnabled public Decimal winRateInQuarter;
+        @AuraEnabled public Decimal winRateInclPush;
     }
 
     public class CheckpointTable {
@@ -214,6 +238,9 @@ public with sharing class CockpitConversionService {
         @AuraEnabled public Boolean meddpiccAvailable;
         @AuraEnabled public Integer medianCycleDays;
         @AuraEnabled public Integer closedInWindow = 0;
+        @AuraEnabled public Integer onBook = 0;
+        @AuraEnabled public Integer pushedInWindow = 0;
+        @AuraEnabled public Integer fundedInWindow = 0;
         @AuraEnabled public List<CommitRow> commitAccuracy = new List<CommitRow>();
         @AuraEnabled public List<LossRow> lossMatrix = new List<LossRow>();
         @AuraEnabled public List<OverIndexRow> overIndexed = new List<OverIndexRow>();
@@ -236,7 +263,7 @@ public with sharing class CockpitConversionService {
         o.sizeBands.add(new FilterOption(SIZE_UNDER_50, 'Under $50k'));
         o.sizeBands.add(new FilterOption(SIZE_50_150, '$50–150k'));
         o.sizeBands.add(new FilterOption(SIZE_150_PLUS, '$150k+'));
-        o.closeQuarters.add(new FilterOption(QUARTER_ALL, 'All close quarters'));
+        o.closeQuarters.add(new FilterOption(QUARTER_ALL, 'All quarters'));
         Date cursor = CockpitConstants.quarterStart(CLOSED_SINCE.year(), CockpitConstants.quarterOf(CLOSED_SINCE));
         Date today = Date.today();
         while (cursor <= today) {
@@ -259,20 +286,24 @@ public with sharing class CockpitConversionService {
         page.options = getScopeOptions();
         page.scope = resolveScope(directorId, teamMode, productType, sizeBand, closeQuarter);
         page.conventionCaption =
-            'This tab is closure-based: it scores deals that closed in the selected close quarter. '
+            'Forecast category accuracy starts from the book in each month of the selected quarter, '
+            + 'then asks what had happened by quarter-end: funded in-quarter, lost, or pushed. '
             + 'Cohort conversion (from the SQL gate) lives on Win Rate Truth.';
         page.bandWriterCaption =
-            'Forecast category in each month of the close quarter: weekly roll-up snapshot in that month, '
-            + 'else Forecast Category history as of month-end, else the band held before close if the '
-            + 'deal closed in that month. No source → Not on forecast. Live — refresh to recompute.';
+            'Category in that month: weekly roll-up snapshot, else Forecast Category history as of '
+            + 'month-end, else the band held before close if the deal closed in that month. '
+            + 'Deals with no source that month are left off the table. Live — refresh to recompute.';
         page.forecastExplain =
-            'Forecast category accuracy: of deals that closed in this quarter, what category were they '
-            + 'in during the first, second, and third month — and what share of those won? '
-            + 'That is conversion from the word the team used that month. '
+            'For each month of the quarter: of deals that sat in a forecast category that month, '
+            + 'where were they at quarter-end? In-quarter win rate is funded ÷ (funded + lost) among '
+            + 'deals that actually closed that quarter. Include push puts slipped deals in the '
+            + 'denominator so a word is not scored only on what later closed. '
             + page.bandWriterCaption;
         page.commitExplain =
-            'Commit accuracy is won ÷ sat in Commit during the third month of the close quarter. '
-            + 'Dash below 4 Commit closes — never shown as 0%. Flag below 80% once the floor is met.';
+            'Funded accuracy is by AE: of deals that sat in Commit or Most Likely during the quarter, '
+            + 'what share funded (closed won in-quarter)? In-quarter ignores pushes; Include push '
+            + 'counts them against the word. Dash below 4 decided deals — never shown as 0%. '
+            + 'Flag below 80% once the floor is met.';
         page.lossExplain =
             'Loss reasons before ' + String.valueOf(LOSS_REASON_FLOOR)
             + ' are unreliable. Over-indexed when a rep has ≥4 losses in a reason, ≥18% of their losses, '
@@ -294,7 +325,15 @@ public with sharing class CockpitConversionService {
             qStart = bounds[0];
             qEnd = bounds[1];
         }
-        String extra = extraFilters(page.scope.productType, page.scope.sizeBand, qStart, qEnd);
+        Date forecastStart = qStart;
+        Date forecastEnd = qEnd;
+        if (forecastStart == null || forecastEnd == null) {
+            Date[] current = closeQuarterBounds(currentQuarterKey());
+            forecastStart = current[0];
+            forecastEnd = current[1];
+        }
+        String extraClosed = extraFilters(page.scope.productType, page.scope.sizeBand, qStart, qEnd);
+        String extraBook = extraFilters(page.scope.productType, page.scope.sizeBand, forecastStart, null);
         String liveExtra = extraFilters(page.scope.productType, page.scope.sizeBand, null, null);
         List<Id> owners = page.scope.ownerIds;
         Date closedSince = CLOSED_SINCE;
@@ -303,15 +342,15 @@ public with sharing class CockpitConversionService {
         List<String> migStages = MIGRATION_STAGES;
         Set<String> solutions = CockpitConstants.solutionsInProductFilter(page.scope.productType);
 
-        List<ClosedDeal> deals = loadClosedDeals(
-            owners, extra, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
-        page.closedInWindow = deals.size();
-        fillBandCheckpoints(page, deals);
+        List<BookDeal> deals = loadBookDeals(
+            owners, extraBook, solutions, saleRt, nbTypes, migStages, forecastStart);
+        tallyBook(page, deals, forecastStart, forecastEnd);
+        fillBandCheckpoints(page, deals, forecastStart, forecastEnd);
 
-        fillLossMatrix(page, owners, extra, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
+        fillLossMatrix(page, owners, extraClosed, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
         fillLiveBook(page, owners, liveExtra, solutions, saleRt, nbTypes, migStages);
         page.medianCycleDays = loadMedianCycle(
-            owners, extra, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
+            owners, extraClosed, solutions, closedSince, saleRt, nbTypes, migStages, qStart, qEnd);
         return page;
     }
 
@@ -445,17 +484,38 @@ public with sharing class CockpitConversionService {
 
     @TestVisible
     static String categoryInMonth(
-        List<SnapPoint> points, Date closeDate, String key, String beforeClose
+        List<SnapPoint> points, Date quarterAnchor, String key, String beforeClose
     ) {
-        Date start = monthStart(closeDate, key);
+        return categoryInMonth(points, quarterAnchor, key, beforeClose, quarterAnchor);
+    }
+
+    @TestVisible
+    static String categoryInMonth(
+        List<SnapPoint> points, Date quarterAnchor, String key, String beforeClose, Date closeDate
+    ) {
+        Date start = monthStart(quarterAnchor, key);
         if (start == null) return NOT_ON_FORECAST;
         Date endDate = start.addMonths(1).addDays(-1);
         SnapPoint best = latestInMonth(points, start, endDate);
         if (best != null && String.isNotBlank(best.band)) return normalizeBand(best.band);
-        if (closeDate >= start && closeDate <= endDate && String.isNotBlank(beforeClose)) {
+        if (closeDate != null && closeDate >= start && closeDate <= endDate && String.isNotBlank(beforeClose)) {
             return normalizeBand(beforeClose);
         }
         return NOT_ON_FORECAST;
+    }
+
+    @TestVisible
+    static String fateOf(Boolean isClosed, Boolean won, Date closeDate, Date qStart, Date qEnd) {
+        if (qStart == null || qEnd == null) return FATE_PRIOR;
+        if (closeDate != null && closeDate < qStart) return FATE_PRIOR;
+        if (isClosed == true && closeDate != null && closeDate >= qStart && closeDate <= qEnd) {
+            return won == true ? FATE_FUNDED : FATE_LOST;
+        }
+        if (closeDate != null && closeDate > qEnd) return FATE_PUSHED;
+        if (isClosed != true && closeDate != null && closeDate >= qStart && closeDate <= qEnd) {
+            return FATE_OPEN;
+        }
+        return FATE_PUSHED;
     }
 
     @TestVisible
@@ -495,10 +555,11 @@ public with sharing class CockpitConversionService {
 
     @TestVisible static Map<Id, List<SnapPoint>> snapshotOverride;
 
-    private class ClosedDeal {
+    private class BookDeal {
         Id id;
         Id ownerId;
         Boolean won;
+        Boolean isClosed;
         Date closeDate;
         Decimal arr;
         String beforeClose;
@@ -509,10 +570,14 @@ public with sharing class CockpitConversionService {
         String value;
     }
 
-    private class CommitAcc {
+    private class FundedAcc {
         Id ownerId;
-        Integer won = 0;
-        Integer commitCloses = 0;
+        Integer funded = 0;
+        Integer lost = 0;
+        Integer pushed = 0;
+        Integer stillOpen = 0;
+        Integer book = 0;
+        Set<Id> seen = new Set<Id>();
     }
 
     private class LiveAcc {
@@ -528,34 +593,32 @@ public with sharing class CockpitConversionService {
         Decimal aboveArr = 0;
     }
 
-    private static List<ClosedDeal> loadClosedDeals(
+    private static List<BookDeal> loadBookDeals(
         List<Id> owners,
         String extra,
         Set<String> solutions,
-        Date closedSince,
         String saleRt,
         Set<String> nbTypes,
         List<String> migStages,
-        Date qStart,
-        Date qEnd
+        Date qStart
     ) {
         String soql =
-            'SELECT Id, OwnerId, IsWon, CloseDate, ARR_Opportunity_Amount_USD_Num__c, '
+            'SELECT Id, OwnerId, IsWon, IsClosed, CloseDate, ARR_Opportunity_Amount_USD_Num__c, '
             + 'Forecast_Category_before_Close__c '
             + 'FROM Opportunity '
-            + 'WHERE IsClosed = true AND CloseDate >= :closedSince '
-            + 'AND OwnerId IN :owners '
+            + 'WHERE OwnerId IN :owners '
             + 'AND RecordType.DeveloperName = :saleRt '
             + 'AND Type IN :nbTypes '
             + 'AND StageName NOT IN :migStages '
             + extra
             + ' LIMIT 2000';
-        List<ClosedDeal> deals = new List<ClosedDeal>();
+        List<BookDeal> deals = new List<BookDeal>();
         for (Opportunity o : Database.query(soql, AccessLevel.USER_MODE)) {
-            ClosedDeal d = new ClosedDeal();
+            BookDeal d = new BookDeal();
             d.id = o.Id;
             d.ownerId = o.OwnerId;
             d.won = o.IsWon;
+            d.isClosed = o.IsClosed;
             d.closeDate = o.CloseDate;
             d.arr = nz(o.ARR_Opportunity_Amount_USD_Num__c);
             d.beforeClose = o.Forecast_Category_before_Close__c;
@@ -564,10 +627,26 @@ public with sharing class CockpitConversionService {
         return deals;
     }
 
-    private static void fillBandCheckpoints(PagePayload page, List<ClosedDeal> deals) {
-        Map<Id, List<SnapPoint>> snaps = loadSnaps(deals);
+    private static void tallyBook(PagePayload page, List<BookDeal> deals, Date qStart, Date qEnd) {
+        Integer closed = 0;
+        Integer pushed = 0;
+        Integer funded = 0;
+        for (BookDeal d : deals) {
+            String fate = fateOf(d.isClosed, d.won, d.closeDate, qStart, qEnd);
+            if (fate == FATE_FUNDED) { closed++; funded++; }
+            else if (fate == FATE_LOST) closed++;
+            else if (fate == FATE_PUSHED) pushed++;
+        }
+        page.closedInWindow = closed;
+        page.pushedInWindow = pushed;
+        page.fundedInWindow = funded;
+        page.onBook = deals == null ? 0 : deals.size();
+    }
+
+    private static void fillBandCheckpoints(PagePayload page, List<BookDeal> deals, Date qStart, Date qEnd) {
+        Map<Id, List<SnapPoint>> snaps = loadSnaps(deals, qStart);
         Map<Id, List<HistPoint>> hist = loadCategoryHistory(deals);
-        Map<Id, CommitAcc> commitByOwner = new Map<Id, CommitAcc>();
+        Map<Id, FundedAcc> fundedByOwner = new Map<Id, FundedAcc>();
         List<String> keys = new List<String>{ CP_M1, CP_M2, CP_M3 };
         Map<String, String> labels = new Map<String, String>{
             CP_M1 => 'First month of the quarter',
@@ -575,9 +654,9 @@ public with sharing class CockpitConversionService {
             CP_M3 => 'Third month of the quarter'
         };
         Map<String, String> captions = new Map<String, String>{
-            CP_M1 => 'Forecast category during month 1 of the close quarter, and conversion from that word.',
-            CP_M2 => 'Forecast category during month 2 of the close quarter, and conversion from that word.',
-            CP_M3 => 'Forecast category during month 3 of the close quarter, and conversion from that word. Commit accuracy uses this month.'
+            CP_M1 => 'On the book in month 1, and where those deals were at quarter-end.',
+            CP_M2 => 'On the book in month 2, and where those deals were at quarter-end.',
+            CP_M3 => 'On the book in month 3, and where those deals were at quarter-end.'
         };
 
         page.bandCheckpoints = new List<CheckpointTable>();
@@ -585,15 +664,18 @@ public with sharing class CockpitConversionService {
         for (String key : keys) {
             Map<String, BandRow> teamBands = new Map<String, BandRow>();
             Map<String, BandRow> aeBands = new Map<String, BandRow>();
-            for (ClosedDeal d : deals) {
-                String band = categoryForDeal(d, key, snaps.get(d.id), hist.get(d.id));
+            for (BookDeal d : deals) {
+                String band = categoryForDeal(d, key, snaps.get(d.id), hist.get(d.id), qStart);
+                if (band == NOT_ON_FORECAST) continue;
+                String fate = fateOf(d.isClosed, d.won, d.closeDate, qStart, qEnd);
+                if (fate == FATE_PRIOR) continue;
                 BandRow row = teamBands.get(band);
                 if (row == null) {
                     row = new BandRow();
                     row.band = band;
                     teamBands.put(band, row);
                 }
-                applyOutcome(row, d.won, 1, d.arr);
+                applyFate(row, fate, d.arr);
                 String aeKey = String.valueOf(d.ownerId) + '|' + band;
                 BandRow aeRow = aeBands.get(aeKey);
                 if (aeRow == null) {
@@ -601,16 +683,22 @@ public with sharing class CockpitConversionService {
                     aeRow.band = band;
                     aeBands.put(aeKey, aeRow);
                 }
-                applyOutcome(aeRow, d.won, 1, d.arr);
-                if (key == CP_M3 && band == 'Commit') {
-                    CommitAcc ca = commitByOwner.get(d.ownerId);
-                    if (ca == null) {
-                        ca = new CommitAcc();
-                        ca.ownerId = d.ownerId;
-                        commitByOwner.put(d.ownerId, ca);
+                applyFate(aeRow, fate, d.arr);
+                if (FUNDED_BANDS.contains(band)) {
+                    FundedAcc fa = fundedByOwner.get(d.ownerId);
+                    if (fa == null) {
+                        fa = new FundedAcc();
+                        fa.ownerId = d.ownerId;
+                        fundedByOwner.put(d.ownerId, fa);
                     }
-                    ca.commitCloses++;
-                    if (d.won == true) ca.won++;
+                    if (!fa.seen.contains(d.id)) {
+                        fa.seen.add(d.id);
+                        fa.book++;
+                        if (fate == FATE_FUNDED) fa.funded++;
+                        else if (fate == FATE_LOST) fa.lost++;
+                        else if (fate == FATE_PUSHED) fa.pushed++;
+                        else if (fate == FATE_OPEN) fa.stillOpen++;
+                    }
                 }
             }
             CheckpointTable t = new CheckpointTable();
@@ -633,39 +721,36 @@ public with sharing class CockpitConversionService {
             ? new List<BandRow>()
             : page.bandCheckpoints[page.bandCheckpoints.size() - 1].rows;
         page.bandInterpretation = interpretations.isEmpty() ? null : String.join(interpretations, ' ');
-        page.commitAccuracy = toCommitRows(commitByOwner, page.scope.ownerNames);
+        page.commitAccuracy = toFundedRows(fundedByOwner, page.scope.ownerNames);
     }
 
     private static String categoryForDeal(
-        ClosedDeal d, String key, List<SnapPoint> points, List<HistPoint> hist
+        BookDeal d, String key, List<SnapPoint> points, List<HistPoint> hist, Date quarterAnchor
     ) {
-        String fromSnap = categoryInMonth(points, d.closeDate, key, null);
+        String fromSnap = categoryInMonth(points, quarterAnchor, key, null, d.closeDate);
         if (fromSnap != NOT_ON_FORECAST) return fromSnap;
-        Date start = monthStart(d.closeDate, key);
+        Date start = monthStart(quarterAnchor, key);
         if (start != null) {
             String fromHist = historyAsOf(hist, start.addMonths(1).addDays(-1));
             if (String.isNotBlank(fromHist)) return normalizeBand(fromHist);
         }
-        return categoryInMonth(points, d.closeDate, key, d.beforeClose);
+        String before;
+        if (d.isClosed == true && start != null && d.closeDate != null
+            && d.closeDate >= start && d.closeDate <= start.addMonths(1).addDays(-1)) {
+            before = d.beforeClose;
+        }
+        return categoryInMonth(points, quarterAnchor, key, before, d.closeDate);
     }
 
-    private static Map<Id, List<SnapPoint>> loadSnaps(List<ClosedDeal> deals) {
+    private static Map<Id, List<SnapPoint>> loadSnaps(List<BookDeal> deals, Date quarterAnchor) {
         if (snapshotOverride != null) return snapshotOverride;
         Map<Id, List<SnapPoint>> out = new Map<Id, List<SnapPoint>>();
         if (deals == null || deals.isEmpty() || !canReadWeeklySnapshots()) return out;
 
         List<Id> ids = new List<Id>();
-        Date minD;
-        Date maxD;
-        for (ClosedDeal d : deals) {
-            ids.add(d.id);
-            Date s = monthStart(d.closeDate, CP_M1);
-            Date e = monthStart(d.closeDate, CP_M3);
-            if (e != null) e = e.addMonths(1).addDays(-1);
-            if (s != null) s = s.addDays(-MONTH_WEEK_OVERLAP_DAYS);
-            if (s != null && (minD == null || s < minD)) minD = s;
-            if (e != null && (maxD == null || e > maxD)) maxD = e;
-        }
+        for (BookDeal d : deals) ids.add(d.id);
+        Date minD = quarterAnchor == null ? null : quarterAnchor.addDays(-MONTH_WEEK_OVERLAP_DAYS);
+        Date maxD = quarterAnchor == null ? null : quarterAnchor.addMonths(3).addDays(-1);
         if (minD == null || maxD == null) return out;
 
         Map<Id, Date> weekStartById = new Map<Id, Date>();
@@ -749,11 +834,11 @@ public with sharing class CockpitConversionService {
         return last;
     }
 
-    private static Map<Id, List<HistPoint>> loadCategoryHistory(List<ClosedDeal> deals) {
+    private static Map<Id, List<HistPoint>> loadCategoryHistory(List<BookDeal> deals) {
         Map<Id, List<HistPoint>> out = new Map<Id, List<HistPoint>>();
         if (deals == null || deals.isEmpty()) return out;
         List<Id> ids = new List<Id>();
-        for (ClosedDeal d : deals) ids.add(d.id);
+        for (BookDeal d : deals) ids.add(d.id);
         for (Integer i = 0; i < ids.size(); i += 200) {
             Integer last = Math.min(i + 200, ids.size());
             List<Id> slice = new List<Id>();
@@ -787,35 +872,56 @@ public with sharing class CockpitConversionService {
             r.band = src.band;
             r.won = src.won;
             r.lost = src.lost;
+            r.pushed = src.pushed;
+            r.stillOpen = src.stillOpen;
             r.total = src.total;
             r.arrWon = src.arrWon;
             r.arrTotal = src.arrTotal;
             r.winRateCount = src.winRateCount;
             r.winRateArr = src.winRateArr;
+            r.winRateInQuarter = src.winRateInQuarter;
+            r.winRateInclPush = src.winRateInclPush;
             out.add(r);
         }
         out.sort(new AeBandSort());
         return out;
     }
 
-    private static void applyOutcome(BandRow row, Boolean won, Integer c, Decimal arr) {
-        row.total += c;
+    @TestVisible
+    static void applyFate(BandRow row, String fate, Decimal arr) {
+        row.total += 1;
         row.arrTotal += arr;
-        if (won == true) {
-            row.won += c;
+        if (fate == FATE_FUNDED) {
+            row.won += 1;
             row.arrWon += arr;
-        } else {
-            row.lost += c;
+        } else if (fate == FATE_LOST) {
+            row.lost += 1;
             row.arrLost += arr;
+        } else if (fate == FATE_PUSHED) {
+            row.pushed += 1;
+            row.arrPushed += arr;
+        } else if (fate == FATE_OPEN) {
+            row.stillOpen += 1;
         }
     }
 
-    private static void finalizeBands(List<BandRow> bands) {
+    @TestVisible
+    static void finalizeBands(List<BandRow> bands) {
         for (BandRow r : bands) {
-            r.winRateCount = r.total == 0 ? null : Decimal.valueOf(r.won).divide(r.total, 4);
-            r.winRateArr = (r.arrTotal == null || r.arrTotal == 0)
+            Integer closed = r.won + r.lost;
+            Integer decided = closed + r.pushed;
+            Decimal arrClosed = r.arrWon + r.arrLost;
+            Decimal arrDecided = arrClosed + r.arrPushed;
+            r.winRateInQuarter = closed == 0 ? null : Decimal.valueOf(r.won).divide(closed, 4);
+            r.winRateInclPush = decided == 0 ? null : Decimal.valueOf(r.won).divide(decided, 4);
+            r.arrRateInQuarter = (arrClosed == null || arrClosed == 0)
                 ? null
-                : r.arrWon.divide(r.arrTotal, 4);
+                : r.arrWon.divide(arrClosed, 4);
+            r.arrRateInclPush = (arrDecided == null || arrDecided == 0)
+                ? null
+                : r.arrWon.divide(arrDecided, 4);
+            r.winRateCount = r.winRateInQuarter;
+            r.winRateArr = r.arrRateInQuarter;
             Decimal countPct = r.winRateCount == null ? 0 : r.winRateCount;
             Decimal arrPct = r.winRateArr == null ? 0 : r.winRateArr;
             r.rateGap = (r.winRateCount == null || r.winRateArr == null)
@@ -844,20 +950,28 @@ public with sharing class CockpitConversionService {
         return out;
     }
 
-    private static List<CommitRow> toCommitRows(Map<Id, CommitAcc> byOwner, Map<Id, String> names) {
+    private static List<CommitRow> toFundedRows(Map<Id, FundedAcc> byOwner, Map<Id, String> names) {
         List<CommitRow> out = new List<CommitRow>();
         for (Id oid : byOwner.keySet()) {
-            CommitAcc ca = byOwner.get(oid);
+            FundedAcc fa = byOwner.get(oid);
             CommitRow r = new CommitRow();
             r.ownerId = oid;
             r.aeName = names.containsKey(oid) ? names.get(oid) : String.valueOf(oid);
-            r.won = ca.won;
-            r.commitCloses = ca.commitCloses;
-            r.rate = commitAccuracy(ca.won, ca.commitCloses);
+            r.funded = fa.funded;
+            r.won = fa.funded;
+            r.lost = fa.lost;
+            r.pushed = fa.pushed;
+            r.stillOpen = fa.stillOpen;
+            r.book = fa.book;
+            r.commitCloses = fa.funded + fa.lost;
+            r.rateInQuarter = commitAccuracy(fa.funded, fa.funded + fa.lost);
+            r.rateInclPush = commitAccuracy(fa.funded, fa.funded + fa.lost + fa.pushed);
+            r.rate = r.rateInQuarter;
             r.flagged = r.rate != null && r.rate < COMMIT_FLAG_RATE;
+            Integer sample = fa.funded + fa.lost;
             r.sampleTooltip = r.rate == null
-                ? 'Dash until ' + COMMIT_SAMPLE_FLOOR + ' Commit closes (sample is '
-                    + ca.commitCloses + '). Never shown as 0%.'
+                ? 'Dash until ' + COMMIT_SAMPLE_FLOOR + ' Commit/Most Likely closes (sample is '
+                    + sample + '). Never shown as 0%.'
                 : null;
             out.add(r);
         }
@@ -1125,6 +1239,8 @@ public with sharing class CockpitConversionService {
         }
         if (qStart != null && qEnd != null) {
             extra += ' AND CloseDate >= :qStart AND CloseDate <= :qEnd ';
+        } else if (qStart != null) {
+            extra += ' AND CloseDate >= :qStart ';
         }
         return extra;
     }
@@ -1138,7 +1254,7 @@ public with sharing class CockpitConversionService {
         else size = 'All sizes';
         String who = s.aeSelfFallback ? s.directorName : ('Team of ' + s.directorName);
         String qtr = (String.isBlank(s.closeQuarter) || s.closeQuarter == QUARTER_ALL)
-            ? 'All close quarters'
+            ? 'All quarters'
             : s.closeQuarter.replace('-', ' ');
         return who + ' · ' + product + ' · ' + size + ' · ' + qtr;
     }
